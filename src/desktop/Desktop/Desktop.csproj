@@ -12,4 +12,20 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3405.78" />
   </ItemGroup>
 
+  <!-- Frontend build and copying it to /ui (Release folder) -->
+  <Target Name="BuildFrontend" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <!-- 1) Building react -->
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\$(FrontendDir)" Command="cmd /c npm install" />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\$(FrontendDir)" Command="cmd /c npm run build" />
+
+    <!-- 2) Copying dist/ to bin\Release\...\ui\ -->
+    <ItemGroup>
+      <DistFiles Include="$(MSBuildProjectDirectory)\$(FrontendDir)\dist\**\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(OutDir)ui" />
+    <Copy SourceFiles="@(DistFiles)"
+          DestinationFiles="@(DistFiles->'$(OutDir)ui\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>
