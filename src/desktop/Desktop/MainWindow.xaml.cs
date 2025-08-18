@@ -1,4 +1,5 @@
 ﻿using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.Wpf;
 using System;
 using System.IO;
 using System.Windows;
@@ -16,16 +17,18 @@ namespace Desktop
                 {
                     await Web.EnsureCoreWebView2Async();
 
+                    Web.CoreWebView2.WebMessageReceived += (_, e) =>
+                    {
+                        var msg = e.TryGetWebMessageAsString();
+                        MessageBox.Show($"From React: {msg}", "Desktop");
+                        Web.CoreWebView2.PostWebMessageAsString("{\"ok\":true}");
+                    };
+
 #if DEBUG
-                    // DEV: uruchom najpierw `npm run dev` w src/frontend
-                    Web.Source = new Uri("http://localhost:5173");
+                    try { Web.Source = new Uri("http://localhost:5173"); }
+                    catch { Web.Source = new Uri(Path.Combine(AppContext.BaseDirectory, "ui", "index.html")); }
 #else
-                    // PROD: ładuj z plików zbudowanych przez Vite (skopiowanych do /ui)
-                    var uiDir = Path.Combine(AppContext.BaseDirectory, "ui");
-                    var index = Path.Combine(uiDir, "index.html");
-                    if (!File.Exists(index))
-                        throw new FileNotFoundException("Brak plików UI (ui/index.html). Zrób npm run build i skopiuj dist do /ui.");
-                    Web.Source = new Uri(index);
+                    Web.Source = new Uri(Path.Combine(AppContext.BaseDirectory, "ui", "index.html"));
 #endif
                 }
                 catch (Exception ex)
