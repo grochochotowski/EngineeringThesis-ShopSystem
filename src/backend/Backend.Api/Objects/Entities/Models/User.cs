@@ -17,6 +17,6 @@ namespace Backend.Api.Objects.Entities.Models
 
         // relationships 1:1
         [Required] public int AddressId { get; set; }
-        public virtual Address Address { get; set; }
+        public virtual Address Address { get; set; } = default!;
     }
 }
