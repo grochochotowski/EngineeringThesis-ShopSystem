@@ -1,4 +1,5 @@
 
+using Backend.Api.Infrastructure;
 using Backend.Api.Objects.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -13,6 +14,7 @@ namespace Backend.Api
 
             // Add services to the container.
             builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+            builder.Services.AddTransient<DbSeeder>();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
