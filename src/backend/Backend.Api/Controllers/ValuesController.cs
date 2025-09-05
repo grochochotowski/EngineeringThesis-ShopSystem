@@ -32,36 +32,58 @@ namespace Backend.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateProductDto dto)
         {
+            // check if sku exists
             if (await _db.Products.AnyAsync(x => x.SKU == dto.SKU))
-                return Conflict($"SKU '{dto.SKU}' już istnieje.");
+                return Conflict($"SKU '{dto.SKU}' already exist.");
 
+            // check if category exists
+            var categoryExists = await _db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+            if (!categoryExists)
+                return BadRequest($"CategoryId {dto.CategoryId} does not exist.");
+
+            // create product
             var p = new Product
             {
-                SKU = dto.SKU,
-                Name = dto.Name,
+                SKU = dto.SKU.Trim(),
+                Name = dto.Name.Trim(),
+                Description = dto.Description!.Trim(),
                 Price = dto.Price,
-                Stock = dto.Stock
+                CategoryId = dto.CategoryId
             };
 
+            // save
             _db.Products.Add(p);
             await _db.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetById), new { id = p.Id }, p);
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] CreateProductDto dto)
         {
+            // check if product exists
             var p = await _db.Products.FirstOrDefaultAsync(x => x.Id == id);
             if (p is null) return NotFound();
 
+            // check if SKU is changing and if new SKU already exists
             if (p.SKU != dto.SKU && await _db.Products.AnyAsync(x => x.SKU == dto.SKU))
-                return Conflict($"SKU '{dto.SKU}' już istnieje.");
+                return Conflict($"SKU '{dto.SKU}' already exist.");
 
+            // check if category exists
+            var categoryExists = await _db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+            if (!categoryExists) return BadRequest($"CategoryId {dto.CategoryId} does not exist.");
+
+            // update fields
             p.SKU = dto.SKU;
             p.Name = dto.Name;
             p.Price = dto.Price;
-            p.Stock = dto.Stock;
+            p.CategoryId = dto.CategoryId;
 
+            // description is optional to update - if null than keep old
+            if (!string.IsNullOrWhiteSpace(dto.Description))
+                p.Description = dto.Description!;
+
+            // save
             await _db.SaveChangesAsync();
             return NoContent();
         }
