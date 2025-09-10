@@ -7,7 +7,7 @@ namespace Backend.Api.Objects.Entities.Models
     {
         [Key] public int Id { get; set; }
         [Required] public string Name { get; set; }
-        [Required] public string ContactNumber { get; set; }
+        [Required] public string PhoneNumber { get; set; }
         [Required] public string Email { get; set; }
 
         // relationships 1:1
