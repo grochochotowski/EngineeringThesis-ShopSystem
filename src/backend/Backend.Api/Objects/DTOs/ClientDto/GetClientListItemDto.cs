@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.DTOs.ClientDto
 {
-    public class GetClientListDto
+    public class GetClientListItemDto
     {
         public int Key { get; set; } = default!;
         public string FirstName { get; set; } = default!;

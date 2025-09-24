@@ -2,7 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs.CategoryDto
 {
-    public class GetCategoryListDto
+    public class GetCategoryListItemDto
     {
         public string Name { get; set; } = default!;
     }
