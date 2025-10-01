@@ -11,6 +11,6 @@ namespace Backend.Api.Objects.Entities.Models.Relations
         [Required] public int ProductId { get; set; }
         public virtual Product Product { get; set; } = default!;
 
-        [Required] public int Quantity { get; set; }
+        [Required, Range(0, int.MaxValue)] public int Quantity { get; set; }
     }
 }
