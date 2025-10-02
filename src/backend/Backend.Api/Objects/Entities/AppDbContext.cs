@@ -20,6 +20,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 
         public DbSet<WarehouseProduct> WarehouseProducts => Set<WarehouseProduct>();
+        public DbSet<ParcelProduct> ParcelProducts => Set<ParcelProduct>();
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -92,10 +93,22 @@ namespace Backend.Api.Objects.Entities
                 .OnDelete(DeleteBehavior.Restrict);
 
             // N:N (Product - Parcel)
-            modelBuilder.Entity<Parcel>()
-                .HasMany(par => par.Products)
-                .WithMany(pro => pro.Parcels)
-                .UsingEntity(j => j.ToTable("ParcelProduct"));
+            modelBuilder.Entity<ParcelProduct>()
+                .ToTable("ParcelProduct")
+                .HasKey(pp => new { pp.ParcelId, pp.ProductId });
+
+            modelBuilder.Entity<ParcelProduct>()
+                .HasOne(pp => pp.Parcel)
+                .WithMany(p => p.ParcelProducts)
+                .HasForeignKey(pp => pp.ParcelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ParcelProduct>()
+                .HasOne(pp => pp.Product)
+                .WithMany(p => p.ParcelProducts)
+                .HasForeignKey(pp => pp.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }

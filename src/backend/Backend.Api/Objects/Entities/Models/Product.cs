@@ -19,8 +19,8 @@ namespace Backend.Api.Objects.Entities.Models
         [Required] public int CategoryId { get; set; }
         public virtual Category Category { get; set; } = default!;
 
-        // relationships N:N (X Products - X Warehouses)
+        // relationships N:N (X Products - X Warehouses/Products)
         public virtual ICollection<WarehouseProduct> WarehouseProducts { get; set; } = new List<WarehouseProduct>();
-        public virtual ICollection<Parcel> Parcels { get; set; } = new List<Parcel>();
+        public virtual ICollection<ParcelProduct> ParcelProducts { get; set; } = new List<ParcelProduct>();
     }
 }

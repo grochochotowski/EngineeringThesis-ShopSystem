@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Backend.Api.Objects.Entities.Models.Relations;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.Entities.Models
@@ -17,6 +18,6 @@ namespace Backend.Api.Objects.Entities.Models
         public virtual Shipment? Shipment { get; set; }
 
         // relationships N:N (X Parcel - X Products)
-        public virtual ICollection<Product> Products { get; set; } = new List<Product>();
+        public virtual ICollection<ParcelProduct> ParcelProducts { get; set; } = new List<ParcelProduct>();
     }
 }
