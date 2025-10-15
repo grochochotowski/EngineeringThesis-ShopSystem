@@ -1,4 +1,5 @@
 
+using Backend.Api.Api.Services;
 using Backend.Api.Infrastructure;
 using Backend.Api.Objects.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,9 @@ namespace Backend.Api
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            builder.Services.AddScoped<IAddressService, AddressService>();
+
 
             var app = builder.Build();
 
