@@ -1,4 +1,4 @@
-
+using Backend.Api.Api.Controllers;
 using Backend.Api.Api.Services;
 using Backend.Api.Infrastructure;
 using Backend.Api.Objects.Entities;
@@ -21,6 +21,7 @@ namespace Backend.Api
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddScoped<IAddressService, AddressService>();
+            builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 
             var app = builder.Build();
