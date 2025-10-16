@@ -1,5 +1,6 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,9 +53,15 @@ namespace Backend.Api.Controllers
             }
 
             [HttpGet]
-            public async Task<ActionResult<IEnumerable<GetClientDto>>> GetAll(CancellationToken ct)
+            public async Task<ActionResult<IEnumerable<GetClientDto>>> GetAll(
+                [FromQuery] string? q,
+                [FromQuery] ClientType? type,
+                [FromQuery] string? city,
+                [FromQuery] DateTime? dobFrom,
+                [FromQuery] DateTime? dobTo,
+                CancellationToken ct)
             {
-                var list = await _service.GetAllAsync(ct);
+                var list = await _service.GetAllAsync(q, type, city, dobFrom, dobTo, ct);
                 return Ok(list);
             }
 

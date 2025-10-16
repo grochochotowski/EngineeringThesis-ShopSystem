@@ -11,7 +11,13 @@ namespace Backend.Api.Api.Controllers
         Task<GetClientDto> CreateWithAddressAsync(CreateClientWithAddressDto dto, CancellationToken ct = default);
 
         Task<GetClientDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetClientDto>> GetAllAsync(CancellationToken ct = default);
+        Task<IReadOnlyList<GetClientDto>> GetAllAsync(
+        string? q = null,
+        ClientType? type = null,
+        string? city = null,
+        DateTime? dobFrom = null,
+        DateTime? dobTo = null,
+        CancellationToken ct = default);
 
         Task<bool> UpdateAsync(int id, UpdateClientDto dto, CancellationToken ct = default);
         Task<bool> UpdateAddressFieldsAsync(int id, UpdateAddressDto dto, CancellationToken ct = default);
@@ -92,14 +98,60 @@ namespace Backend.Api.Api.Controllers
             return c is null ? null : ToGetDto(c);
         }
 
-        public async Task<IReadOnlyList<GetClientDto>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<GetClientDto>> GetAllAsync(
+            string? q = null,
+            ClientType? type = null,
+            string? city = null,
+            DateTime? dobFrom = null,
+            DateTime? dobTo = null,
+            CancellationToken ct = default)
         {
-            var list = await _db.Clients
+            var qry = _db.Clients
                 .AsNoTracking()
+                .Include(c => c.Address)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                qry = qry.Where(c =>
+                    c.FirstName.Contains(term) ||
+                    c.LastName.Contains(term) ||
+                    c.Email.Contains(term) ||
+                    c.PhoneNumber.Contains(term));
+            }
+
+            if (type.HasValue)
+                qry = qry.Where(c => c.Type == type.Value);
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                var cityTerm = city.Trim();
+                qry = qry.Where(c => c.Address.City.Contains(cityTerm));
+            }
+
+            if (dobFrom.HasValue)
+                qry = qry.Where(c => c.DateOfBirth >= dobFrom.Value);
+
+            if (dobTo.HasValue)
+                qry = qry.Where(c => c.DateOfBirth <= dobTo.Value);
+
+            var list = await qry
                 .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)
+                .Select(c => new GetClientDto
+                {
+                    Id = c.Id,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    Email = c.Email,
+                    PhoneNumber = c.PhoneNumber,
+                    DateOfBirth = c.DateOfBirth,
+                    Type = c.Type,
+                    AddressId = c.AddressId
+                })
                 .ToListAsync(ct);
 
-            return list.Select(ToGetDto).ToList();
+            return list;
         }
 
         public async Task<bool> UpdateAsync(int id, UpdateClientDto dto, CancellationToken ct = default)
