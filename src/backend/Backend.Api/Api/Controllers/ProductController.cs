@@ -37,9 +37,15 @@ namespace Backend.Api.Controllers
             }
 
             [HttpGet]
-            public async Task<ActionResult<IEnumerable<GetProductDto>>> GetAll(CancellationToken ct)
+            public async Task<ActionResult<IEnumerable<GetProductDto>>> GetAll(
+                [FromQuery] string? q,
+                [FromQuery] decimal? minPrice,
+                [FromQuery] decimal? maxPrice,
+                [FromQuery] int? categoryId,
+                [FromQuery] bool? defective,
+                CancellationToken ct)
             {
-                var list = await _service.GetAllAsync(ct);
+                var list = await _service.GetAllAsync(q, minPrice, maxPrice, categoryId, defective, ct);
                 return Ok(list);
             }
 

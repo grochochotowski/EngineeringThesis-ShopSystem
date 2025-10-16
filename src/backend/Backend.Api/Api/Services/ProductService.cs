@@ -9,7 +9,15 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetProductDto> CreateAsync(CreateProductDto dto, CancellationToken ct = default);
         Task<GetProductDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetProductDto>> GetAllAsync(CancellationToken ct = default);
+
+        Task<IReadOnlyList<GetProductDto>> GetAllAsync(
+            string? q = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            int? categoryId = null,
+            bool? defective = null,
+            CancellationToken ct = default);
+
         Task<bool> UpdateAsync(int id, UpdateProductDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     }
@@ -66,10 +74,41 @@ namespace Backend.Api.Api.Controllers
             return product is null ? null : ToGetDto(product.Entity, product.CategoryName);
         }
 
-        public async Task<IReadOnlyList<GetProductDto>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<GetProductDto>> GetAllAsync(
+            string? q = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            int? categoryId = null,
+            bool? defective = null,
+            CancellationToken ct = default)
         {
-            var list = await _db.Products
+            var qry = _db.Products
                 .AsNoTracking()
+                .Include(p => p.Category)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                qry = qry.Where(p =>
+                    p.SKU.Contains(term) ||
+                    p.Name.Contains(term) ||
+                    p.Description.Contains(term));
+            }
+
+            if (minPrice.HasValue)
+                qry = qry.Where(p => p.Price >= minPrice.Value);
+
+            if (maxPrice.HasValue)
+                qry = qry.Where(p => p.Price <= maxPrice.Value);
+
+            if (categoryId.HasValue)
+                qry = qry.Where(p => p.CategoryId == categoryId.Value);
+
+            if (defective.HasValue)
+                qry = qry.Where(p => p.Defective == defective.Value);
+
+            var list = await qry
                 .OrderBy(p => p.Name)
                 .Select(p => new GetProductDto
                 {
