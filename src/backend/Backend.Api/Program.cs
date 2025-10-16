@@ -22,6 +22,8 @@ namespace Backend.Api
 
             builder.Services.AddScoped<IAddressService, AddressService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
+            builder.Services.AddScoped<IProductService, ProductService>();
+
 
 
             var app = builder.Build();
