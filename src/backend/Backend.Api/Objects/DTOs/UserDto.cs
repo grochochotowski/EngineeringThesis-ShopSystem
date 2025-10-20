@@ -38,7 +38,8 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(32), Phone] public string PhoneNumber { get; set; } = default!;
         [Required] public DateTime DateOfBirth { get; set; }
         [Required] public UserRole Role { get; set; }
-        [Required] public int AddressId { get; set; }
+        public int? AddressId { get; set; }
+        public CreateAddressDto? Address { get; set; }
     }
 
     public class UpdateUserPasswordOrLoginDto

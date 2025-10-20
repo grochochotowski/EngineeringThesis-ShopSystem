@@ -136,19 +136,24 @@ namespace Backend.Api.Api.Controllers
                 if (taken) throw new InvalidOperationException("Email already in use.");
             }
 
-            if (entity.AddressId != dto.AddressId)
+            if (dto.AddressId.HasValue)
             {
-                var addrExists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId, ct);
-                if (!addrExists) throw new InvalidOperationException("Address not found.");
+                var exists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId.Value, ct);
+                if (!exists) throw new InvalidOperationException("Address not found.");
+                entity.AddressId = dto.AddressId.Value;
+            }
+            else if (dto.Address is not null)
+            {
+                var created = await _addressService.CreateAsync(dto.Address, ct);
+                entity.AddressId = created.Id;
             }
 
-            entity.FirstName = dto.FirstName;
-            entity.LastName = dto.LastName;
-            entity.Email = dto.Email;
-            entity.PhoneNumber = dto.PhoneNumber;
+            entity.FirstName = dto.FirstName.Trim();
+            entity.LastName = dto.LastName.Trim();
+            entity.Email = dto.Email.Trim();
+            entity.PhoneNumber = dto.PhoneNumber?.Trim();
             entity.DateOfBirth = dto.DateOfBirth;
-            entity.Role = dto.Role;           // <- enum-safe
-            entity.AddressId = dto.AddressId;
+            entity.Role = dto.Role;
 
             await _db.SaveChangesAsync(ct);
             return true;
