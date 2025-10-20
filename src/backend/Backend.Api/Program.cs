@@ -23,6 +23,8 @@ namespace Backend.Api
             builder.Services.AddScoped<IAddressService, AddressService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IProductService, ProductService>();
+            builder.Services.AddScoped<IClientService, ClientService>();
+            builder.Services.AddScoped<IUsersService, UsersService>();
 
 
 

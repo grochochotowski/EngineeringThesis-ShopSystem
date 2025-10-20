@@ -26,7 +26,8 @@ namespace Backend.Api.Objects.DTOs
         [Required] public UserRole Role { get; set; }
         [Required, MaxLength(64)] public string Login { get; set; } = default!;
         [Required, MaxLength(256)] public string Password { get; set; } = default!;
-        [Required] public int AddressId { get; set; }
+        public int? AddressId { get; set; }
+        public CreateAddressDto? Address { get; set; }
     }
 
     public class UpdateUserDto
