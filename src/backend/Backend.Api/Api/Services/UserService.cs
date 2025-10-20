@@ -191,7 +191,7 @@ namespace Backend.Api.Api.Controllers
             DateOfBirth = u.DateOfBirth,
             Role = u.Role,
             Login = u.Login,
-            AddressId = u.AddressId//
+            AddressId = u.AddressId
         };
     }
 }

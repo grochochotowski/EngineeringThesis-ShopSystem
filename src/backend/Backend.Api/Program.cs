@@ -21,9 +21,11 @@ namespace Backend.Api
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddScoped<IAddressService, AddressService>();
+
             builder.Services.AddScoped<ICategoryService, CategoryService>();
-            builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.AddScoped<IClientService, ClientService>();
+            builder.Services.AddScoped<IDeliveryCompaniesService, DeliveryCompaniesService>();
+            builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.AddScoped<IUsersService, UsersService>();
 
 

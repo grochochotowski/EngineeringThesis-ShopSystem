@@ -17,7 +17,9 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(64)] public string Name { get; set; } = default!;
         [Required, MaxLength(32)] public string PhoneNumber { get; set; } = default!;
         [Required, MaxLength(64), EmailAddress] public string Email { get; set; } = default!;
-        [Required] public int AddressId { get; set; }
+        public int? AddressId { get; set; }
+        public CreateAddressDto? Address { get; set; }
+
     }
 
     public class UpdateDeliveryCompanyDto
@@ -25,6 +27,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(64)] public string Name { get; set; } = default!;
         [Required, MaxLength(32)] public string PhoneNumber { get; set; } = default!;
         [Required, MaxLength(64), EmailAddress] public string Email { get; set; } = default!;
-        [Required] public int AddressId { get; set; }
+        public int? AddressId { get; set; }
+        public CreateAddressDto? Address { get; set; }
     }
 }
