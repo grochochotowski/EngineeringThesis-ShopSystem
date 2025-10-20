@@ -14,7 +14,7 @@ namespace Backend.Api.Objects.DTOs
         public ClientType Type { get; set; }
         public int AddressId { get; set; }
     }
-    
+
     public class CreateClientDto
     {
         [Required, MaxLength(64)] public string FirstName { get; set; } = default!;
@@ -23,19 +23,8 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(32), Phone] public string PhoneNumber { get; set; } = default!;
         [Required] public DateTime DateOfBirth { get; set; }
         [Required] public ClientType Type { get; set; }
-        [Required] public int AddressId { get; set; }
-    }
-
-    public class CreateClientWithAddressDto
-    {
-        [Required, MaxLength(64)] public string FirstName { get; set; } = default!;
-        [Required, MaxLength(64)] public string LastName { get; set; } = default!;
-        [Required, MaxLength(64), EmailAddress] public string Email { get; set; } = default!;
-        [Required, MaxLength(32), Phone] public string PhoneNumber { get; set; } = default!;
-        [Required] public DateTime DateOfBirth { get; set; }
-        [Required] public ClientType Type { get; set; }
-
-        [Required] public CreateAddressDto Address { get; set; } = default!;
+        public int? AddressId { get; set; }
+        public CreateAddressDto? Address { get; set; }
     }
 
     public class UpdateClientDto
@@ -46,6 +35,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(32), Phone] public string PhoneNumber { get; set; } = default!;
         [Required] public DateTime DateOfBirth { get; set; }
         [Required] public ClientType Type { get; set; }
-        [Required] public int AddressId { get; set; }
+        public int? AddressId { get; set; }
+        public CreateAddressDto? Address { get; set; }
     }
 }
