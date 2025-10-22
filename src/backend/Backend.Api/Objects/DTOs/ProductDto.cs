@@ -12,9 +12,8 @@ namespace Backend.Api.Objects.DTOs
         public decimal Price { get; set; }
         public bool Defective { get; set; }
         public string? DefectDescription { get; set; }
-
         public int CategoryId { get; set; }
-        public string? CategoryName { get; set; }
+        public int TaxRateId { get; set; }
     }
 
     public class CreateProductDto
@@ -23,10 +22,12 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(64)] public string Name { get; set; } = default!;
         [Required, MaxLength(256)] public string Description { get; set; } = default!;
         [Required, Range(0, double.MaxValue)] public decimal Price { get; set; }
-        [Required] public int CategoryId { get; set; }
 
         public bool Defective { get; set; }
         [MaxLength(256)] public string? DefectDescription { get; set; }
+
+        [Required] public int CategoryId { get; set; }
+        [Required] public int TaxRateId { get; set; }
     }
 
     public class UpdateProductDto
@@ -35,9 +36,11 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(64)] public string Name { get; set; } = default!;
         [Required, MaxLength(256)] public string Description { get; set; } = default!;
         [Required, Range(0, double.MaxValue)] public decimal Price { get; set; }
-        [Required] public int CategoryId { get; set; }
 
         public bool Defective { get; set; }
         [MaxLength(256)] public string? DefectDescription { get; set; }
+
+        [Required] public int CategoryId { get; set; }
+        [Required] public int TaxRateId { get; set; }
     }
 }

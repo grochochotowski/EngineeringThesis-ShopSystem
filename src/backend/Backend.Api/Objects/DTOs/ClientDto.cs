@@ -15,7 +15,7 @@ namespace Backend.Api.Objects.DTOs
 
     public class CreateClientDto
     {
-        [Required, MaxLength(64)] public string Name { get; set; } = default!;
+        [Required, MaxLength(128)] public string Name { get; set; } = default!;
         [Required, MaxLength(64), EmailAddress] public string Email { get; set; } = default!;
         [Required, MaxLength(32), Phone] public string PhoneNumber { get; set; } = default!;
         [Required] public ClientType Type { get; set; }
@@ -25,7 +25,7 @@ namespace Backend.Api.Objects.DTOs
 
     public class UpdateClientDto
     {
-        [Required, MaxLength(64)] public string Name { get; set; } = default!;
+        [Required, MaxLength(128)] public string Name { get; set; } = default!;
         [Required, MaxLength(64), EmailAddress] public string Email { get; set; } = default!;
         [Required, MaxLength(32), Phone] public string PhoneNumber { get; set; } = default!;
         [Required] public ClientType Type { get; set; }
