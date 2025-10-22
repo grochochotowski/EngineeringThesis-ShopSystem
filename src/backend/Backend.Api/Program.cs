@@ -25,11 +25,12 @@ namespace Backend.Api
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IClientService, ClientService>();
             builder.Services.AddScoped<IDeliveryCompaniesService, DeliveryCompaniesService>();
+            builder.Services.AddScoped<IParcelsService, ParcelsService>();
             builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.AddScoped<IUsersService, UsersService>();
 
 
-
+            
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
