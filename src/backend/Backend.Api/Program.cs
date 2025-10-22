@@ -28,6 +28,7 @@ namespace Backend.Api
             builder.Services.AddScoped<IParcelsService, ParcelsService>();
             builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.AddScoped<IShipmentService, ShipmentService>();
+            builder.Services.AddScoped<ITaxRateService, TaxRateService>();
             builder.Services.AddScoped<IUsersService, UsersService>();
 
 
