@@ -2,6 +2,7 @@
 {
     public enum UserRole
     {
+        Root = 0,
         Admin = 1,
         CEO = 2,
         Manager = 3,

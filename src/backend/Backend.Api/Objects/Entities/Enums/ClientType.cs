@@ -2,7 +2,7 @@
 {
     public enum ClientType
     {
-        Company = 1,
-        Person = 2
+        Company = 0,
+        Person = 1
     }
 }

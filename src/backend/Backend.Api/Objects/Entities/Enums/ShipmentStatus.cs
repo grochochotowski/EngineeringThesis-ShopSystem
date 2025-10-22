@@ -2,6 +2,7 @@
 
 public enum ShipmentStatus
 {
+    InPrepration = 0,
     Prepared = 1,
     InTransit = 2,
     Delivered = 3,
