@@ -55,11 +55,9 @@ namespace Backend.Api.Api.Controllers
 
             var entity = new Client
             {
-                FirstName = dto.FirstName.Trim(),
-                LastName = dto.LastName.Trim(),
+                Name = dto.Name.Trim(),
                 Email = dto.Email.Trim(),
                 PhoneNumber = dto.PhoneNumber.Trim(),
-                DateOfBirth = dto.DateOfBirth,
                 Type = dto.Type,
                 AddressId = addressId
             };
@@ -89,26 +87,21 @@ namespace Backend.Api.Api.Controllers
             {
                 var term = q.Trim();
                 qry = qry.Where(c =>
-                    c.FirstName.Contains(term) ||
-                    c.LastName.Contains(term) ||
+                    c.Name.Contains(term) ||
                     c.Email.Contains(term) ||
                     c.PhoneNumber.Contains(term));
             }
 
             if (type.HasValue) qry = qry.Where(c => c.Type == type.Value);
-            if (dobFrom.HasValue) qry = qry.Where(c => c.DateOfBirth >= dobFrom.Value);
-            if (dobTo.HasValue) qry = qry.Where(c => c.DateOfBirth <= dobTo.Value);
 
             return await qry
-                .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)
+                .OrderBy(c => c.Name)
                 .Select(c => new GetClientDto
                 {
                     Id = c.Id,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName,
+                    Name = c.Name,
                     Email = c.Email,
                     PhoneNumber = c.PhoneNumber,
-                    DateOfBirth = c.DateOfBirth,
                     Type = c.Type,
                     AddressId = c.AddressId
                 })
@@ -138,11 +131,9 @@ namespace Backend.Api.Api.Controllers
                 entity.AddressId = created.Id;
             }
 
-            entity.FirstName = dto.FirstName.Trim();
-            entity.LastName = dto.LastName.Trim();
+            entity.Name = dto.Name.Trim();
             entity.Email = dto.Email.Trim();
             entity.PhoneNumber = dto.PhoneNumber.Trim();
-            entity.DateOfBirth = dto.DateOfBirth;
             entity.Type = dto.Type;
 
             await _db.SaveChangesAsync(ct);
@@ -162,11 +153,9 @@ namespace Backend.Api.Api.Controllers
         private static GetClientDto ToGetDto(Client c) => new()
         {
             Id = c.Id,
-            FirstName = c.FirstName,
-            LastName = c.LastName,
+            Name = c.Name,
             Email = c.Email,
             PhoneNumber = c.PhoneNumber,
-            DateOfBirth = c.DateOfBirth,
             Type = c.Type,
             AddressId = c.AddressId
         };

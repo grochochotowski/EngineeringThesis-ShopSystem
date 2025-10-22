@@ -1,6 +1,6 @@
 ﻿namespace Backend.Api.Objects.Entities.Models
 {
-    public enum PurchaseDocumentType
+    public enum SalesDocumentType
     {
         Receipt = 0,
         InvoicePersonal = 1,

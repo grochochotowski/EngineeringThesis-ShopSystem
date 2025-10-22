@@ -19,6 +19,10 @@ namespace Backend.Api.Objects.Entities.Models
         [Required] public int CategoryId { get; set; }
         public virtual Category Category { get; set; } = default!;
 
+        // relationships N:1 (1 Product - 1 TaxRate)
+        [Required] public int TaxRateId { get; set; }
+        public virtual TaxRate TaxRate { get; set; } = default!;
+
         // relationships N:N (X Products - X Warehouses/Products)
         public virtual ICollection<WarehouseProduct> WarehouseProducts { get; set; } = new List<WarehouseProduct>();
         public virtual ICollection<ParcelProduct> ParcelProducts { get; set; } = new List<ParcelProduct>();
