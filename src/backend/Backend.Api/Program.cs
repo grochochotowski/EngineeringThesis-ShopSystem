@@ -29,7 +29,7 @@ namespace Backend.Api
             builder.Services.AddScoped<IProductService, ProductService>();
 
             builder.Services.AddScoped<ISalesDocumentItemService, SalesDocumentItemService>();
-
+            builder.Services.AddScoped<ISalesPaymentService, SalesPaymentService>();
             builder.Services.AddScoped<IShipmentService, ShipmentService>();
             builder.Services.AddScoped<ITaxRateService, TaxRateService>();
             builder.Services.AddScoped<IUsersService, UsersService>();
