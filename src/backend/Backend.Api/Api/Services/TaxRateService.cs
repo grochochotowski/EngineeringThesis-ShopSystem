@@ -33,7 +33,7 @@ namespace Backend.Api.Api.Services
             return list.Select(x => new GetTaxRateDto
             {
                 Id = x.Id,
-                Code = x.code,
+                Code = x.Code,
                 Rate = x.Rate,
                 IsActive = x.IsActive
             });
@@ -86,7 +86,7 @@ namespace Backend.Api.Api.Services
 
             var code = NormalizeCode(dto.Code);
 
-            var exists = await _db.TaxRates.AnyAsync(x => x.code == code && x.Id != id, ct);
+            var exists = await _db.TaxRates.AnyAsync(x => x.Code == code && x.Id != id, ct);
             if (exists) throw new InvalidOperationException($"Tax rate code '{code}' already exists.");
 
             var rate = Clamp01(dto.Rate);

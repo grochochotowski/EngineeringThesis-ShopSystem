@@ -120,7 +120,7 @@ namespace Backend.Api.Api.Controllers
                     Defective = p.Defective,
                     DefectDescription = p.DefectDescription,
                     CategoryId = p.CategoryId,
-                    CategoryName = p.Category.Name
+                    TaxRateId = p.TaxRateId
                 })
                 .ToListAsync(ct);
 
@@ -179,7 +179,7 @@ namespace Backend.Api.Api.Controllers
             Defective = p.Defective,
             DefectDescription = p.DefectDescription,
             CategoryId = p.CategoryId,
-            CategoryName = categoryName
+            TaxRateId = p.TaxRateId
         };
     }
 }
