@@ -3,14 +3,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.Entities.Models.Relations
 {
-    public class WarehouseProduct
+    [Index(nameof(ParcelId), nameof(ProductId), IsUnique = true)]
+    public class ParcelProduct
     {
-        [Required] public int WarehouseId { get; set; }
-        public virtual Warehouse Warehouse { get; set; } = default!;
+        // --- Key ---
+        public int ParcelId  { get; set; }
+        public int ProductId { get; set; }
 
-        [Required] public int ProductId { get; set; }
-        public virtual Product Product { get; set; } = default!;
+        // --- Key Navigation Properties ---
+        public virtual Parcel Parcel    { get; set; } = default!;
+        public virtual Product Product  { get; set; } = default!;
 
-        [Required, Range(0, int.MaxValue)] public int Quantity { get; set; }
+        // --- Basic fields ---
+        [Range(0, int.MaxValue)] public int Quantity { get; set; }
     }
 }

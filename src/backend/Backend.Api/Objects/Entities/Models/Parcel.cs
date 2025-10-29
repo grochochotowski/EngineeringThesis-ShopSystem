@@ -6,18 +6,23 @@ namespace Backend.Api.Objects.Entities.Models
 {
     public class Parcel
     {
+        // --- Key ---
         [Key] public int Id { get; set; }
-        [Required, MaxLength(256)] public string Description { get; set; } = default!;
-        [Required, Precision(18, 3)] public decimal Weight { get; set; }
-        [Required, Precision(18, 3)] public decimal Length { get; set; }
-        [Required, Precision(18, 3)] public decimal Width { get; set; }
-        [Required, Precision(18, 3)] public decimal Height { get; set; }
 
-        // relationships N:1 (X Parcel - 1 Shipment)
+        // --- Basic fields ---
+        [MaxLength(256)]   public string Description  { get; set; } = default!;
+        [Precision(18, 3)] public decimal Weight      { get; set; }
+        [Precision(18, 3)] public decimal Length      { get; set; }
+        [Precision(18, 3)] public decimal Width       { get; set; }
+        [Precision(18, 3)] public decimal Height      { get; set; }
+
+        // --- Foreign Keys ---
         public int? ShipmentId { get; set; }
+
+        // --- Navigation Properties ---
         public virtual Shipment? Shipment { get; set; }
 
-        // relationships N:N (X Parcel - X Products)
+        // --- Collections (N:N, 1:N) ---
         public virtual ICollection<ParcelProduct> ParcelProducts { get; set; } = new List<ParcelProduct>();
     }
 }

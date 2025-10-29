@@ -5,14 +5,17 @@ namespace Backend.Api.Objects.Entities.Models
 {
     public class SalesPayment
     {
+        // --- Key ---
         [Key] public int Id { get; set; }
 
-        // Document
-        [Required] public int SalesDocumentId { get; set; }
-        public virtual SalesDocument SalesDocument { get; set; } = default!;
+        // --- Basic fields ---
+        [Precision(18, 2)] public decimal Amount    { get; set; }
+        public PaymentOption PaymentOption          { get; set; }
 
-        // Other details
-        [Required] public PaymentOption PaymentOption { get; set; }
-        [Required, Precision(18, 2)] public decimal Amount { get; set; }
+        // --- Foreign Keys ---
+        public int SalesDocumentId { get; set; }
+
+        // --- Navigation Properties ---
+        public virtual SalesDocument SalesDocument { get; set; } = default!;
     }
 }

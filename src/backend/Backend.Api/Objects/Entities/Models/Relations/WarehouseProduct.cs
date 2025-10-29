@@ -1,15 +1,20 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.Entities.Models.Relations
 {
-    public class ParcelProduct
+    [Index(nameof(WarehouseId), nameof(ProductId), IsUnique = true)]
+    public class WarehouseProduct
     {
-        [Required] public int ParcelId { get; set; }
-        public virtual Parcel Parcel { get; set; } = default!;
+        // --- Key ---
+        public int WarehouseId { get; set; }
+        public int ProductId { get; set; }
 
-        [Required] public int ProductId { get; set; }
-        public virtual Product Product { get; set; } = default!;
+        // --- Key Navigation Properties ---
+        public virtual Warehouse Warehouse  { get; set; } = default!;
+        public virtual Product Product      { get; set; } = default!;
 
-        [Required, Range(1, int.MaxValue)] public int Quantity { get; set; }
+        // --- Basic fields ---
+        [Range(0, int.MaxValue)] public int Quantity { get; set; }
     }
 }
