@@ -10,11 +10,7 @@ namespace Backend.Api.Objects.DTOs
         public int AddressId { get; set; }
     }
 
-    public class GetWarehouseProductsDto
-    {
-        public IEnumerable<WarehouseProductItemDto> Products { get; set; } = Array.Empty<WarehouseProductItemDto>();
-    }
-    public class WarehouseProductItemDto
+    public class GetWarehouseProductItemDto
     {
         public int ProductId { get; set; }
         public string ProductName { get; set; } = default!;
@@ -24,7 +20,7 @@ namespace Backend.Api.Objects.DTOs
     public class CreateWarehouseDto
     {
         [Required, MaxLength(128)] public string Name { get; set; } = default!;
-        [Required] public int AddressId { get; set; }
+        public CreateAddressDto Address { get; set; }
     }
 
     public class UpdateWarehouseDto
