@@ -12,6 +12,7 @@ namespace Backend.Api.Api.Services
         Task<IReadOnlyList<GetAddressDto>> GetAllAsync(CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateAddressDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+        Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default);
     }
 
     public class AddressService : IAddressService
@@ -78,6 +79,29 @@ namespace Backend.Api.Api.Services
             _db.Addresses.Remove(entity);
             await _db.SaveChangesAsync(ct);
             return true;
+        }
+
+        public async Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default)
+        {
+            var country = dto.Country.Trim().ToLower();
+            var city = dto.City.Trim().ToLower();
+            var street = dto.Street.Trim().ToLower();
+            var building = dto.Building.Trim().ToLower();
+            var premises = (dto.Premises ?? string.Empty).Trim().ToLower();
+            var postal = dto.PostalCode.Trim().ToLower();
+
+            var hit = await _db.Addresses
+                .Where(a =>
+                    a.Country.ToLower() == country &&
+                    a.City.ToLower() == city &&
+                    a.Street.ToLower() == street &&
+                    a.Building.ToLower() == building &&
+                    (a.Premises ?? "").ToLower() == premises &&
+                    a.PostalCode.ToLower() == postal)
+                .Select(a => new { a.Id })
+                .FirstOrDefaultAsync(ct);
+
+            return (hit is not null, hit?.Id);
         }
 
         private static GetAddressDto ToGetDto(Address a) => new()

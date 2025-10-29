@@ -32,4 +32,20 @@ namespace Backend.Api.Objects.DTOs
         [MaxLength(16)] public string? Premises { get; set; }
         [Required, MaxLength(16)] public string PostalCode { get; set; } = default!;
     }
+
+    public class AddressExistenceDto
+    {
+        [Required, MaxLength(64)] public string Country { get; set; } = default!;
+        [Required, MaxLength(64)] public string City { get; set; } = default!;
+        [Required, MaxLength(128)] public string Street { get; set; } = default!;
+        [Required, MaxLength(16)] public string Building { get; set; } = default!;
+        [MaxLength(16)] public string? Premises { get; set; }
+        [Required, MaxLength(16)] public string PostalCode { get; set; } = default!;
+    }
+
+    static class Normalize
+    {
+        public static string S(string? x) => (x ?? string.Empty).Trim();
+        public static string SLower(string? x) => (x ?? string.Empty).Trim().ToLower();
+    }
 }

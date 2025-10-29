@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace Backend.Api.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // /api/address
+    [Route("api/[controller]")] // /api/addresses
     public class AddressesController : ControllerBase
     {
         private readonly IAddressService _service;
@@ -54,6 +54,13 @@ namespace Backend.Api.Api.Controllers
         {
             var ok = await _service.DeleteAsync(id, ct);
             return ok ? NoContent() : NotFound();
+        }
+
+        [HttpGet("exists")]
+        public async Task<ActionResult<object>> AddressExistsAsync([FromQuery] AddressExistenceDto dto, CancellationToken ct)
+        {
+            var (exists, id) = await _service.AddressExistsAsync(dto, ct);
+            return Ok(new { exists, id });
         }
     }
 }
