@@ -2,10 +2,11 @@
 
 public enum ShipmentStatus
 {
-    InPrepration = 0,
-    Prepared = 1,
-    InTransit = 2,
-    Delivered = 3,
-    Cancelled = 4,
-    Returned = 5
+    Unspecified = 0,
+    InPrepration = 1,
+    Prepared = 2,
+    InTransit = 3,
+    Delivered = 4,
+    Cancelled = 5,
+    Returned = 6
 }

@@ -2,13 +2,14 @@
 {
     public enum UserRole
     {
-        Root = 0,
-        Admin = 1,
-        CEO = 2,
-        Manager = 3,
+        Unspecified = 0,
+        ShopAssistant = 1,
+        Marketer = 2,
+        ItTechnician = 3,
         DeputyManager = 4,
-        ItTechnician = 5,
-        Marketer = 6,
-        ShopAssistant = 7
+        Manager = 5,
+        CEO = 6,
+        Admin = 7,
+        Root = 8
     }
 }

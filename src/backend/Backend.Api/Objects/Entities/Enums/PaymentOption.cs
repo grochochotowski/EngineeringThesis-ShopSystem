@@ -2,10 +2,11 @@
 {
     public enum PaymentOption
     {
-        Card = 0,
-        Cash = 1,
-        BankTransfer = 2,
-        GiftCard = 3,
-        Voucher = 4
+        Unspecified = 0,
+        Card = 1,
+        Cash = 2,
+        BankTransfer = 3,
+        GiftCard = 4,
+        Voucher = 5
     }
 }

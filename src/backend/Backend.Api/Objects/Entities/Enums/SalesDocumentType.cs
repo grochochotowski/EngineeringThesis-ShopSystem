@@ -2,8 +2,9 @@
 {
     public enum SalesDocumentType
     {
-        Receipt = 0,
-        InvoicePersonal = 1,
-        InvoiceCompany = 2
+        Unspecified = 0,
+        Receipt = 1,
+        InvoicePersonal = 2,
+        InvoiceCompany = 3
     }
 }
