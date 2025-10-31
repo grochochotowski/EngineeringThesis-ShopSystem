@@ -1,11 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace Backend.Api.Objects.Entities.Models
+﻿namespace Backend.Api.Objects.Entities.Models
 {
     public class Shipment
     {
         // --- Key ---
-        [Key] public int Id { get; set; }
+        public int Id { get; set; }
 
         // --- Basic fields ---
         public ShipmentType Type            { get; set; }

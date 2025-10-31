@@ -1,9 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.Entities.Models.Relations
 {
-    [Index(nameof(ParcelId), nameof(ProductId), IsUnique = true)]
     public class ParcelProduct
     {
         // --- Key ---

@@ -1,20 +1,18 @@
 ﻿using Backend.Api.Objects.Entities.Models.Relations;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.Entities.Models
 {
     public class Parcel
     {
         // --- Key ---
-        [Key] public int Id { get; set; }
+        public int Id { get; set; }
 
         // --- Basic fields ---
-        [MaxLength(256)]   public string Description  { get; set; } = default!;
-        [Precision(18, 3)] public decimal Weight      { get; set; }
-        [Precision(18, 3)] public decimal Length      { get; set; }
-        [Precision(18, 3)] public decimal Width       { get; set; }
-        [Precision(18, 3)] public decimal Height      { get; set; }
+        public string Description  { get; set; } = default!;
+        public decimal Weight      { get; set; }
+        public decimal Length      { get; set; }
+        public decimal Width       { get; set; }
+        public decimal Height      { get; set; }
 
         // --- Foreign Keys ---
         public int? ShipmentId { get; set; }
