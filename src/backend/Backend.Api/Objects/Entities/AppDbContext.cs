@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Objects.Entities.Models;
 using Backend.Api.Objects.Entities.Models.Relations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client.Platforms.Features.DesktopOs.Kerberos;
 using System.Net;
 
 namespace Backend.Api.Objects.Entities
@@ -14,6 +15,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Address>           Addresses           => Set<Address>();
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
+        public DbSet<UserCredential>    UserCredentials     => Set<UserCredential>();
         public DbSet<DeliveryCompany>   DeliveryCompanies   => Set<DeliveryCompany>();
         public DbSet<Parcel>            Parcels             => Set<Parcel>();
         public DbSet<Product>           Products            => Set<Product>();
@@ -144,6 +146,18 @@ namespace Backend.Api.Objects.Entities
                 });
             });
 
+            // refresh token
+            modelBuilder.Entity<RefreshToken>(b =>
+            {
+                b.HasIndex(x => x.Token).IsUnique();
+                b.Property(x => x.Token).HasMaxLength(256);
+
+                b.HasOne(x => x.User)
+                 .WithMany()
+                 .HasForeignKey(x => x.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // sales document
             modelBuilder.Entity<SalesDocument>(b =>
             {
@@ -271,14 +285,11 @@ namespace Backend.Api.Objects.Entities
             // user
             modelBuilder.Entity<User>(b =>
             {
-                b.HasIndex(x => x.Login).IsUnique();
                 b.HasIndex(x => x.Email).IsUnique();
                 b.HasIndex(x => x.PhoneNumber).IsUnique();
 
                 b.Property(x => x.FirstName).HasMaxLength(64);
                 b.Property(x => x.LastName).HasMaxLength(64);
-                b.Property(x => x.Login).HasMaxLength(64);
-                b.Property(x => x.PasswordHash).HasMaxLength(256);
                 b.Property(x => x.Email).HasMaxLength(64);
                 b.Property(x => x.PhoneNumber).HasMaxLength(32);
 
@@ -286,6 +297,22 @@ namespace Backend.Api.Objects.Entities
                  .WithOne()
                  .HasForeignKey<User>(x => x.AddressId)
                  .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // user credentials
+            modelBuilder.Entity<UserCredential>(b =>
+            {
+                b.HasKey(x => x.UserId);
+                b.HasIndex(x => x.Login).IsUnique();
+
+                b.Property(x => x.Login).HasMaxLength(64);
+                b.Property(x => x.PasswordHash).HasMaxLength(256);
+                b.Property(x => x.PasswordSalt).HasMaxLength(256);
+
+                b.HasOne(x => x.User)
+                 .WithOne(u => u.Credentials)
+                 .HasForeignKey<UserCredential>(x => x.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
             });
 
             // warehouse
