@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET LINE INFO ---
     public class GetSalesDocumentItemDto
     {
                                             public int Id                   { get; set; }
@@ -18,6 +19,7 @@ namespace Backend.Api.Objects.DTOs
                                             public decimal LineGross        { get; set; }
     }
 
+    // --- CREATE SALES ITEM ---
     public class CreateSalesDocumentItemDto
     {
         [Required]                          public int ProductId            { get; set; }
@@ -28,6 +30,7 @@ namespace Backend.Api.Objects.DTOs
         [Required]                          public int TaxRateId            { get; set; }
     }
 
+    // --- UPDATE SALES ITEM ---
     public class UpdateSalesDocumentItemDto
     {
         [Required]                          public int Id                   { get; set; }

@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET DELIVERY COMPANY INFO ---
     public class GetDeliveryCompanyDto
     {
                                                     public int Id                       { get; set; }
@@ -9,8 +10,10 @@ namespace Backend.Api.Objects.DTOs
                                                     public string PhoneNumber           { get; set; } = default!;
                                                     public string Email                 { get; set; } = default!;
                                                     public int AddressId                { get; set; }
+                                                    public GetAddressDto? Address       { get; set; }
     }
 
+    // --- CREATE DELIVERY COMPANY ---
     public class CreateDeliveryCompanyDto
     {
         [Required, MaxLength(64)]                   public string Name                  { get; set; } = default!;
@@ -21,6 +24,7 @@ namespace Backend.Api.Objects.DTOs
 
     }
 
+    // --- UPDATE DELIVERY COMPANY ---
     public class UpdateDeliveryCompanyDto
     {
         [Required, MaxLength(64)]                   public string Name                  { get; set; } = default!;

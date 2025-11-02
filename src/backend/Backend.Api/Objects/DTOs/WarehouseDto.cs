@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET WAREHOUSE INFO ---
     public class GetWarehouseDto
     {
                                                 public int Id                       { get; set; }
@@ -9,6 +10,7 @@ namespace Backend.Api.Objects.DTOs
                                                 public int AddressId                { get; set; }
     }
 
+    // --- GET PRODUCTS ---
     public class GetWarehouseProductItemDto
     {
                                                 public int ProductId                { get; set; }
@@ -16,24 +18,28 @@ namespace Backend.Api.Objects.DTOs
                                                 public int Quantity                 { get; set; }
     }
 
+    // --- CREATE WAREHOUSE ---
     public class CreateWarehouseDto
     {
         [Required, MaxLength(128)]              public string Name                  { get; set; } = default!;
                                                 public CreateAddressDto Address     { get; set; }
     }
 
+    // --- UPDATE WAREHOUSE ---
     public class UpdateWarehouseDto
     {
         [Required, MaxLength(128)]              public string Name                  { get; set; } = default!;
         [Required]                              public int AddressId                { get; set; }
     }
 
+    // --- ADD PRODUCTS ---
     public class AddProductToWarehouseDto
     {
         [Required]                              public int ProductId                { get; set; }
         [Required, Range(1, int.MaxValue)]      public int Quantity                 { get; set; }
     }
 
+    // --- REMOVE PRODUCTS ---
     public class RemoveProductFromWarehouseDto
     {
         [Required]                              public int ProductId                { get; set; }

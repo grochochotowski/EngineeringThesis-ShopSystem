@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET CLIENT INFO ---
     public class GetClientDto
     {
                                                     public int Id                       { get; set; }
@@ -11,8 +12,10 @@ namespace Backend.Api.Objects.DTOs
                                                     public string PhoneNumber           { get; set; } = default!;
                                                     public ClientType Type              { get; set; }
                                                     public int AddressId                { get; set; }
+                                                    public GetAddressDto? Address { get; set; }
     }
 
+    // --- CREATE CLIENT ---
     public class CreateClientDto
     {
         [Required, MaxLength(128)]                  public string Name                  { get; set; } = default!;
@@ -23,6 +26,7 @@ namespace Backend.Api.Objects.DTOs
                                                     public CreateAddressDto? Address    { get; set; }
     }
 
+    // --- UPDATE CLIENT ---
     public class UpdateClientDto
     {
         [Required, MaxLength(128)]                  public string Name                  { get; set; } = default!;

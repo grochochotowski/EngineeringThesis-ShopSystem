@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET PRODUCT INFO ---
     public class GetProductDto
     {
                                                 public int Id                       { get; set; }
@@ -15,6 +16,17 @@ namespace Backend.Api.Objects.DTOs
                                                 public int TaxRateId                { get; set; }
     }
 
+    // --- GET PRODUCT LIST INFO ---
+    public class GetProductListItemDto
+    {
+                                                public string SKU { get; set; } = default!;
+                                                public string Name { get; set; } = default!;
+                                                public decimal Price { get; set; }
+                                                public bool Defective { get; set; }
+                                                public int CategoryId { get; set; }
+    }
+
+    // --- CREATE PRODUCT ---
     public class CreateProductDto
     {
         [Required, MaxLength(64)]               public string SKU                   { get; set; } = default!;
@@ -27,6 +39,7 @@ namespace Backend.Api.Objects.DTOs
         [Required]                              public int TaxRateId                { get; set; }
     }
 
+    // --- UPDATE PRODUCT ---
     public class UpdateProductDto
     {
         [Required, MaxLength(64)]               public string SKU                   { get; set; } = default!;

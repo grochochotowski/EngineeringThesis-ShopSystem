@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET PARCEL INFO ---
     public class GetParcelDto
     {
                                                     public int Id               { get; set; }
@@ -12,11 +13,8 @@ namespace Backend.Api.Objects.DTOs
                                                     public decimal Height       { get; set; }
                                                     public int? ShipmentId      { get; set; }
     }
-    public class GetParcelProductsDto
-    {
-        public IEnumerable<ParcelProductItemDto> Products { get; set; } = Array.Empty<ParcelProductItemDto>();
-    }
 
+    // --- GET PRODUCT ITEM INFO ---
     public class ParcelProductItemDto
     {
                                                     public int ProductId        { get; set; }
@@ -24,6 +22,7 @@ namespace Backend.Api.Objects.DTOs
                                                     public int Quantity         { get; set; }
     }
 
+    // --- CREATE PARCEL ---
     public class CreateParcelDto
     {
         [Required, MaxLength(256)]                  public string Description   { get; set; } = default!;
@@ -34,6 +33,7 @@ namespace Backend.Api.Objects.DTOs
                                                     public int? ShipmentId      { get; set; }
     }
 
+    // --- UPDATE PARCEL ---
     public class UpdateParcelDto
     {
         [Required, MaxLength(256)]                  public string Description   { get; set; } = default!;
@@ -43,12 +43,14 @@ namespace Backend.Api.Objects.DTOs
         [Required, Range(0.001, double.MaxValue)]   public decimal Height       { get; set; }
     }
 
+    // --- ADD PRODUCT ---
     public class AddProductToParcelDto
     {
         [Required]                                  public int ProductId        { get; set; }
         [Required, Range(1, int.MaxValue)]          public int Quantity         { get; set; }
     }
 
+    // --- REMOVE PRODUCT ---
     public class RemoveProductFromParcelDto
     {
         [Required]                                  public int ProductId        { get; set; }

@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET ADDRESS INFO ---
     public class GetAddressDto
     {
                                         public int Id                   { get; set; }
@@ -13,6 +14,7 @@ namespace Backend.Api.Objects.DTOs
                                         public string PostalCode        { get; set; } = default!;
     }
 
+    // --- CREATE ADDRESS ---
     public class CreateAddressDto
     {
         [Required, MaxLength(64)]       public string Country           { get; set; } = default!;
@@ -23,6 +25,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(16)]       public string PostalCode        { get; set; } = default!;
     }
 
+    // --- UPDATE ADDRESS ---
     public class UpdateAddressDto
     {
         [Required, MaxLength(64)]       public string Country           { get; set; } = default!;
@@ -33,6 +36,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(16)]       public string PostalCode        { get; set; } = default!;
     }
 
+    // --- CHECK IF ADDRESS EXIST---
     public class AddressExistenceDto    
     {
         [Required, MaxLength(64)]       public string Country           { get; set; } = default!;
@@ -43,6 +47,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(16)]       public string PostalCode        { get; set; } = default!;
     }
 
+    // --- NORMALIZATION ---
     static class Normalize
     {
         public static string S(string? x) => (x ?? string.Empty).Trim();

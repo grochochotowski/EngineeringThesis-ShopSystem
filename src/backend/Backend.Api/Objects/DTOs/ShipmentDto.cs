@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET SHIPMENT INFO ---
     public class GetShipmentDto
     {
                                     public int Id                               { get; set; }
@@ -15,11 +16,7 @@ namespace Backend.Api.Objects.DTOs
                                     public int AddressReceiverId                { get; set; }
     }
 
-    public class GetShipmentParcelsDto
-    {
-                                    public IEnumerable<GetParcelDto> Parcels    { get; set; } = default!;
-    }
-
+    // --- CREATE SHIPMENT ---
     public class CreateShipmentDto
     {
         [Required]                  public ShipmentType Type                    { get; set; }
@@ -31,6 +28,7 @@ namespace Backend.Api.Objects.DTOs
         [Required]                  public int AddressReceiverId                { get; set; }
     }
 
+    // --- UPDATE SHIPMENT ---
     public class UpdateShipmentDto
     {
         [Required]                  public ShipmentType Type                    { get; set; }
@@ -42,16 +40,19 @@ namespace Backend.Api.Objects.DTOs
         [Required]                  public int AddressReceiverId                { get; set; }
     }
 
+    // --- UPDATE STATUS ---
     public class UpdateShipmentStatusDto
     {
         [Required]                  public ShipmentStatus Status                { get; set; }
     }
 
+    // --- ADD PARCELS ---
     public class AddParcelsToShipmentDto
     {
         [Required, MinLength(1)]    public List<int> ParcelIds                  { get; set; } = new();
     }
 
+    // --- REMOVE PARCELS ---
     public class RemoveParcelsFromShipmentDto
     {
         [Required, MinLength(1)]    public List<int> ParcelIds                  { get; set; } = new();

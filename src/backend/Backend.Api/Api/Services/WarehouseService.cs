@@ -105,7 +105,6 @@ namespace Backend.Api.Api.Controllers
             var w = await _db.Warehouses.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (w is null) return false;
 
-            // sprawdź czy AddressId istnieje
             var addrExists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId, ct);
             if (!addrExists) throw new ArgumentException("AddressId not found.");
 
@@ -143,7 +142,6 @@ namespace Backend.Api.Api.Controllers
 
         public async Task<IReadOnlyList<GetWarehouseProductItemDto>> GetProductsFromWarehouseAsync(int warehouseId, CancellationToken ct = default)
         {
-            // upewnij się, że magazyn istnieje (opcjonalnie)
             var exists = await _db.Warehouses.AnyAsync(w => w.Id == warehouseId, ct);
             if (!exists) return Array.Empty<GetWarehouseProductItemDto>();
 
@@ -160,7 +158,6 @@ namespace Backend.Api.Api.Controllers
 
         public async Task AddProductToWarehouseAsync(int warehouseId, AddProductToWarehouseDto dto, CancellationToken ct = default)
         {
-            // walidacja magazynu i produktu
             var wExists = await _db.Warehouses.AnyAsync(w => w.Id == warehouseId, ct);
             if (!wExists) throw new ArgumentException("Warehouse not found.");
 

@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET DOCUMENT INFO ---
     public class GetSalesDocumentDto
     {
                                         public int Id                                       { get; set; }
@@ -17,6 +18,18 @@ namespace Backend.Api.Objects.DTOs
                                         public IEnumerable<GetSalesPaymentDto> Payments     { get; set; } = default!;
     }
 
+    // --- GET DOCUMENT LIST INFO ---
+    public class GetSalesDocumentListItemDto
+    {
+                                        public int Id                                       { get; set; }
+                                        public SalesDocumentType DocumentType               { get; set; }
+                                        public DateTimeOffset IssueDate                     { get; set; }
+                                        public string DocumentNumber                        { get; set; } = default!;
+                                        public int? ClientId                                { get; set; }
+                                        public IEnumerable<GetSalesPaymentDto> Payments     { get; set; } = default!;
+    }
+
+    // --- CREATE DOCUMENT ---
     public class CreateSalesDocumentDto
     {
         [Required]                      public SalesDocumentType DocumentType               { get; set; }
@@ -27,6 +40,7 @@ namespace Backend.Api.Objects.DTOs
         [Required]                      public List<CreateSalesPaymentDto> Payments         { get; set; } = new();
     }
 
+    // --- UPDATE DOCUMENT ---
     public class UpdateSalesDocumentDto
     {
         [Required]                      public SalesDocumentType DocumentType               { get; set; }

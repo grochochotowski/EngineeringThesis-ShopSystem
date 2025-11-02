@@ -2,6 +2,7 @@
 
 namespace Backend.Api.Objects.DTOs
 {
+    // --- GET TAX RATE INFO ---
     public class GetTaxRateDto
     {
                                     public int Id           { get; set; }
@@ -10,6 +11,7 @@ namespace Backend.Api.Objects.DTOs
                                     public bool IsActive    { get; set; }
     }
 
+    // --- CREATE TAX RATE ---
     public class CreateTaxRateDto
     {
         [Required, MaxLength(16)]   public string Code      { get; set; } = default!;
@@ -17,6 +19,7 @@ namespace Backend.Api.Objects.DTOs
                                     public bool IsActive    { get; set; } = true;
     }
 
+    // --- UPDATE TAX RATE ---
     public class UpdateTaxRateDto
     {
         [Required, MaxLength(16)]   public string Code      { get; set; } = default!;
