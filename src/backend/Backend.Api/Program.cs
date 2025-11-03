@@ -2,11 +2,12 @@ using Backend.Api.Api.Controllers;
 using Backend.Api.Api.Services;
 using Backend.Api.Infrastructure;
 using Backend.Api.Objects.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using System;
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace Backend.Api
@@ -17,7 +18,7 @@ namespace Backend.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            // --- DATABASE ---
             builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
             builder.Services.AddTransient<DbSeeder>();
             builder.Services.AddControllers().AddJsonOptions(o =>
@@ -25,23 +26,53 @@ namespace Backend.Api
                 o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
 
+            // --- SWAGGER WITH JWT AUTH ---
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                    Description = "Please insert JWT with Bearer into field. Example: Bearer {token}",
+                    Name = "Authorization",
+                    Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+                    BearerFormat = "JWT",
+                    Scheme = "Bearer"
+                });
+
+                options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                {
+                    {
+                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                        {
+                            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                            {
+                                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[] {}
+                    }
+                });
+            });
+
+            // --- DEPENDENCY INJECTION ---
             builder.Services.AddScoped<IAddressService, AddressService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IClientService, ClientService>();
             builder.Services.AddScoped<IDeliveryCompaniesService, DeliveryCompaniesService>();
-            builder.Services.AddScoped<IParcelsService, ParcelsService>();
+            //builder.Services.AddScoped<IParcelsService, ParcelsService>();
             builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.AddScoped<ISalesDocumentService, SalesDocumentService>();
             builder.Services.AddScoped<ISalesDocumentItemService, SalesDocumentItemService>();
             builder.Services.AddScoped<ISalesPaymentService, SalesPaymentService>();
-            builder.Services.AddScoped<IShipmentService, ShipmentService>();
+            //builder.Services.AddScoped<IShipmentService, ShipmentService>();
             builder.Services.AddScoped<ITaxRateService, TaxRateService>();
             //builder.Services.AddScoped<IUsersService, UsersService>();
             builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
+            // --- JWT AUTHENTICATION ---
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
                 var jwt = builder.Configuration.GetSection("Jwt");
@@ -57,6 +88,7 @@ namespace Backend.Api
                 };
             });
 
+            // --- BUILD APP ---
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
