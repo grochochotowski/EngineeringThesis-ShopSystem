@@ -69,6 +69,14 @@ namespace Backend.Api
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
+
+            // --- SEED DATABASE ---
+            using (var scope = app.Services.CreateScope())
+            {
+                var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+                seeder.Seed();
+            }
+
             app.Run();
         }
     }
