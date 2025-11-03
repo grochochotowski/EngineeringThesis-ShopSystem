@@ -23,9 +23,9 @@ namespace Backend.Api.Infrastructure
             if (!_db.Categories.Any())
             {
                 _db.Categories.AddRange(
-                    new() { Id = 1, Name = "Default", Description = "Default category" },
-                    new() { Id = 2, Name = "Food", Description = "Food & Grocery" },
-                    new() { Id = 3, Name = "Drinks", Description = "Beverages" }
+                    new() {Name = "Default", Description = "Default category" },
+                    new() {Name = "Food", Description = "Food & Grocery" },
+                    new() {Name = "Drinks", Description = "Beverages" }
                 );
                 _db.SaveChanges();
             }
@@ -33,7 +33,7 @@ namespace Backend.Api.Infrastructure
             // --- ADD EXAMPLE WAREHOUSES ---
             if (!_db.Warehouses.Any())
             {
-                var addr = new Objects.Entities.Models.Address
+                var addr = new Address
                 {
                     Country = "PL",
                     City = "Warszawa",
@@ -52,17 +52,35 @@ namespace Backend.Api.Infrastructure
                 _db.SaveChanges();
             }
 
-            // --- ADD EXAMPLE PRODUCTS ---
-            if (!_db.Products.Any())
+            // --- ADD EXAMPLE TAX RATES ---
+            if (!_db.TaxRates.Any())
             {
-                _db.Products.AddRange(
-                    new() { SKU = "SKU-0001", Name = "Example Product 1", Description = "Demo cat 1", Price = 19.99m, CategoryId = 1 },
-                    new() { SKU = "SKU-0002", Name = "Example Product 2", Description = "Demo cat 2", Price = 29.99m, CategoryId = 2 },
-                    new() { SKU = "SKU-0003", Name = "Example Product 3", Description = "Demo cat 3", Price = 39.99m, CategoryId = 3 },
-                    new() { SKU = "SKU-0004", Name = "Example Product 4", Description = "Demo cat 1", Price = 49.99m, CategoryId = 1 }
+                _db.TaxRates.AddRange(
+                    new() { Code = "VAT23", Rate = 0.23m, IsActive = true },
+                    new() { Code = "VAT8", Rate = 0.08m, IsActive = true },
+                    new() { Code = "VAT0", Rate = 0.00m, IsActive = true }
                 );
                 _db.SaveChanges();
             }
+
+            // --- ADD EXAMPLE PRODUCTS ---
+            var vat23Id = _db.TaxRates.FirstOrDefault(x => x.Code == "VAT23")?.Id ?? 1;
+
+            var defaultCatId = _db.Categories.FirstOrDefault(x => x.Name == "Default")?.Id ?? 1;
+            var foodCatId = _db.Categories.FirstOrDefault(x => x.Name == "Food")?.Id ?? 1;
+            var drinksCatId = _db.Categories.FirstOrDefault(x => x.Name == "Drinks")?.Id ?? 1;
+
+            if (!_db.Products.Any())
+            {
+                _db.Products.AddRange(
+                    new() { SKU = "SKU-0001", Name = "Example Product 1", Description = "Demo cat 1", Price = 19.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0002", Name = "Example Product 2", Description = "Demo cat 2", Price = 29.99m, CategoryId = foodCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0003", Name = "Example Product 3", Description = "Demo cat 3", Price = 39.99m, CategoryId = drinksCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0004", Name = "Example Product 4", Description = "Demo cat 1", Price = 49.99m, CategoryId = defaultCatId, TaxRateId = vat23Id }
+                );
+                _db.SaveChanges();
+            }
+
             // --- ADD ROOT USER ---
             if (!_db.Users.Any())
             {
