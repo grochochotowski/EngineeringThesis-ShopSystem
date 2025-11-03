@@ -15,16 +15,17 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Address>           Addresses           => Set<Address>();
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
-        public DbSet<UserCredential>    UserCredentials     => Set<UserCredential>();
         public DbSet<DeliveryCompany>   DeliveryCompanies   => Set<DeliveryCompany>();
         public DbSet<Parcel>            Parcels             => Set<Parcel>();
         public DbSet<Product>           Products            => Set<Product>();
+        public DbSet<RefreshToken>      RefreshTokens       => Set<RefreshToken>();
         public DbSet<SalesDocument>     SalesDocuments      => Set<SalesDocument>();
         public DbSet<SalesDocumentItem> SalesDocumentItems  => Set<SalesDocumentItem>();
         public DbSet<SalesPayment>      SalesPayments       => Set<SalesPayment>();
         public DbSet<Shipment>          Shipments           => Set<Shipment>();
         public DbSet<TaxRate>           TaxRates            => Set<TaxRate>();
         public DbSet<User>              Users               => Set<User>();
+        public DbSet<UserCredential>    UserCredentials     => Set<UserCredential>();
         public DbSet<Warehouse>         Warehouses          => Set<Warehouse>();
 
         // --- Relation DbSets ---
@@ -153,7 +154,7 @@ namespace Backend.Api.Objects.Entities
                 b.Property(x => x.Token).HasMaxLength(256);
 
                 b.HasOne(x => x.User)
-                 .WithMany()
+                 .WithMany(u => u.RefreshTokens)
                  .HasForeignKey(x => x.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
             });

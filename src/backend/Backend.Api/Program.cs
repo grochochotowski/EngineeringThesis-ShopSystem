@@ -3,6 +3,9 @@ using Backend.Api.Api.Services;
 using Backend.Api.Infrastructure;
 using Backend.Api.Objects.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using System;
 using System.Text.Json.Serialization;
 
@@ -17,11 +20,15 @@ namespace Backend.Api
             // Add services to the container.
             builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
             builder.Services.AddTransient<DbSeeder>();
-            builder.Services.AddControllers();
+            builder.Services.AddControllers().AddJsonOptions(o =>
+            {
+                o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddScoped<IAddressService, AddressService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IClientService, ClientService>();
             builder.Services.AddScoped<IDeliveryCompaniesService, DeliveryCompaniesService>();
@@ -32,12 +39,22 @@ namespace Backend.Api
             builder.Services.AddScoped<ISalesPaymentService, SalesPaymentService>();
             builder.Services.AddScoped<IShipmentService, ShipmentService>();
             builder.Services.AddScoped<ITaxRateService, TaxRateService>();
-            builder.Services.AddScoped<IUsersService, UsersService>();
+            //builder.Services.AddScoped<IUsersService, UsersService>();
             builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
-            builder.Services.AddControllers().AddJsonOptions(o =>
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
-                o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                var jwt = builder.Configuration.GetSection("Jwt");
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwt["Issuer"],
+                    ValidAudience = jwt["Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!))
+                };
             });
 
             var app = builder.Build();
@@ -49,6 +66,7 @@ namespace Backend.Api
             }
 
             app.UseHttpsRedirection();
+            app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
             app.Run();
