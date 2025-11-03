@@ -4,6 +4,7 @@ using Backend.Api.Infrastructure;
 using Backend.Api.Objects.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Text.Json.Serialization;
 
 namespace Backend.Api
 {
@@ -34,6 +35,10 @@ namespace Backend.Api
             builder.Services.AddScoped<IUsersService, UsersService>();
             builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
+            builder.Services.AddControllers().AddJsonOptions(o =>
+            {
+                o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
 
             var app = builder.Build();
 
