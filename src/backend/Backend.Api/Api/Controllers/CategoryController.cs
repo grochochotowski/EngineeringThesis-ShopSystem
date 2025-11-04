@@ -1,13 +1,14 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/[controller]")] // .../api/Categories
+    [Route("api/[controller]")] // PATH: .../api/Categories
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _service;

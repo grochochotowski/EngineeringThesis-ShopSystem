@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Api.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // path: api/auth
+    [Route("api/[controller]")] // PATH: api/Auth
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _auth;
