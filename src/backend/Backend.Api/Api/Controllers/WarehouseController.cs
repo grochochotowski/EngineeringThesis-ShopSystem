@@ -1,5 +1,6 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,7 @@ namespace Backend.Api.Controllers
         private readonly IWarehouseService _service;
         public WarehouseController(IWarehouseService service) => _service = service;
 
-        // POST /api/warehouses
+        // --- CREATE WAREHOUSE ---
         [HttpPost]
         public async Task<ActionResult<GetWarehouseDto>> Create([FromBody] CreateWarehouseDto dto, CancellationToken ct)
         {
@@ -23,7 +24,7 @@ namespace Backend.Api.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
-        // GET /api/warehouses/{id}
+        // --- GET WAREHOUSE BY ID ---
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GetWarehouseDto>> GetById([FromRoute] int id, CancellationToken ct)
         {
@@ -31,15 +32,18 @@ namespace Backend.Api.Controllers
             return w is null ? NotFound() : Ok(w);
         }
 
-        // GET /api/warehouses
+        // --- GET ALL WAREHOUSES ---
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyList<GetWarehouseDto>>> GetAll(CancellationToken ct)
+        public async Task<ActionResult<PagedResult<GetWarehouseDto>>> GetAll(
+            [FromQuery] PaginationParams pagination,
+            [FromQuery] string? search,
+            CancellationToken ct)
         {
-            var list = await _service.GetAllAsync(ct);
-            return Ok(list);
+            var result = await _service.GetAllAsync(pagination, search, ct);
+            return Ok(result);
         }
 
-        // PUT /api/warehouses/{id}
+        // --- UPDATE WAREHOUSE ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateWarehouseDto dto, CancellationToken ct)
         {
@@ -48,7 +52,7 @@ namespace Backend.Api.Controllers
             return ok ? NoContent() : NotFound();
         }
 
-        // DELETE /api/warehouses/{id}
+        // --- DELETE WAREHOUSE ---
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
         {
@@ -56,7 +60,7 @@ namespace Backend.Api.Controllers
             return ok ? NoContent() : NotFound();
         }
 
-        // GET /api/warehouses/{warehouseId}/products/{productId}
+        // --- GET PRODUCT BY ID FROM WAREHOUSE ---
         [HttpGet("{warehouseId:int}/products/{productId:int}")]
         public async Task<ActionResult<GetWarehouseProductItemDto>> GetProductById([FromRoute] int productId, [FromRoute] int warehouseId, CancellationToken ct)
         {
@@ -64,15 +68,19 @@ namespace Backend.Api.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
-        // GET /api/warehouses/{warehouseId}/products
+        // --- GET PRODUCTS FROM WAREHOUSE ---
         [HttpGet("{warehouseId:int}/products")]
-        public async Task<ActionResult<IReadOnlyList<GetWarehouseProductItemDto>>> GetProductsFromWarehouse([FromRoute] int warehouseId, CancellationToken ct)
+        public async Task<ActionResult<PagedResult<GetWarehouseProductItemDto>>> GetProductsFromWarehouse(
+            [FromRoute] int warehouseId,
+            [FromQuery] PaginationParams pagination,
+            [FromQuery] string? search,
+            CancellationToken ct)
         {
-            var items = await _service.GetProductsFromWarehouseAsync(warehouseId, ct);
-            return Ok(items);
+            var result = await _service.GetProductsFromWarehouseAsync(warehouseId, pagination, search, ct);
+            return Ok(result);
         }
 
-        // POST /api/warehouses/{warehouseId}/products
+        // --- ADD PRODUCT TO WAREHOUSE ---
         [HttpPost("{warehouseId:int}/products")]
         public async Task<IActionResult> AddProduct([FromRoute] int warehouseId, [FromBody] AddProductToWarehouseDto dto, CancellationToken ct)
         {
@@ -81,7 +89,7 @@ namespace Backend.Api.Controllers
             return NoContent();
         }
 
-        // DELETE /api/warehouses/{warehouseId}/products
+        // --- REMOVE PRODUCT FROM WAREHOUSE ---
         [HttpDelete("{warehouseId:int}/products")]
         public async Task<IActionResult> RemoveProduct([FromRoute] int warehouseId, [FromBody] RemoveProductFromWarehouseDto dto, CancellationToken ct)
         {

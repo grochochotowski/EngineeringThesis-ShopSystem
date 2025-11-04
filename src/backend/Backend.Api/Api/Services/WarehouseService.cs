@@ -11,12 +11,12 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetWarehouseDto> CreateAsync(CreateWarehouseDto dto, CancellationToken ct = default);
         Task<GetWarehouseDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetWarehouseDto>> GetAllAsync(CancellationToken ct = default);
+        Task<PagedResult<GetWarehouseDto>> GetAllAsync(PaginationParams pagination, string? search = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateWarehouseDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
 
-        Task<GetWarehouseProductItemDto> GetProductByIdAsync(int productId, int warehouseId, CancellationToken ct = default);
-        Task<IReadOnlyList<GetWarehouseProductItemDto>> GetProductsFromWarehouseAsync(int warehouseId, CancellationToken ct = default);
+        Task<GetWarehouseProductItemDto?> GetProductByIdAsync(int productId, int warehouseId, CancellationToken ct = default);
+        Task<PagedResult<GetWarehouseProductItemDto>> GetProductsFromWarehouseAsync(int warehouseId, PaginationParams pagination, string? search = null, CancellationToken ct = default);
         Task AddProductToWarehouseAsync(int warehouseId, AddProductToWarehouseDto dto, CancellationToken ct = default);
         Task RemoveProductFromWarehouseAsync(int warehouseId, RemoveProductFromWarehouseDto dto, CancellationToken ct = default);
     }
@@ -32,12 +32,12 @@ namespace Backend.Api.Api.Controllers
             _addressService = addressService;
         }
 
+        // --- CREATE WAREHOUSE ---
         public async Task<GetWarehouseDto> CreateAsync(CreateWarehouseDto dto, CancellationToken ct = default)
         {
             if (dto.Address is null)
                 throw new ArgumentException("Address must be provided.");
 
-            // 1) Check that address does not exist
             var (exists, _) = await _addressService.AddressExistsAsync(new AddressExistenceDto
             {
                 Country = dto.Address.Country,
@@ -49,12 +49,10 @@ namespace Backend.Api.Api.Controllers
             }, ct);
 
             if (exists)
-                throw new InvalidOperationException("Provided address already exists."); // 409 error
+                throw new InvalidOperationException("Provided address already exists.");
 
-            // 2) Create address
             var createdAddress = await _addressService.CreateAsync(dto.Address, ct);
 
-            // 3) Create warehouse with new address
             var entity = new Warehouse
             {
                 Name = dto.Name.Trim(),
@@ -64,7 +62,6 @@ namespace Backend.Api.Api.Controllers
             _db.Warehouses.Add(entity);
             await _db.SaveChangesAsync(ct);
 
-            // Get warehouse DTO to return
             return new GetWarehouseDto
             {
                 Id = entity.Id,
@@ -73,7 +70,7 @@ namespace Backend.Api.Api.Controllers
             };
         }
 
-
+        // --- GET WAREHOUSE BY ID ---
         public async Task<GetWarehouseDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             return await _db.Warehouses
@@ -87,19 +84,29 @@ namespace Backend.Api.Api.Controllers
                 .FirstOrDefaultAsync(ct);
         }
 
-        public async Task<IReadOnlyList<GetWarehouseDto>> GetAllAsync(CancellationToken ct = default)
+        // --- GET ALL WAREHOUSES (paginated and filters) ---
+        public async Task<PagedResult<GetWarehouseDto>> GetAllAsync(PaginationParams pagination, string? search = null, CancellationToken ct = default)
         {
-            return await _db.Warehouses
-                .OrderBy(w => w.Id)
+            var query = _db.Warehouses
+                .AsNoTracking()
+                .OrderBy(w => w.Name)
                 .Select(w => new GetWarehouseDto
                 {
                     Id = w.Id,
                     Name = w.Name,
                     AddressId = w.AddressId
-                })
-                .ToListAsync(ct);
+                });
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var normalized = search.Trim().ToLower();
+                query = query.Where(w => w.Name.ToLower().Contains(normalized));
+            }
+
+            return await query.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+        // --- UPDATE WAREHOUSE ---
         public async Task<bool> UpdateAsync(int id, UpdateWarehouseDto dto, CancellationToken ct = default)
         {
             var w = await _db.Warehouses.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -115,16 +122,26 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
+        // --- DELETE WAREHOUSE ---
         public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
         {
-            var w = await _db.Warehouses.FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (w is null) return false;
+            var w = await _db.Warehouses
+                .Include(x => x.WarehouseProducts)
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+            if (w is null)
+                return false;
+
+            var hasProducts = w.WarehouseProducts.Any();
+            if (hasProducts)
+                throw new InvalidOperationException("Cannot delete warehouse that still contains products.");
 
             _db.Warehouses.Remove(w);
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
+        // --- GET PRODUCT BY ID FROM WAREHOUSE ---
         public async Task<GetWarehouseProductItemDto> GetProductByIdAsync(int productId, int warehouseId, CancellationToken ct = default)
         {
             var item = await _db.WarehouseProducts
@@ -140,22 +157,39 @@ namespace Backend.Api.Api.Controllers
             return item!;
         }
 
-        public async Task<IReadOnlyList<GetWarehouseProductItemDto>> GetProductsFromWarehouseAsync(int warehouseId, CancellationToken ct = default)
+        // --- GET PRODUCTS FROM WAREHOUSE ---
+        public async Task<PagedResult<GetWarehouseProductItemDto>> GetProductsFromWarehouseAsync(
+            int warehouseId,
+            PaginationParams pagination,
+            string? search = null,
+            CancellationToken ct = default)
         {
             var exists = await _db.Warehouses.AnyAsync(w => w.Id == warehouseId, ct);
-            if (!exists) return Array.Empty<GetWarehouseProductItemDto>();
+            if (!exists)
+                throw new ArgumentException("Warehouse not found.");
 
-            return await _db.WarehouseProducts
+            var query = _db.WarehouseProducts
+                .AsNoTracking()
                 .Where(x => x.WarehouseId == warehouseId)
                 .Select(x => new GetWarehouseProductItemDto
                 {
                     ProductId = x.ProductId,
                     ProductName = x.Product.Name,
                     Quantity = x.Quantity
-                })
-                .ToListAsync(ct);
+                });
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var normalized = search.Trim().ToLower();
+                query = query.Where(x => x.ProductName.ToLower().Contains(normalized));
+            }
+
+            query = query.OrderBy(x => x.ProductName);
+
+            return await query.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+        // --- ADD PRODUCT TO WAREHOUSE ---
         public async Task AddProductToWarehouseAsync(int warehouseId, AddProductToWarehouseDto dto, CancellationToken ct = default)
         {
             var wExists = await _db.Warehouses.AnyAsync(w => w.Id == warehouseId, ct);
@@ -179,12 +213,13 @@ namespace Backend.Api.Api.Controllers
             }
             else
             {
-                checked { link.Quantity += dto.Quantity; } // overflow-safe
+                checked { link.Quantity += dto.Quantity; }
             }
 
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- REMOVE PRODUCT FROM WAREHOUSE ---
         public async Task RemoveProductFromWarehouseAsync(int warehouseId, RemoveProductFromWarehouseDto dto, CancellationToken ct = default)
         {
             var link = await _db.WarehouseProducts
