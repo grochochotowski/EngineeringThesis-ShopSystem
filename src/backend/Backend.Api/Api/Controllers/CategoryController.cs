@@ -1,17 +1,19 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // /api/categories
+    [Route("api/[controller]")] // .../api/Categories
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _service;
         public CategoriesController(ICategoryService service) => _service = service;
 
+        // --- CREATE CATEGORY ---
         [HttpPost]
         public async Task<ActionResult<GetCategoryDto>> Create([FromBody] CreateCategoryDto dto, CancellationToken ct)
         {
@@ -27,6 +29,7 @@ namespace Backend.Api.Controllers
             }
         }
 
+        // --- GET CATEGORY BY ID ---
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GetCategoryDto>> GetById([FromRoute] int id, CancellationToken ct)
         {
@@ -34,13 +37,15 @@ namespace Backend.Api.Controllers
             return cat is null ? NotFound() : Ok(cat);
         }
 
+        // --- GET ALL CATEGORIES (paginated) ---
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GetCategoryDto>>> GetAll(CancellationToken ct)
+        public async Task<ActionResult<PagedResult<GetCategoryDto>>> GetAll([FromQuery] PaginationParams pagination, CancellationToken ct)
         {
-            var list = await _service.GetAllAsync(ct);
+            var list = await _service.GetAllAsync(pagination, ct);
             return Ok(list);
         }
 
+        // --- UPDATE CATEGORY ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateCategoryDto dto, CancellationToken ct)
         {
@@ -56,18 +61,15 @@ namespace Backend.Api.Controllers
             }
         }
 
+        // --- DELETE CATEGORY ---
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
+        public async Task<IActionResult> Delete(int id, [FromQuery] bool force = false, CancellationToken ct = default)
         {
-            try
-            {
-                var ok = await _service.DeleteAsync(id, ct);
-                return ok ? NoContent() : NotFound();
-            }
-            catch (DbUpdateException)
-            {
-                return Conflict(new { message = "Cannot delete category because it is referenced by products." });
-            }
+            var (canDelete, message) = await _service.DeleteAsync(id, force, ct);
+            if (!canDelete && message is not null)
+                return Conflict(new { message });
+
+            return NoContent();
         }
     }
 }
