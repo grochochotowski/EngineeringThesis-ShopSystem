@@ -10,13 +10,7 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetClientDto> CreateAsync(CreateClientDto dto, CancellationToken ct = default);
         Task<GetClientDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetClientDto>> GetAllAsync(
-            string? q = null,
-            ClientType? type = null,
-            DateTime? dobFrom = null,
-            DateTime? dobTo = null,
-            CancellationToken ct = default);
-
+        Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateClientDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     }
@@ -31,28 +25,19 @@ namespace Backend.Api.Api.Controllers
             _addressService = addressService;
         }
 
+        // --- CREATE CLIENT ---
         public async Task<GetClientDto> CreateAsync(CreateClientDto dto, CancellationToken ct = default)
         {
-            var emailTaken = await _db.Clients.AnyAsync(c => c.Email == dto.Email, ct);
-            if (emailTaken) throw new InvalidOperationException("Client with this email already exists.");
+            // checking if email is existing
+            if (await _db.Clients.AnyAsync(c => c.Email == dto.Email, ct))
+                throw new InvalidOperationException("Client with this email already exists.");
 
-            int addressId;
-            if (dto.AddressId.HasValue)
-            {
-                var exists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId.Value, ct);
-                if (!exists) throw new InvalidOperationException("Address not found.");
-                addressId = dto.AddressId.Value;
-            }
-            else if (dto.Address is not null)
-            {
-                var created = await _addressService.CreateAsync(dto.Address, ct);
-                addressId = created.Id;
-            }
-            else
-            {
-                throw new InvalidOperationException("Provide AddressId or Address.");
-            }
+            // checking if address was given and exists
+            if (dto.Address is null)
+                throw new InvalidOperationException("Address must be provided.");
+            int addressId = await _addressService.GetOrCreateAsync(dto.Address, ct);
 
+            // creating client
             var entity = new Client
             {
                 Name = dto.Name.Trim(),
@@ -65,36 +50,41 @@ namespace Backend.Api.Api.Controllers
             _db.Clients.Add(entity);
             await _db.SaveChangesAsync(ct);
 
-            return ToGetDto(entity);
+            return ToGetDto(await _db.Clients.Include(c => c.Address).FirstAsync(c => c.Id == entity.Id, ct));
         }
 
+        // --- GET CLIENT BY ID ---
         public async Task<GetClientDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
-            var c = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-            return c is null ? null : ToGetDto(c);
+            var entity = await _db.Clients
+                .AsNoTracking()
+                .Include(c => c.Address)
+                .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+            return entity is null ? null : ToGetDto(entity);
         }
 
-        public async Task<IReadOnlyList<GetClientDto>> GetAllAsync(
-            string? q = null,
-            ClientType? type = null,
-            DateTime? dobFrom = null,
-            DateTime? dobTo = null,
-            CancellationToken ct = default)
+        // --- GET ALL CLIENTS (filters and pagination) ---
+        public async Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, CancellationToken ct = default)
         {
-            var qry = _db.Clients.AsNoTracking().Include(c => c.Address).AsQueryable();
+            var query = _db.Clients
+                .AsNoTracking()
+                .Include(c => c.Address)
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q))
             {
-                var term = q.Trim();
-                qry = qry.Where(c =>
-                    c.Name.Contains(term) ||
-                    c.Email.Contains(term) ||
-                    c.PhoneNumber.Contains(term));
+                var term = q.Trim().ToLower();
+                query = query.Where(c =>
+                    c.Name.ToLower().Contains(term) ||
+                    c.Email.ToLower().Contains(term) ||
+                    c.PhoneNumber.ToLower().Contains(term));
             }
 
-            if (type.HasValue) qry = qry.Where(c => c.Type == type.Value);
+            if (type.HasValue)
+                query = query.Where(c => c.Type == type.Value);
 
-            return await qry
+            var dtoQuery = query
                 .OrderBy(c => c.Name)
                 .Select(c => new GetClientDto
                 {
@@ -103,34 +93,43 @@ namespace Backend.Api.Api.Controllers
                     Email = c.Email,
                     PhoneNumber = c.PhoneNumber,
                     Type = c.Type,
-                    AddressId = c.AddressId
-                })
-                .ToListAsync(ct);
+                    Address = c.Address != null ? new GetAddressDto
+                    {
+                        Id = c.Address.Id,
+                        Country = c.Address.Country,
+                        City = c.Address.City,
+                        Street = c.Address.Street,
+                        Building = c.Address.Building,
+                        Premises = c.Address.Premises,
+                        PostalCode = c.Address.PostalCode
+                    } : null
+                });
+
+            return await dtoQuery.ToPagedResultAsync(
+                pagination?.PageNumber ?? 1,
+                pagination?.PageSize ?? 10,
+                ct);
         }
 
+        // --- UPDATE CLIENT ---
         public async Task<bool> UpdateAsync(int id, UpdateClientDto dto, CancellationToken ct = default)
         {
-            var entity = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id, ct);
+            // fetching existing client
+            var entity = await _db.Clients.Include(c => c.Address).FirstOrDefaultAsync(c => c.Id == id, ct);
             if (entity is null) return false;
 
-            if (!string.Equals(entity.Email, dto.Email, StringComparison.Ordinal))
+            // checking if email is changing and if new email is existing
+            if (!string.Equals(entity.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
             {
-                var emailTaken = await _db.Clients.AnyAsync(c => c.Email == dto.Email && c.Id != id, ct);
-                if (emailTaken) throw new InvalidOperationException("Client with this email already exists.");
+                if (await _db.Clients.AnyAsync(c => c.Email == dto.Email && c.Id != id, ct))
+                    throw new InvalidOperationException("Client with this email already exists.");
             }
 
-            if (dto.AddressId.HasValue)
-            {
-                var exists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId.Value, ct);
-                if (!exists) throw new InvalidOperationException("Address not found.");
-                entity.AddressId = dto.AddressId.Value;
-            }
-            else if (dto.Address is not null)
-            {
-                var created = await _addressService.CreateAsync(dto.Address, ct);
-                entity.AddressId = created.Id;
-            }
+            // handling address update/creation
+            int addressId = await _addressService.GetOrCreateAsync(dto.Address, ct);
+            entity.AddressId = addressId;
 
+            // updating client fields
             entity.Name = dto.Name.Trim();
             entity.Email = dto.Email.Trim();
             entity.PhoneNumber = dto.PhoneNumber.Trim();
@@ -140,6 +139,7 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
+        // --- DELETE CLIENT ---
         public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
         {
             var entity = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id, ct);
@@ -150,14 +150,14 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
+        // --- DTO MAPPER ---
         private static GetClientDto ToGetDto(Client c) => new()
         {
             Id = c.Id,
             Name = c.Name,
             Email = c.Email,
             PhoneNumber = c.PhoneNumber,
-            Type = c.Type,
-            AddressId = c.AddressId
+            Type = c.Type
         };
     }
 }

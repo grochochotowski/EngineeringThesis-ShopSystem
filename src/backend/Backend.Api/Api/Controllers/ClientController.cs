@@ -1,23 +1,27 @@
-﻿using Backend.Api.Api.Controllers;
-using Backend.Api.Objects.DTOs;
+﻿using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/clients")]
+    [Route("api/[controller]")] // PATH: .../api/Clients
     public sealed class ClientsController : ControllerBase
     {
         private readonly IClientService _service;
         public ClientsController(IClientService service) => _service = service;
 
-        // POST /api/clients
+        // --- CREATE CLIENT ---
         [HttpPost]
         public async Task<ActionResult<GetClientDto>> Create([FromBody] CreateClientDto dto, CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             try
             {
                 var created = await _service.CreateAsync(dto, ct);
@@ -29,32 +33,35 @@ namespace Backend.Api.Api.Controllers
             }
         }
 
-        // GET /api/clients/{id}
+        // --- GET CLIENT BY ID ---
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<GetClientDto>> GetById(int id, CancellationToken ct)
+        public async Task<ActionResult<GetClientDto>> GetById([FromRoute] int id, CancellationToken ct)
         {
-            var item = await _service.GetByIdAsync(id, ct);
-            return item is null ? NotFound() : Ok(item);
+            var client = await _service.GetByIdAsync(id, ct);
+            return client is null ? NotFound() : Ok(client);
         }
 
-        // GET /api/clients?q=...&type=...&dobFrom=...&dobTo=...
+        // --- GET ALL CLIENTS (filters and paginated) ---
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyList<GetClientDto>>> GetAll(
+        public async Task<ActionResult<PagedResult<GetClientDto>>> GetAll(
             [FromQuery] string? q,
             [FromQuery] ClientType? type,
-            [FromQuery] DateTime? dobFrom,
-            [FromQuery] DateTime? dobTo,
-            CancellationToken ct)
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
         {
-            var list = await _service.GetAllAsync(q, type, dobFrom, dobTo, ct);
-            return Ok(list);
+            var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
+            var result = await _service.GetAllAsync(q, type, pagination, ct);
+            return Ok(result);
         }
 
-        // PUT /api/clients/{id}
+        // --- UPDATE CLIENT ---
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateClientDto dto, CancellationToken ct)
+        public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateClientDto dto, CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             try
             {
                 var ok = await _service.UpdateAsync(id, dto, ct);
@@ -66,9 +73,9 @@ namespace Backend.Api.Api.Controllers
             }
         }
 
-        // DELETE /api/clients/{id}
+        // --- DELETE CLIENT ---
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id, CancellationToken ct)
+        public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
         {
             try
             {

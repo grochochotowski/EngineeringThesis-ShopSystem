@@ -12,6 +12,8 @@ namespace Backend.Api.Api.Services
         Task<PagedResult<GetAddressDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateAddressDto dto, CancellationToken ct = default);
         Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default);
+        Task<int> GetOrCreateAsync(CreateAddressDto dto, CancellationToken ct = default);
+
     }
 
     public class AddressService : IAddressService
@@ -106,6 +108,46 @@ namespace Backend.Api.Api.Services
 
             return (hit is not null, hit?.Id);
         }
+
+        // --- GET OR CREATE ADDRESS ---
+        public async Task<int> GetOrCreateAsync(CreateAddressDto dto, CancellationToken ct = default)
+        {
+            var country = dto.Country.Trim().ToLower();
+            var city = dto.City.Trim().ToLower();
+            var street = dto.Street.Trim().ToLower();
+            var building = dto.Building.Trim().ToLower();
+            var premises = (dto.Premises ?? string.Empty).Trim().ToLower();
+            var postal = dto.PostalCode.Trim().ToLower();
+
+            var existing = await _db.Addresses
+                .Where(a =>
+                    a.Country.ToLower() == country &&
+                    a.City.ToLower() == city &&
+                    a.Street.ToLower() == street &&
+                    a.Building.ToLower() == building &&
+                    (a.Premises ?? "").ToLower() == premises &&
+                    a.PostalCode.ToLower() == postal)
+                .Select(a => a.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (existing != 0)
+                return existing;
+
+            var newAddr = new Address
+            {
+                Country = dto.Country,
+                City = dto.City,
+                Street = dto.Street,
+                Building = dto.Building,
+                Premises = dto.Premises,
+                PostalCode = dto.PostalCode
+            };
+
+            _db.Addresses.Add(newAddr);
+            await _db.SaveChangesAsync(ct);
+            return newAddr.Id;
+        }
+
 
         private static GetAddressDto ToGetDto(Address a) => new()
         {
