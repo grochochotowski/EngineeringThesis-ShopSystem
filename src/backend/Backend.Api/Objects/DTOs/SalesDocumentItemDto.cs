@@ -29,16 +29,4 @@ namespace Backend.Api.Objects.DTOs
         [Required]                          public decimal UnitPriceNet     { get; set; }
         [Required]                          public int TaxRateId            { get; set; }
     }
-
-    // --- UPDATE SALES ITEM ---
-    public class UpdateSalesDocumentItemDto
-    {
-        [Required]                          public int Id                   { get; set; }
-        [Required]                          public int ProductId            { get; set; }
-        [Required, MaxLength(128)]          public string ProductName       { get; set; } = default!;
-        [Required, MaxLength(64)]           public string ProductSKU        { get; set; } = default!;
-        [Required, Range(1, int.MaxValue)]  public int Quantity             { get; set; }
-        [Required]                          public decimal UnitPriceNet     { get; set; }
-        [Required]                          public int TaxRateId            { get; set; }
-    }
 }

@@ -1,11 +1,7 @@
-﻿using Backend.Api.Api.Controllers;
-using Backend.Api.Api.Services;
-using Backend.Api.Objects.DTOs;
+﻿using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace Backend.Api.Api.Services
 {
@@ -15,7 +11,6 @@ namespace Backend.Api.Api.Services
         Task<IEnumerable<GetSalesDocumentItemDto>> GetByDocumentAsync(int salesDocumentId, CancellationToken ct = default);
 
         Task<int> CreateAsync(int salesDocumentId, CreateSalesDocumentItemDto dto, CancellationToken ct = default);
-        Task UpdateAsync(int id, UpdateSalesDocumentItemDto dto, CancellationToken ct = default);
     }
 
     public class SalesDocumentItemService : ISalesDocumentItemService
@@ -23,6 +18,7 @@ namespace Backend.Api.Api.Services
         private readonly AppDbContext _db;
         public SalesDocumentItemService(AppDbContext db) => _db = db;
 
+        // --- GET ITEM BY ID ---
         public async Task<GetSalesDocumentItemDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var e = await _db.SalesDocumentItems
@@ -33,6 +29,7 @@ namespace Backend.Api.Api.Services
             return e is null ? null : Map(e);
         }
 
+        // --- GET ITEMS BY DOCUMENT ---
         public async Task<IEnumerable<GetSalesDocumentItemDto>> GetByDocumentAsync(int salesDocumentId, CancellationToken ct = default)
         {
             var items = await _db.SalesDocumentItems
@@ -45,25 +42,32 @@ namespace Backend.Api.Api.Services
             return items.Select(Map);
         }
 
+        // --- CREATE ITEM ---
         public async Task<int> CreateAsync(int salesDocumentId, CreateSalesDocumentItemDto dto, CancellationToken ct = default)
         {
+            // --- validate sales document exists --- 
             var doc = await _db.SalesDocuments.FirstOrDefaultAsync(d => d.Id == salesDocumentId, ct)
                       ?? throw new KeyNotFoundException($"SalesDocument {salesDocumentId} not found.");
 
+            // --- validate dto fields ---
             if (dto.Quantity <= 0) throw new ArgumentException("Quantity must be > 0.", nameof(dto.Quantity));
             if (dto.UnitPriceNet < 0) throw new ArgumentException("UnitPriceNet must be >= 0.", nameof(dto.UnitPriceNet));
 
+            // --- validate tax rate exists and is active ---
             var tax = await _db.TaxRates.AsNoTracking()
                         .FirstOrDefaultAsync(t => t.Id == dto.TaxRateId && t.IsActive, ct)
                       ?? throw new ArgumentException($"TaxRateId {dto.TaxRateId} not found or inactive.", nameof(dto.TaxRateId));
 
-            var prodExists = await _db.Products.AnyAsync(p => p.Id == dto.ProductId, ct);
-            if (!prodExists) throw new ArgumentException($"Product {dto.ProductId} not found.", nameof(dto.ProductId));
+            // --- validate product exists ---
+            if (!await _db.Products.AnyAsync(p => p.Id == dto.ProductId, ct))
+                throw new ArgumentException($"Product {dto.ProductId} not found.", nameof(dto.ProductId));
 
+            // --- calculate line amounts ---
             var lineNet = Round2(dto.UnitPriceNet * dto.Quantity);
             var lineTax = Round2(lineNet * tax.Rate);
             var lineGross = Round2(lineNet + lineTax);
 
+            // --- create entity ---
             var entity = new SalesDocumentItem
             {
                 SalesDocumentId = salesDocumentId,
@@ -79,50 +83,13 @@ namespace Backend.Api.Api.Services
             };
 
             _db.SalesDocumentItems.Add(entity);
-
-            // 3) Aktualizacja sum nagłówka
+            await _db.SaveChangesAsync(ct);
             await RecalculateHeaderAsync(doc, ct);
-
             await _db.SaveChangesAsync(ct);
             return entity.Id;
         }
 
-        public async Task UpdateAsync(int id, UpdateSalesDocumentItemDto dto, CancellationToken ct = default)
-        {
-            var entity = await _db.SalesDocumentItems
-                .Include(x => x.SalesDocument)
-                .FirstOrDefaultAsync(x => x.Id == id, ct)
-                ?? throw new KeyNotFoundException($"SalesDocumentItem {id} not found.");
-
-            if (dto.Quantity <= 0) throw new ArgumentException("Quantity must be > 0.", nameof(dto.Quantity));
-            if (dto.UnitPriceNet < 0) throw new ArgumentException("UnitPriceNet must be >= 0.", nameof(dto.UnitPriceNet));
-
-            var tax = await _db.TaxRates.AsNoTracking()
-                        .FirstOrDefaultAsync(t => t.Id == dto.TaxRateId && t.IsActive, ct)
-                      ?? throw new ArgumentException($"TaxRateId {dto.TaxRateId} not found or inactive.", nameof(dto.TaxRateId));
-
-            var prodExists = await _db.Products.AnyAsync(p => p.Id == dto.ProductId, ct);
-            if (!prodExists) throw new ArgumentException($"Product {dto.ProductId} not found.", nameof(dto.ProductId));
-
-            entity.ProductId = dto.ProductId;
-            entity.ProductName = dto.ProductName;
-            entity.ProductSKU = dto.ProductSKU;
-            entity.Quantity = dto.Quantity;
-            entity.UnitPriceNet = Round4(dto.UnitPriceNet);
-            entity.TaxRateId = dto.TaxRateId;
-
-            var lineNet = Round2(dto.UnitPriceNet * dto.Quantity);
-            var lineTax = Round2(lineNet * tax.Rate);
-            var lineGross = Round2(lineNet + lineTax);
-            entity.LineNet = lineNet;
-            entity.LineTax = lineTax;
-            entity.LineGross = lineGross;
-
-            await RecalculateHeaderAsync(entity.SalesDocument!, ct);
-
-            await _db.SaveChangesAsync(ct);
-        }
-
+        // --- MAPPING METHOD ---
         private static GetSalesDocumentItemDto Map(SalesDocumentItem e) => new()
         {
             Id = e.Id,
@@ -139,6 +106,7 @@ namespace Backend.Api.Api.Services
             LineGross = e.LineGross
         };
 
+        // --- RECALCULATE HEADER TOTALS HELPER ---
         private async Task RecalculateHeaderAsync(SalesDocument doc, CancellationToken ct)
         {
             await _db.Entry(doc).Collection(d => d.Items).LoadAsync(ct);
