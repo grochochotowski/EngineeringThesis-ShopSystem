@@ -1,15 +1,8 @@
 ﻿using Backend.Api.Api.Services;
 using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
-using Backend.Api.Objects.Entities.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Backend.Api.Api.Controllers
 {
