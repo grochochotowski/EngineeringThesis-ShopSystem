@@ -1,49 +1,34 @@
 ﻿using Backend.Api.Api.Services;
 using Backend.Api.Objects.DTOs;
-using Backend.Api.Objects.Entities;
-using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Backend.Api.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/salesdocuments/{salesDocumentId:int}/payments")]
+    [Route("api/SalesDocuments/{salesDocumentId:int}/payments")] // PATH: .../api/SalesDocuments/{salesDocumentId}/payments
     public class SalesPaymentController : ControllerBase
     {
         private readonly ISalesPaymentService _service;
         public SalesPaymentController(ISalesPaymentService service) => _service = service;
 
+        // --- GET ALL PAYMENTS FOR A DOCUMENT ---
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GetSalesPaymentDto>>> GetByDocument(int salesDocumentId, CancellationToken ct)
-            => Ok(await _service.GetByDocumentAsync(salesDocumentId, ct));
-
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<GetSalesPaymentDto>> GetById(int id, CancellationToken ct)
+        public async Task<ActionResult<IEnumerable<GetSalesPaymentDto>>> GetByDocument(
+            int salesDocumentId, CancellationToken ct)
         {
-            var dto = await _service.GetByIdAsync(id, ct);
-            return dto is null ? NotFound() : Ok(dto);
+            return Ok(await _service.GetByDocumentAsync(salesDocumentId, ct));
         }
 
+        // --- CREATE PAYMENT ---
         [HttpPost]
-        public async Task<ActionResult<int>> Create(int salesDocumentId, [FromBody] CreateSalesPaymentDto dto, CancellationToken ct)
+        public async Task<ActionResult<int>> Create(
+            int salesDocumentId, [FromBody] CreateSalesPaymentDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
             var id = await _service.CreateAsync(salesDocumentId, dto, ct);
-            return CreatedAtAction(nameof(GetById), new { id, salesDocumentId }, id);
-        }
-
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateSalesPaymentDto dto, CancellationToken ct)
-        {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            await _service.UpdateAsync(id, dto, ct);
-            return NoContent();
+            return CreatedAtAction(nameof(GetByDocument), new { salesDocumentId }, id);
         }
     }
 }
