@@ -1,14 +1,14 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
-using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/[controller]")] // /api/warehouses
+    [Route("api/[controller]")] //PATH: .../api/Warehouse
     public class WarehouseController : ControllerBase
     {
         private readonly IWarehouseService _service;
