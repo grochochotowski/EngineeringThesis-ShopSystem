@@ -1,28 +1,26 @@
 ﻿using Backend.Api.Api.Services;
 using Backend.Api.Objects.DTOs;
-using Backend.Api.Objects.Entities;
-using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Backend.Api.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")] // PATH: .../api/TaxRates
     public class TaxRateController : ControllerBase
     {
         private readonly ITaxRateService _service;
         public TaxRateController(ITaxRateService service) => _service = service;
 
+        // --- GET ALL TAX RATES ---
         [HttpGet]
         public async Task<ActionResult<IEnumerable<GetTaxRateDto>>> GetAll([FromQuery] bool? onlyActive, CancellationToken ct)
-            => Ok(await _service.GetAllAsync(onlyActive, ct));
+        {
+            return Ok(await _service.GetAllAsync(onlyActive, ct));
+        }
 
+        // --- GET TAX RATE BY ID ---
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GetTaxRateDto>> GetById(int id, CancellationToken ct)
         {
@@ -30,6 +28,7 @@ namespace Backend.Api.Api.Controllers
             return dto is null ? NotFound() : Ok(dto);
         }
 
+        // --- CREATE TAX RATE ---
         [HttpPost]
         public async Task<ActionResult<int>> Create([FromBody] CreateTaxRateDto dto, CancellationToken ct)
         {
@@ -38,6 +37,7 @@ namespace Backend.Api.Api.Controllers
             return CreatedAtAction(nameof(GetById), new { id }, id);
         }
 
+        // --- UPDATE TAX RATE ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateTaxRateDto dto, CancellationToken ct)
         {
@@ -46,6 +46,7 @@ namespace Backend.Api.Api.Controllers
             return NoContent();
         }
 
+        // --- SET ACTIVE STATUS ---
         [HttpPatch("{id:int}/active")]
         public async Task<IActionResult> SetActive(int id, [FromQuery] bool isActive, CancellationToken ct)
         {

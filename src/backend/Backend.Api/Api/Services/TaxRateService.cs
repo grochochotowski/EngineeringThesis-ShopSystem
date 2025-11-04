@@ -20,6 +20,7 @@ namespace Backend.Api.Api.Services
         private readonly AppDbContext _db;
         public TaxRateService(AppDbContext db) => _db = db;
 
+        // --- GET ALL TAX RATES ---
         public async Task<IEnumerable<GetTaxRateDto>> GetAllAsync(bool? onlyActive = null, CancellationToken ct = default)
         {
             var q = _db.TaxRates.AsNoTracking();
@@ -27,6 +28,7 @@ namespace Backend.Api.Api.Services
 
             var list = await q
                 .OrderByDescending(x => x.IsActive)
+                .ThenBy(x => x.Rate)
                 .ThenBy(x => x.Code)
                 .ToListAsync(ct);
 
@@ -39,6 +41,7 @@ namespace Backend.Api.Api.Services
             });
         }
 
+        // --- GET TAX RATE BY ID ---
         public async Task<GetTaxRateDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var e = await _db.TaxRates.AsNoTracking()
@@ -53,17 +56,16 @@ namespace Backend.Api.Api.Services
             };
         }
 
+        // --- CREATE TAX RATE ---
         public async Task<int> CreateAsync(CreateTaxRateDto dto, CancellationToken ct = default)
         {
             if (dto is null) throw new ArgumentNullException(nameof(dto));
 
             var code = NormalizeCode(dto.Code);
 
-            // unikalność
             var exists = await _db.TaxRates.AnyAsync(x => x.Code == code, ct);
             if (exists) throw new InvalidOperationException($"Tax rate code '{code}' already exists.");
 
-            // zakres + zaokrąglenie
             var rate = Clamp01(dto.Rate);
             rate = Math.Round(rate, 4, MidpointRounding.AwayFromZero);
 
@@ -79,6 +81,7 @@ namespace Backend.Api.Api.Services
             return entity.Id;
         }
 
+        // --- UPDATE TAX RATE ---
         public async Task UpdateAsync(int id, UpdateTaxRateDto dto, CancellationToken ct = default)
         {
             var e = await _db.TaxRates.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -99,6 +102,7 @@ namespace Backend.Api.Api.Services
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- SET ACTIVE STATUS ---
         public async Task SetActiveAsync(int id, bool isActive, CancellationToken ct = default)
         {
             var e = await _db.TaxRates.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -108,6 +112,7 @@ namespace Backend.Api.Api.Services
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- HELPERS ---
         private static string NormalizeCode(string raw)
             => (raw ?? string.Empty).Trim().ToUpperInvariant();
 
