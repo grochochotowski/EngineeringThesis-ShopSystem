@@ -14,6 +14,7 @@ namespace Backend.Api.Objects.Entities.Models
         public decimal Price                { get; set; }
         public string? DefectDescription    { get; set; }
         public bool Defective               { get; set; }
+        public bool IsActive                { get; set; } = true;
 
 
         // --- Foreign Keys ---

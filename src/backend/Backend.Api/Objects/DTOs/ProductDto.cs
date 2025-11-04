@@ -14,16 +14,18 @@ namespace Backend.Api.Objects.DTOs
                                                 public string? DefectDescription    { get; set; }
                                                 public int CategoryId               { get; set; }
                                                 public int TaxRateId                { get; set; }
+                                                public bool IsActive                { get; set; }
     }
 
     // --- GET PRODUCT LIST INFO ---
     public class GetProductListItemDto
     {
-                                                public string SKU { get; set; } = default!;
-                                                public string Name { get; set; } = default!;
-                                                public decimal Price { get; set; }
-                                                public bool Defective { get; set; }
-                                                public int CategoryId { get; set; }
+                                                public string SKU                   { get; set; } = default!;
+                                                public string Name                  { get; set; } = default!;
+                                                public decimal Price                { get; set; }
+                                                public bool Defective               { get; set; }
+                                                public int CategoryId               { get; set; }
+                                                public bool IsActive                { get; set; }
     }
 
     // --- CREATE PRODUCT ---

@@ -1,81 +1,104 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Controllers
 {
-    namespace Backend.Api.Controllers
+    [Authorize]
+    [ApiController]
+    [Route("api/[controller]")] // PATH: .../api/Products
+    public class ProductsController : ControllerBase
     {
-        [ApiController]
-        [Route("api/[controller]")] // /api/products
-        public class ProductsController : ControllerBase
+        private readonly IProductService _service;
+        public ProductsController(IProductService service) => _service = service;
+
+        // --- CREATE PRODUCT ---
+        [HttpPost]
+        public async Task<ActionResult<GetProductDto>> Create([FromBody] CreateProductDto dto, CancellationToken ct)
         {
-            private readonly IProductService _service;
-            public ProductsController(IProductService service) => _service = service;
-
-            [HttpPost]
-            public async Task<ActionResult<GetProductDto>> Create([FromBody] CreateProductDto dto, CancellationToken ct)
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            try
             {
-                if (!ModelState.IsValid) return ValidationProblem(ModelState);
-                try
-                {
-                    var created = await _service.CreateAsync(dto, ct);
-                    return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return Conflict(new { message = ex.Message });
-                }
+                var created = await _service.CreateAsync(dto, ct);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
-
-            [HttpGet("{id:int}")]
-            public async Task<ActionResult<GetProductDto>> GetById([FromRoute] int id, CancellationToken ct)
+            catch (InvalidOperationException ex)
             {
-                var prod = await _service.GetByIdAsync(id, ct);
-                return prod is null ? NotFound() : Ok(prod);
+                return Conflict(new { message = ex.Message });
             }
+        }
 
-            [HttpGet]
-            public async Task<ActionResult<IEnumerable<GetProductDto>>> GetAll(
-                [FromQuery] string? q,
-                [FromQuery] decimal? minPrice,
-                [FromQuery] decimal? maxPrice,
-                [FromQuery] int? categoryId,
-                [FromQuery] bool? defective,
-                CancellationToken ct)
+        // --- GET PRODUCT BY ID ---
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<GetProductDto>> GetById(int id, CancellationToken ct)
+        {
+            var item = await _service.GetByIdAsync(id, ct);
+            return item is null ? NotFound() : Ok(item);
+        }
+
+        // --- GET ALL PRODUCTS (pagination and filters) ---
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<GetProductListItemDto>>> GetAll(
+            [FromQuery] string? q,
+            [FromQuery] decimal? minPrice,
+            [FromQuery] decimal? maxPrice,
+            [FromQuery] int? categoryId,
+            [FromQuery] bool? defective,
+            [FromQuery] bool? isActive,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
+            var result = await _service.GetAllAsync(q, minPrice, maxPrice, categoryId, defective, isActive, pagination, ct);
+            return Ok(result);
+        }
+
+        // --- UPDATE PRODUCT ---
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateProductDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            try
             {
-                var list = await _service.GetAllAsync(q, minPrice, maxPrice, categoryId, defective, ct);
-                return Ok(list);
+                var ok = await _service.UpdateAsync(id, dto, ct);
+                return ok ? NoContent() : NotFound();
             }
-
-            [HttpPut("{id:int}")]
-            public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateProductDto dto, CancellationToken ct)
+            catch (InvalidOperationException ex)
             {
-                if (!ModelState.IsValid) return ValidationProblem(ModelState);
-                try
-                {
-                    var ok = await _service.UpdateAsync(id, dto, ct);
-                    return ok ? NoContent() : NotFound();
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return Conflict(new { message = ex.Message });
-                }
+                return Conflict(new { message = ex.Message });
             }
+        }
 
-            [HttpDelete("{id:int}")]
-            public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
+        // --- DEACTIVATE PRODUCT ---
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Deactivate(int id, CancellationToken ct)
+        {
+            try
             {
-                try
-                {
-                    var ok = await _service.DeleteAsync(id, ct);
-                    return ok ? NoContent() : NotFound();
-                }
-                catch (DbUpdateException)
-                {
-                    return Conflict(new { message = "Cannot delete product due to related data." });
-                }
+                var ok = await _service.DeactivateAsync(id, ct);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        // --- RESTORE PRODUCT ---
+        [HttpPost("{id:int}/restore")]
+        public async Task<IActionResult> Restore(int id, CancellationToken ct)
+        {
+            try
+            {
+                var ok = await _service.RestoreAsync(id, ct);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
             }
         }
     }
