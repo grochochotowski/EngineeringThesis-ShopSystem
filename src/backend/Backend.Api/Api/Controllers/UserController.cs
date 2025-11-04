@@ -1,33 +1,35 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/[controller]")] // /api/users
+    [Route("api/[controller]")] // PATH: .../api/User
     public class UsersController : ControllerBase
     {
         private readonly IUsersService _service;
         public UsersController(IUsersService service) => _service = service;
 
-        [HttpPost]
-        public async Task<ActionResult<GetUserDto>> Create([FromBody] CreateUserDto dto, CancellationToken ct)
+        // --- GET ALL USERS (paginated and filtered) ---
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<GetUserDto>>> GetAll(
+            [FromQuery] PaginationParams pagination,
+            [FromQuery] string? search,
+            [FromQuery] UserRole? role,
+            [FromQuery] bool? isActive,
+            CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            try
-            {
-                var created = await _service.CreateAsync(dto, ct);
-                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { message = ex.Message });
-            }
+            var result = await _service.GetAllAsync(pagination, search, role, isActive, ct);
+            return Ok(result);
         }
 
+        // --- GET USER BY ID ---
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GetUserDto>> GetById([FromRoute] int id, CancellationToken ct)
         {
@@ -35,24 +37,13 @@ namespace Backend.Api.Controllers
             return user is null ? NotFound() : Ok(user);
         }
 
-        // GET z filtrami: q, role, city, dobFrom, dobTo
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<GetUserDto>>> GetAll(
-            [FromQuery] string? q,
-            [FromQuery] UserRole? role,
-            [FromQuery] string? city,
-            [FromQuery] DateTime? dobFrom,
-            [FromQuery] DateTime? dobTo,
-            CancellationToken ct)
-        {
-            var list = await _service.GetAllAsync(q, role, dobFrom, dobTo, ct);
-            return Ok(list);
-        }
-
+        // --- UPDATE USER ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateUserDto dto, CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             try
             {
                 var ok = await _service.UpdateAsync(id, dto, ct);
@@ -64,14 +55,16 @@ namespace Backend.Api.Controllers
             }
         }
 
-        [HttpPut("{id:int}/credentials")]
-        public async Task<IActionResult> UpdateCredentials([FromRoute] int id, [FromBody] UpdateUserPasswordOrLoginDto dto, CancellationToken ct)
+        // --- DEACTIVATE USER ---
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Deactivate([FromRoute] int id, CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
             try
             {
-                var ok = await _service.UpdateLoginAndPasswordAsync(id, dto, ct);
-                return ok ? NoContent() : NotFound();
+                var ok = await _service.DeactivateAsync(id, ct);
+                return ok
+                    ? Ok(new { message = "User account deactivated successfully." })
+                    : NotFound();
             }
             catch (InvalidOperationException ex)
             {
@@ -79,17 +72,18 @@ namespace Backend.Api.Controllers
             }
         }
 
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
+        // --- ACTIVATE USER ---
+        [HttpPut("{id:int}/activate")]
+        public async Task<IActionResult> Activate([FromRoute] int id, CancellationToken ct)
         {
             try
             {
-                var ok = await _service.DeleteAsync(id, ct);
-                return ok ? NoContent() : NotFound();
+                var ok = await _service.ActivateAsync(id, ct);
+                return ok ? Ok(new { message = "User account activated successfully." }) : NotFound();
             }
-            catch (DbUpdateException)
+            catch (InvalidOperationException ex)
             {
-                return Conflict(new { message = "Cannot delete user due to related data." });
+                return Conflict(new { message = ex.Message });
             }
         }
     }
