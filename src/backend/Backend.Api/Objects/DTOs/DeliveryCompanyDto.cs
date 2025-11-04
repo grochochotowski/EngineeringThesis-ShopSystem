@@ -9,7 +9,7 @@ namespace Backend.Api.Objects.DTOs
                                                     public string Name                  { get; set; } = default!;
                                                     public string PhoneNumber           { get; set; } = default!;
                                                     public string Email                 { get; set; } = default!;
-                                                    public int AddressId                { get; set; }
+                                                    public bool IsActive                { get; set; }
                                                     public GetAddressDto? Address       { get; set; }
     }
 
@@ -19,8 +19,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(64)]                   public string Name                  { get; set; } = default!;
         [Required, MaxLength(32)]                   public string PhoneNumber           { get; set; } = default!;
         [Required, MaxLength(64), EmailAddress]     public string Email                 { get; set; } = default!;
-                                                    public int? AddressId               { get; set; }
-                                                    public CreateAddressDto? Address    { get; set; }
+        [Required]                                  public CreateAddressDto Address     { get; set; }
 
     }
 
@@ -30,7 +29,6 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(64)]                   public string Name                  { get; set; } = default!;
         [Required, MaxLength(32)]                   public string PhoneNumber           { get; set; } = default!;
         [Required, MaxLength(64), EmailAddress]     public string Email                 { get; set; } = default!;
-                                                    public int? AddressId               { get; set; }
-                                                    public CreateAddressDto? Address    { get; set; }
+        [Required]                                  public CreateAddressDto Address     { get; set; }
     }
 }

@@ -10,9 +10,10 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetDeliveryCompanyDto> CreateAsync(CreateDeliveryCompanyDto dto, CancellationToken ct = default);
         Task<GetDeliveryCompanyDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetDeliveryCompanyDto>> GetAllAsync(string? q = null, int page = 1, int pageSize = 50, CancellationToken ct = default);
+        Task<PagedResult<GetDeliveryCompanyDto>> GetAllAsync(string? q = null, bool? isActive = null, PaginationParams? pagination = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateDeliveryCompanyDto dto, CancellationToken ct = default);
-        Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+        Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
+        Task<bool> RestoreAsync(int id, CancellationToken ct = default);
     }
 
     public sealed class DeliveryCompaniesService : IDeliveryCompaniesService
@@ -26,26 +27,17 @@ namespace Backend.Api.Api.Controllers
             _addressService = addressService;
         }
 
+        // --- CREATE DELIVERY COMPANY ---
         public async Task<GetDeliveryCompanyDto> CreateAsync(CreateDeliveryCompanyDto dto, CancellationToken ct = default)
         {
-            int addressId;
-            if (dto.AddressId.HasValue)
-            {
-                var exists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId.Value, ct);
-                if (!exists) throw new InvalidOperationException("Address not found.");
-                addressId = dto.AddressId.Value;
-            }
-            else if (dto.Address is not null)
-            {
-                var created = await _addressService.CreateAsync(dto.Address, ct);
-                addressId = created.Id;
-            }
-            else
-            {
-                throw new InvalidOperationException("Provide AddressId or Address.");
-            }
+            // validate address and create or get existing
+            if (dto.Address is null)
+                throw new InvalidOperationException("Address is required.");
 
-            var e = new DeliveryCompany
+            int addressId = await _addressService.GetOrCreateAsync(dto.Address, ct);
+
+            // create delivery company entity
+            var entity = new DeliveryCompany
             {
                 Name = dto.Name.Trim(),
                 PhoneNumber = dto.PhoneNumber.Trim(),
@@ -53,90 +45,147 @@ namespace Backend.Api.Api.Controllers
                 AddressId = addressId
             };
 
-            _db.DeliveryCompanies.Add(e);
+            _db.DeliveryCompanies.Add(entity);
             await _db.SaveChangesAsync(ct);
-            return ToGetDto(e);
+
+            var address = await _db.Addresses.FindAsync(new object?[] { addressId }, ct);
+            return ToGetDto(entity, address!);
         }
 
+        // --- GET DELIVERY COMPANY BY ID ---
         public async Task<GetDeliveryCompanyDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
-            var e = await _db.DeliveryCompanies.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-            return e is null ? null : ToGetDto(e);
+            var entity = await _db.DeliveryCompanies
+                .Include(x => x.Address)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+            return entity is null ? null : ToGetDto(entity, entity.Address);
         }
 
-        public async Task<IReadOnlyList<GetDeliveryCompanyDto>> GetAllAsync(string? q = null, int page = 1, int pageSize = 50, CancellationToken ct = default)
+        // --- GET ALL (pagination and search) ---
+        public async Task<PagedResult<GetDeliveryCompanyDto>> GetAllAsync(
+            string? q = null,
+            bool? isActive = null,
+            PaginationParams? pagination = null,
+            CancellationToken ct = default)
         {
-            var qry = _db.DeliveryCompanies.AsNoTracking().AsQueryable();
+            pagination ??= new PaginationParams();
 
+            var query = _db.DeliveryCompanies
+                .Include(x => x.Address)
+                .AsNoTracking()
+                .AsQueryable();
+
+            // active status filter
+            if (isActive.HasValue)
+                query = query.Where(x => x.IsActive == isActive.Value);
+
+            // search filter
             if (!string.IsNullOrWhiteSpace(q))
             {
-                var term = q.Trim();
-                qry = qry.Where(x =>
-                    x.Name.Contains(term) ||
-                    x.Email.Contains(term) ||
-                    x.PhoneNumber.Contains(term));
+                var term = q.Trim().ToLower();
+                query = query.Where(x =>
+                    x.Name.ToLower().Contains(term) ||
+                    x.Email.ToLower().Contains(term) ||
+                    x.PhoneNumber.ToLower().Contains(term));
             }
 
-            page = Math.Max(1, page);
-            pageSize = Math.Clamp(pageSize, 1, 500);
-
-            return await qry
+            // projection
+            var projected = query
                 .OrderBy(x => x.Name)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(e => new GetDeliveryCompanyDto
+                .Select(x => new GetDeliveryCompanyDto
                 {
-                    Id = e.Id,
-                    Name = e.Name,
-                    PhoneNumber = e.PhoneNumber,
-                    Email = e.Email,
-                    AddressId = e.AddressId
-                })
-                .ToListAsync(ct);
+                    Id = x.Id,
+                    Name = x.Name,
+                    PhoneNumber = x.PhoneNumber,
+                    Email = x.Email,
+                    Address = new GetAddressDto
+                    {
+                        Id = x.Address.Id,
+                        Country = x.Address.Country,
+                        City = x.Address.City,
+                        Street = x.Address.Street,
+                        Building = x.Address.Building,
+                        Premises = x.Address.Premises,
+                        PostalCode = x.Address.PostalCode
+                    },
+                    IsActive = x.IsActive
+                });
+
+            return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+
+        // --- UPDATE DELIVERY COMPANY ---
         public async Task<bool> UpdateAsync(int id, UpdateDeliveryCompanyDto dto, CancellationToken ct = default)
         {
-            var e = await _db.DeliveryCompanies.FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (e is null) return false;
+            // find existing entity
+            var entity = await _db.DeliveryCompanies.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (entity is null) return false;
 
-            if (dto.AddressId.HasValue)
-            {
-                var exists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId.Value, ct);
-                if (!exists) throw new InvalidOperationException("Address not found.");
-                e.AddressId = dto.AddressId.Value;
-            }
-            else if (dto.Address is not null)
-            {
-                var created = await _addressService.CreateAsync(dto.Address, ct);
-                e.AddressId = created.Id;
-            }
+            // validate address and create or get existing
+            if (dto.Address is null)
+                throw new InvalidOperationException("Address is required.");
 
-            e.Name = dto.Name.Trim();
-            e.PhoneNumber = dto.PhoneNumber.Trim();
-            e.Email = dto.Email.Trim();
+            int addressId = await _addressService.GetOrCreateAsync(dto.Address, ct);
+            entity.AddressId = addressId;
+
+            // update fields
+            entity.Name = dto.Name.Trim();
+            entity.PhoneNumber = dto.PhoneNumber.Trim();
+            entity.Email = dto.Email.Trim();
 
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+        // --- DEACTIVATE DELIVERY COMPANY ---
+        public async Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
         {
-            var e = await _db.DeliveryCompanies.FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (e is null) return false;
+            var entity = await _db.DeliveryCompanies.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (entity is null) return false;
 
-            _db.DeliveryCompanies.Remove(e);
+            if (!entity.IsActive)
+                throw new InvalidOperationException("This delivery company is already deactivated.");
+
+            entity.IsActive = false;
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        private static GetDeliveryCompanyDto ToGetDto(DeliveryCompany e) => new()
+        // --- RESTORE DELIVERY COMPANY ---
+        public async Task<bool> RestoreAsync(int id, CancellationToken ct = default)
+        {
+            var entity = await _db.DeliveryCompanies.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (entity is null) return false;
+
+            if (entity.IsActive)
+                throw new InvalidOperationException("This delivery company is already active.");
+
+            entity.IsActive = true;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // --- MAPPER ---
+        private static GetDeliveryCompanyDto ToGetDto(DeliveryCompany e, Address a) => new()
         {
             Id = e.Id,
             Name = e.Name,
             PhoneNumber = e.PhoneNumber,
             Email = e.Email,
-            AddressId = e.AddressId
+            IsActive = e.IsActive,
+            Address = new GetAddressDto
+            {
+                Id = a.Id,
+                Country = a.Country,
+                City = a.City,
+                Street = a.Street,
+                Building = a.Building,
+                Premises = a.Premises,
+                PostalCode = a.PostalCode
+            }
         };
     }
 }

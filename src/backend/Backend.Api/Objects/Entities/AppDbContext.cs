@@ -89,6 +89,7 @@ namespace Backend.Api.Objects.Entities
                 b.Property(x => x.Name).HasMaxLength(64);
                 b.Property(x => x.Email).HasMaxLength(64);
                 b.Property(x => x.PhoneNumber).HasMaxLength(32);
+                b.Property(d => d.IsActive).HasDefaultValue(true);
 
                 b.HasOne(x => x.Address)
                  .WithOne()

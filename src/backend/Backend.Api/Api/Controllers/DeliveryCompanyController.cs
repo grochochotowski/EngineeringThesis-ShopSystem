@@ -1,18 +1,22 @@
 ﻿using Backend.Api.Api.Controllers;
 using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/delivery-companies")]
+    [Route("api/[controller]")] // PATH: .../api/DeliveryCompanies
     public sealed class DeliveryCompaniesController : ControllerBase
     {
         private readonly IDeliveryCompaniesService _service;
         public DeliveryCompaniesController(IDeliveryCompaniesService service) => _service = service;
 
+        // --- CREATE DELIVERY COMPANY ---
         [HttpPost]
         public async Task<ActionResult<GetDeliveryCompanyDto>> Create([FromBody] CreateDeliveryCompanyDto dto, CancellationToken ct)
         {
@@ -28,6 +32,7 @@ namespace Backend.Api.Controllers
             }
         }
 
+        // --- GET DELIVERY COMPANY BY ID ---
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GetDeliveryCompanyDto>> GetById(int id, CancellationToken ct)
         {
@@ -35,11 +40,21 @@ namespace Backend.Api.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
+        // --- GET ALL DELIVERY COMPANIES (paginated and filter) ---
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyList<GetDeliveryCompanyDto>>> GetAll(
-            [FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
-            => Ok(await _service.GetAllAsync(q, page, pageSize, ct));
+        public async Task<ActionResult<PagedResult<GetDeliveryCompanyDto>>> GetAll(
+            [FromQuery] string? q,
+            [FromQuery] bool? isActive,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken ct = default)
+        {
+            var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
+            var result = await _service.GetAllAsync(q, isActive, pagination, ct);
+            return Ok(result);
+        }
 
+        // --- UPDATE DELIVERY COMPANY ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateDeliveryCompanyDto dto, CancellationToken ct)
         {
@@ -55,8 +70,34 @@ namespace Backend.Api.Controllers
             }
         }
 
+        // --- DEACTIVATE DELIVERY COMPANY ---
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id, CancellationToken ct)
-            => (await _service.DeleteAsync(id, ct)) ? NoContent() : NotFound();
+        public async Task<IActionResult> Deactivate(int id, CancellationToken ct)
+        {
+            try
+            {
+                var ok = await _service.DeactivateAsync(id, ct);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        // --- RESTORE DELIVERY COMPANY ---
+        [HttpPost("{id:int}/restore")]
+        public async Task<IActionResult> Restore(int id, CancellationToken ct)
+        {
+            try
+            {
+                var ok = await _service.RestoreAsync(id, ct);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
     }
 }
