@@ -50,7 +50,5 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(256)]      public string? Description                          { get; set; }
         [Required, MaxLength(64)]       public string DocumentNumber                        { get; set; } = default!;
                                         public int? ClientId                                { get; set; }
-        [Required]                      public List<UpdateSalesDocumentItemDto> Items       { get; set; } = new();
-        [Required]                      public List<UpdateSalesPaymentDto> Payments         { get; set; } = new();
     }
 }
