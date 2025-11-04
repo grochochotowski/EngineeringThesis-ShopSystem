@@ -11,15 +11,11 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetParcelDto> CreateAsync(CreateParcelDto dto, CancellationToken ct = default);
         Task<GetParcelDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetParcelDto>> GetAllAsync(
-            string? q = null,
-            int? shipmentId = null,
-            CancellationToken ct = default);
-
+        Task<PagedResult<GetParcelDto>> GetAllAsync(string? q = null, int? shipmentId = null, PaginationParams? pagination = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateParcelDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
 
-        Task<GetParcelProductsDto> GetProductsAsync(int parcelId, CancellationToken ct = default);
+        Task<PagedResult<ParcelProductItemDto>> GetProductsAsync(int parcelId, PaginationParams? pagination = null, CancellationToken ct = default);
         Task<bool> AddProductAsync(int parcelId, AddProductToParcelDto dto, CancellationToken ct = default);
         Task<bool> RemoveProductAsync(int parcelId, RemoveProductFromParcelDto dto, CancellationToken ct = default);
     }
@@ -30,6 +26,7 @@ namespace Backend.Api.Api.Controllers
 
         public ParcelsService(AppDbContext db) => _db = db;
 
+        // --- CREATE PARCEL ---
         public async Task<GetParcelDto> CreateAsync(CreateParcelDto dto, CancellationToken ct = default)
         {
             if (dto.ShipmentId.HasValue)
@@ -38,7 +35,7 @@ namespace Backend.Api.Api.Controllers
                 if (!exists) throw new InvalidOperationException("Shipment not found.");
             }
 
-            var e = new Parcel
+            var entity = new Parcel
             {
                 Description = dto.Description.Trim(),
                 Weight = dto.Weight,
@@ -48,35 +45,35 @@ namespace Backend.Api.Api.Controllers
                 ShipmentId = dto.ShipmentId
             };
 
-            _db.Parcels.Add(e);
+            _db.Parcels.Add(entity);
             await _db.SaveChangesAsync(ct);
-
-            return Map(e);
+            return Map(entity);
         }
 
+        // --- GET PARCEL BY ID ---
         public async Task<GetParcelDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var e = await _db.Parcels.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
             return e is null ? null : Map(e);
         }
 
-        public async Task<IReadOnlyList<GetParcelDto>> GetAllAsync(string? q = null, int? shipmentId = null, CancellationToken ct = default)
+        // --- GET ALL PARCELS (with pagination) ---
+        public async Task<PagedResult<GetParcelDto>> GetAllAsync(string? q = null, int? shipmentId = null, PaginationParams? pagination = null, CancellationToken ct = default)
         {
+            pagination ??= new PaginationParams();
+
             var qry = _db.Parcels.AsNoTracking().AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q))
             {
-                var term = q.Trim();
-                qry = qry.Where(p => p.Description.Contains(term));
+                var term = q.Trim().ToLower();
+                qry = qry.Where(p => p.Description.ToLower().Contains(term));
             }
 
             if (shipmentId.HasValue)
-            {
-                var sid = shipmentId.Value;
-                qry = qry.Where(p => p.ShipmentId == sid);
-            }
+                qry = qry.Where(p => p.ShipmentId == shipmentId.Value);
 
-            return await qry
+            var projected = qry
                 .OrderBy(p => p.Id)
                 .Select(p => new GetParcelDto
                 {
@@ -87,10 +84,12 @@ namespace Backend.Api.Api.Controllers
                     Width = p.Width,
                     Height = p.Height,
                     ShipmentId = p.ShipmentId
-                })
-                .ToListAsync(ct);
+                });
+
+            return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+        // --- UPDATE PARCEL ---
         public async Task<bool> UpdateAsync(int id, UpdateParcelDto dto, CancellationToken ct = default)
         {
             var e = await _db.Parcels.FirstOrDefaultAsync(p => p.Id == id, ct);
@@ -106,24 +105,39 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
+        // --- DELETE PARCEL ---
         public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
         {
-            var e = await _db.Parcels.FirstOrDefaultAsync(p => p.Id == id, ct);
-            if (e is null) return false;
+            var e = await _db.Parcels
+                .Include(p => p.ParcelProducts)
+                .FirstOrDefaultAsync(p => p.Id == id, ct);
+
+            if (e is null)
+                return false;
+
+            // cannot delete parcel that belongs to a shipment (with this endpoint)
+            if (e.ShipmentId is not null)
+                throw new InvalidOperationException("Cannot delete parcel that belongs to a shipment.");
+
+            // remove related ParcelProducts
+            if (e.ParcelProducts.Any())
+                _db.ParcelProducts.RemoveRange(e.ParcelProducts);
 
             _db.Parcels.Remove(e);
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        // ---------- Products in a package ----------
-
-        public async Task<GetParcelProductsDto> GetProductsAsync(int parcelId, CancellationToken ct = default)
+        // --- GET PARCEL ITEMS ---
+        public async Task<PagedResult<ParcelProductItemDto>> GetProductsAsync(int parcelId, PaginationParams? pagination = null, CancellationToken ct = default)
         {
-            var exists = await _db.Parcels.AsNoTracking().AnyAsync(p => p.Id == parcelId, ct);
-            if (!exists) throw new KeyNotFoundException("Parcel not found.");
+            pagination ??= new PaginationParams();
 
-            var items = await _db.ParcelProducts
+            var exists = await _db.Parcels.AsNoTracking().AnyAsync(p => p.Id == parcelId, ct);
+            if (!exists)
+                throw new KeyNotFoundException("Parcel not found.");
+
+            var query = _db.ParcelProducts
                 .AsNoTracking()
                 .Where(pp => pp.ParcelId == parcelId)
                 .Select(pp => new ParcelProductItemDto
@@ -131,12 +145,12 @@ namespace Backend.Api.Api.Controllers
                     ProductId = pp.ProductId,
                     ProductName = pp.Product.Name,
                     Quantity = pp.Quantity
-                })
-                .ToListAsync(ct);
+                });
 
-            return new GetParcelProductsDto { Products = items };
+            return await query.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+        // --- ADD PRODUCT TO PARCEL ---
         public async Task<bool> AddProductAsync(int parcelId, AddProductToParcelDto dto, CancellationToken ct = default)
         {
             var parcel = await _db.Parcels.FirstOrDefaultAsync(p => p.Id == parcelId, ct);
@@ -147,41 +161,30 @@ namespace Backend.Api.Api.Controllers
 
             var link = await _db.ParcelProducts.FirstOrDefaultAsync(pp => pp.ParcelId == parcelId && pp.ProductId == dto.ProductId, ct);
             if (link is null)
-            {
-                link = new ParcelProduct { ParcelId = parcelId, ProductId = dto.ProductId, Quantity = dto.Quantity };
-                _db.ParcelProducts.Add(link);
-            }
+                _db.ParcelProducts.Add(new ParcelProduct { ParcelId = parcelId, ProductId = dto.ProductId, Quantity = dto.Quantity });
             else
-            {
-                checked { link.Quantity += dto.Quantity; }
-            }
+                link.Quantity += dto.Quantity;
 
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
+        // --- REMOVE PRODUCT FROM PARCEL ---
         public async Task<bool> RemoveProductAsync(int parcelId, RemoveProductFromParcelDto dto, CancellationToken ct = default)
         {
-            var parcel = await _db.Parcels.FirstOrDefaultAsync(p => p.Id == parcelId, ct);
-            if (parcel is null) return false;
-
             var link = await _db.ParcelProducts.FirstOrDefaultAsync(pp => pp.ParcelId == parcelId && pp.ProductId == dto.ProductId, ct);
             if (link is null) return false;
 
             if (dto.Quantity >= link.Quantity)
-            {
                 _db.ParcelProducts.Remove(link);
-            }
             else
-            {
                 link.Quantity -= dto.Quantity;
-            }
 
             await _db.SaveChangesAsync(ct);
             return true;
         }
 
-        // ---------- mapowanie ----------
+        // --- MAPPING ---
         private static GetParcelDto Map(Parcel p) => new()
         {
             Id = p.Id,
