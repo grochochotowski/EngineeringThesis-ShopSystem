@@ -40,6 +40,12 @@ namespace Backend.Api.Objects.DTOs
         [Required]                  public int AddressReceiverId                { get; set; }
     }
 
+    // --- GET SHIPMENT PARCELS ---
+    public class GetShipmentParcelsDto
+    {
+        public IEnumerable<GetParcelDto> Parcels { get; set; } = new List<GetParcelDto>();
+    }
+
     // --- UPDATE STATUS ---
     public class UpdateShipmentStatusDto
     {

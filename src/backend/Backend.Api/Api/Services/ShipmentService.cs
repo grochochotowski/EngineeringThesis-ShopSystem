@@ -1,15 +1,20 @@
-﻿using Backend.Api.Api.Services;
-using Backend.Api.Objects.DTOs;
+﻿using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
-using Backend.Api.Objects.Entities.Models.Relations;
 using Microsoft.EntityFrameworkCore;
 
-namespace Backend.Api.Api.Controllers
+namespace Backend.Api.Api.Services
 {
     public interface IShipmentService
     {
-        Task<IEnumerable<GetShipmentDto>> GetAllAsync(CancellationToken ct = default);
+        Task<PagedResult<GetShipmentDto>> GetAllAsync(
+            string? q = null,
+            ShipmentType? type = null,
+            ShipmentStatus? status = null,
+            int? deliveryCompanyId = null,
+            PaginationParams? pagination = null,
+            CancellationToken ct = default);
+
         Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<GetShipmentParcelsDto?> GetParcelsAsync(int shipmentId, CancellationToken ct = default);
 
@@ -19,7 +24,6 @@ namespace Backend.Api.Api.Controllers
 
         Task AddParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default);
         Task RemoveParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default);
-
         Task DeleteAsync(int id, CancellationToken ct = default);
     }
 
@@ -28,24 +32,59 @@ namespace Backend.Api.Api.Controllers
         private readonly AppDbContext _db;
         public ShipmentService(AppDbContext db) => _db = db;
 
-        public async Task<IEnumerable<GetShipmentDto>> GetAllAsync(CancellationToken ct = default)
+        // --- GET ALL SHIPMENTS (pagination and filters) ---
+        public async Task<PagedResult<GetShipmentDto>> GetAllAsync(
+            string? q = null,
+            ShipmentType? type = null,
+            ShipmentStatus? status = null,
+            int? deliveryCompanyId = null,
+            PaginationParams? pagination = null,
+            CancellationToken ct = default)
         {
-            return await _db.Shipments
+            pagination ??= new PaginationParams();
+
+            var qry = _db.Shipments
                 .AsNoTracking()
+                .Include(s => s.AddressSender)
+                .Include(s => s.AddressReceiver)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim().ToLower();
+                qry = qry.Where(s =>
+                    s.Id.ToString().Contains(term) ||
+                    (s.AddressSender != null && s.AddressSender.City.ToLower().Contains(term)) ||
+                    (s.AddressReceiver != null && s.AddressReceiver.City.ToLower().Contains(term)));
+            }
+
+            if (type.HasValue)
+                qry = qry.Where(s => s.Type == type.Value);
+
+            if (status.HasValue)
+                qry = qry.Where(s => s.Status == status.Value);
+
+            if (deliveryCompanyId.HasValue)
+                qry = qry.Where(s => s.DeliveryCompanyId == deliveryCompanyId.Value);
+
+            var projected = qry
+                .OrderByDescending(s => s.SendDate)
                 .Select(s => new GetShipmentDto
                 {
                     Id = s.Id,
                     Type = s.Type,
                     Status = s.Status,
                     SendDate = s.SendDate,
-                    DeliveryDate = s.DeliveryDate,
+                    DeliveryDate = s.DeliveryDate ?? DateTimeOffset.MinValue,
                     DeliveryCompanyId = s.DeliveryCompanyId,
                     AddressSenderId = s.AddressSenderId,
                     AddressReceiverId = s.AddressReceiverId
-                })
-                .ToListAsync(ct);
+                });
+
+            return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+        // --- GET SHIPMENT BY ID  ---
         public async Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             return await _db.Shipments
@@ -57,7 +96,7 @@ namespace Backend.Api.Api.Controllers
                     Type = s.Type,
                     Status = s.Status,
                     SendDate = s.SendDate,
-                    DeliveryDate = s.DeliveryDate,
+                    DeliveryDate = s.DeliveryDate ?? DateTimeOffset.MinValue,
                     DeliveryCompanyId = s.DeliveryCompanyId,
                     AddressSenderId = s.AddressSenderId,
                     AddressReceiverId = s.AddressReceiverId
@@ -65,6 +104,7 @@ namespace Backend.Api.Api.Controllers
                 .FirstOrDefaultAsync(ct);
         }
 
+        // --- GET PARCELS OF SHIPMENT ---
         public async Task<GetShipmentParcelsDto?> GetParcelsAsync(int shipmentId, CancellationToken ct = default)
         {
             var exists = await _db.Shipments.AsNoTracking().AnyAsync(x => x.Id == shipmentId, ct);
@@ -85,12 +125,10 @@ namespace Backend.Api.Api.Controllers
                 })
                 .ToListAsync(ct);
 
-            return new GetShipmentParcelsDto
-            {
-                Parcels = parcels
-            };
+            return new GetShipmentParcelsDto { Parcels = parcels };
         }
 
+        // --- CREATE SHIPMENT ---
         public async Task<int> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default)
         {
             await ValidateForeignKeys(dto.DeliveryCompanyId, dto.AddressSenderId, dto.AddressReceiverId, ct);
@@ -112,6 +150,7 @@ namespace Backend.Api.Api.Controllers
             return entity.Id;
         }
 
+        // --- UPDATE SHIPMENT ---
         public async Task UpdateAsync(int id, UpdateShipmentDto dto, CancellationToken ct = default)
         {
             var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -131,36 +170,34 @@ namespace Backend.Api.Api.Controllers
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- UPDATE STATUS ---
         public async Task UpdateStatusAsync(int id, UpdateShipmentStatusDto dto, CancellationToken ct = default)
         {
             var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
-
             s.Status = dto.Status;
             await _db.SaveChangesAsync(ct);
         }
 
-        // ---------- Shipment <> Parcels ----------
+        // --- ADD PARCELS ---
         public async Task AddParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default)
         {
             if (parcelIds is null || parcelIds.Count == 0) return;
 
             parcelIds = parcelIds.Distinct().ToList();
-
-            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId, ct);
-            if (s is null) throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
+            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId, ct)
+                ?? throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
 
             var parcels = await _db.Parcels.Where(p => parcelIds.Contains(p.Id)).ToListAsync(ct);
 
-            var foundIds = parcels.Select(p => p.Id).ToList();
-            var missing = parcelIds.Except(foundIds).ToList();
-            if (missing.Count > 0)
-                throw new ArgumentException($"Parcels not found: {string.Join(",", missing)}");
+            // 🔒 Conflict validation
+            var conflicts = parcels
+                .Where(p => p.ShipmentId.HasValue && p.ShipmentId != shipmentId)
+                .Select(p => p.Id)
+                .ToList();
 
-            var conflicting = parcels.Where(p => p.ShipmentId.HasValue && p.ShipmentId != shipmentId).ToList();
-            if (conflicting.Count > 0)
-                throw new InvalidOperationException(
-                    $"Some parcels already belong to another shipment: {string.Join(",", conflicting.Select(c => c.Id))}");
+            if (conflicts.Count > 0)
+                throw new InvalidOperationException($"Parcels already belong to another shipment: {string.Join(", ", conflicts)}");
 
             foreach (var p in parcels)
                 p.ShipmentId = shipmentId;
@@ -168,40 +205,42 @@ namespace Backend.Api.Api.Controllers
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- REMOVE PARCELS ---
         public async Task RemoveParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default)
         {
             if (parcelIds is null || parcelIds.Count == 0) return;
 
-            parcelIds = parcelIds.Distinct().ToList();
-
-            var sExists = await _db.Shipments.AsNoTracking().AnyAsync(x => x.Id == shipmentId, ct);
-            if (!sExists) throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
-
-            var toUpdate = await _db.Parcels
-                .Where(p => parcelIds.Contains(p.Id) && p.ShipmentId == shipmentId)
+            var parcels = await _db.Parcels
+                .Where(p => p.ShipmentId == shipmentId && parcelIds.Contains(p.Id))
                 .ToListAsync(ct);
 
-            if (toUpdate.Count == 0) return;
-
-            foreach (var p in toUpdate)
+            foreach (var p in parcels)
                 p.ShipmentId = null;
 
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- DELETE SHIPMENT (cascade delete parcels) ---
         public async Task DeleteAsync(int id, CancellationToken ct = default)
         {
-            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
+            var s = await _db.Shipments
+                .Include(x => x.Parcels)
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
+
             if (s is null) return;
+
+            if (s.Parcels.Any())
+                _db.Parcels.RemoveRange(s.Parcels);
 
             _db.Shipments.Remove(s);
             await _db.SaveChangesAsync(ct);
         }
 
+        // --- VALIDATION HELPERS ---
         private static void ValidateDates(DateTimeOffset send, DateTimeOffset delivery)
         {
             if (delivery < send)
-                throw new ArgumentException("DeliveryDate cannot be earlier than SendDate.");
+                throw new ArgumentException("DeliveryDate cannot be earlier than SendDate.", nameof(delivery));
         }
 
         private async Task ValidateForeignKeys(int deliveryCompanyId, int senderAddressId, int receiverAddressId, CancellationToken ct)
