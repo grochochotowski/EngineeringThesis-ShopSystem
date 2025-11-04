@@ -2,13 +2,12 @@
 using Backend.Api.Objects.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Api.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/parcels")]
+    [Route("api/[controller]")] // PATH: .../api/Parcels
     public sealed class ParcelsController : ControllerBase
     {
         private readonly IParcelsService _service;
