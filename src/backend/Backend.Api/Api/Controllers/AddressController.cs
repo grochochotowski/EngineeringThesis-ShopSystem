@@ -2,6 +2,7 @@
 using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -12,13 +13,15 @@ using System.Threading.Tasks;
 
 namespace Backend.Api.Api.Controllers
 {
+    [Authorize]
     [ApiController]
-    [Route("api/[controller]")] // /api/addresses
+    [Route("api/[controller]")] // .../api/Addresses
     public class AddressesController : ControllerBase
     {
         private readonly IAddressService _service;
         public AddressesController(IAddressService service) => _service = service;
 
+        // --- CREATE ADDRESS ---
         [HttpPost]
         public async Task<ActionResult<GetAddressDto>> Create([FromBody] CreateAddressDto dto, CancellationToken ct)
         {
@@ -27,6 +30,7 @@ namespace Backend.Api.Api.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
+        // --- GET ADDRESS BY ID ---
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GetAddressDto>> GetById([FromRoute] int id, CancellationToken ct)
         {
@@ -34,13 +38,15 @@ namespace Backend.Api.Api.Controllers
             return addr is null ? NotFound() : Ok(addr);
         }
 
+        // --- GET ALL ADDRESSES (paginated) ---
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GetAddressDto>>> GetAll(CancellationToken ct)
+        public async Task<ActionResult<PagedResult<GetAddressDto>>> GetAll( [FromQuery] PaginationParams pagination, CancellationToken ct)
         {
-            var list = await _service.GetAllAsync(ct);
-            return Ok(list);
+            var result = await _service.GetAllAsync(pagination, ct);
+            return Ok(result);
         }
 
+        // --- UPDATE ADDRESS ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateAddressDto dto, CancellationToken ct)
         {
@@ -49,13 +55,7 @@ namespace Backend.Api.Api.Controllers
             return ok ? NoContent() : NotFound();
         }
 
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
-        {
-            var ok = await _service.DeleteAsync(id, ct);
-            return ok ? NoContent() : NotFound();
-        }
-
+        // --- CHECK ADDRESS EXISTENCE ---
         [HttpGet("exists")]
         public async Task<ActionResult<object>> AddressExistsAsync([FromQuery] AddressExistenceDto dto, CancellationToken ct)
         {

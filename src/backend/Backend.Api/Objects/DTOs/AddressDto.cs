@@ -36,7 +36,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(16)]       public string PostalCode        { get; set; } = default!;
     }
 
-    // --- CHECK IF ADDRESS EXIST---
+    // --- CHECK ADDRESS EXISTANCE ---
     public class AddressExistenceDto    
     {
         [Required, MaxLength(64)]       public string Country           { get; set; } = default!;

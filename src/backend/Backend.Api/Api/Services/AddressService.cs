@@ -9,9 +9,8 @@ namespace Backend.Api.Api.Services
     {
         Task<GetAddressDto> CreateAsync(CreateAddressDto dto, CancellationToken ct = default);
         Task<GetAddressDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<IReadOnlyList<GetAddressDto>> GetAllAsync(CancellationToken ct = default);
+        Task<PagedResult<GetAddressDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateAddressDto dto, CancellationToken ct = default);
-        Task<bool> DeleteAsync(int id, CancellationToken ct = default);
         Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default);
     }
 
@@ -20,6 +19,7 @@ namespace Backend.Api.Api.Services
         private readonly AppDbContext _db;
         public AddressService(AppDbContext db) => _db = db;
 
+        // --- CREATE ADDRESS ---
         public async Task<GetAddressDto> CreateAsync(CreateAddressDto dto, CancellationToken ct = default)
         {
             var entity = new Address
@@ -38,22 +38,35 @@ namespace Backend.Api.Api.Services
             return ToGetDto(entity);
         }
 
+        // --- GET ADDRESSES BY ID ---
         public async Task<GetAddressDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var entity = await _db.Addresses.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
             return entity is null ? null : ToGetDto(entity);
         }
 
-        public async Task<IReadOnlyList<GetAddressDto>> GetAllAsync(CancellationToken ct = default)
+        // --- GET ALL ADDRESSES (paginated) ---
+        public async Task<PagedResult<GetAddressDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default)
         {
-            var list = await _db.Addresses
+            var query = _db.Addresses
                 .AsNoTracking()
-                .OrderBy(a => a.City).ThenBy(a => a.Street).ThenBy(a => a.Building)
-                .ToListAsync(ct);
+                .OrderBy(a => a.City)
+                .ThenBy(a => a.Street)
+                .Select(a => new GetAddressDto
+                {
+                    Id = a.Id,
+                    Country = a.Country,
+                    City = a.City,
+                    Street = a.Street,
+                    Building = a.Building,
+                    Premises = a.Premises,
+                    PostalCode = a.PostalCode
+                });
 
-            return list.Select(ToGetDto).ToList();
+            return await query.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
+        // --- UPDATE ADDRESS ---
         public async Task<bool> UpdateAsync(int id, UpdateAddressDto dto, CancellationToken ct = default)
         {
             var entity = await _db.Addresses.FirstOrDefaultAsync(a => a.Id == id, ct);
@@ -70,17 +83,7 @@ namespace Backend.Api.Api.Services
             return true;
         }
 
-        public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
-        {
-            var entity = await _db.Addresses.FirstOrDefaultAsync(a => a.Id == id, ct);
-            if (entity is null) return false;
-
-
-            _db.Addresses.Remove(entity);
-            await _db.SaveChangesAsync(ct);
-            return true;
-        }
-
+        // --- ADDRESS EXISTENCE CHECK ---
         public async Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default)
         {
             var country = dto.Country.Trim().ToLower();
