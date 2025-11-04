@@ -14,10 +14,10 @@ namespace Backend.Api.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class TaxRatesController : ControllerBase
+    public class TaxRateController : ControllerBase
     {
         private readonly ITaxRateService _service;
-        public TaxRatesController(ITaxRateService service) => _service = service;
+        public TaxRateController(ITaxRateService service) => _service = service;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<GetTaxRateDto>>> GetAll([FromQuery] bool? onlyActive, CancellationToken ct)
