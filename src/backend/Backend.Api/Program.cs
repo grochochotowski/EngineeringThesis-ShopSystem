@@ -21,6 +21,7 @@ namespace Backend.Api
             // --- DATABASE ---
             builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
             builder.Services.AddTransient<DbSeeder>();
+            builder.Services.AddTransient<DbExampleDataSeeder>();
             builder.Services.AddControllers().AddJsonOptions(o =>
             {
                 o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -62,14 +63,14 @@ namespace Backend.Api
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IClientService, ClientService>();
             builder.Services.AddScoped<IDeliveryCompaniesService, DeliveryCompaniesService>();
-            //builder.Services.AddScoped<IParcelsService, ParcelsService>();
+            builder.Services.AddScoped<IParcelsService, ParcelsService>();
             builder.Services.AddScoped<IProductService, ProductService>();
             builder.Services.AddScoped<ISalesDocumentService, SalesDocumentService>();
             builder.Services.AddScoped<ISalesDocumentItemService, SalesDocumentItemService>();
             builder.Services.AddScoped<ISalesPaymentService, SalesPaymentService>();
-            //builder.Services.AddScoped<IShipmentService, ShipmentService>();
+            builder.Services.AddScoped<IShipmentService, ShipmentService>();
             builder.Services.AddScoped<ITaxRateService, TaxRateService>();
-            //builder.Services.AddScoped<IUsersService, UsersService>();
+            builder.Services.AddScoped<IUsersService, UserService>();
             builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
             // --- JWT AUTHENTICATION ---
@@ -105,7 +106,8 @@ namespace Backend.Api
             // --- SEED DATABASE ---
             using (var scope = app.Services.CreateScope())
             {
-                var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+                // var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+                var seeder = scope.ServiceProvider.GetRequiredService<DbExampleDataSeeder>();
                 seeder.Seed();
             }
 

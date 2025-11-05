@@ -1,5 +1,4 @@
-﻿// Backend.Api/Infrastructure/DbSeeder.cs
-using Backend.Api.Objects.Entities;
+﻿using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
 using System.Security.Cryptography;
 using System.Text;
