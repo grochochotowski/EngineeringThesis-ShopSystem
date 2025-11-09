@@ -1,92 +1,85 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import MessageBox from "../components/MessageBox";
+import "../styles/login.css";
+
 export default function LoginPage() {
     const navigate = useNavigate();
     const [login, setLogin] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [toast, setToast] = useState(null);
 
     async function handleSubmit(e) {
         e.preventDefault();
-        setError("");
 
         if (!login.trim() || !password) {
-            setError("Email and password are required.");
+            setToast({ message: "Email and password are required.", type: "error" });
             return;
         }
 
+        // 🔹 symulacja logowania bez backendu
         setLoading(true);
-        try {
-            const res = await fetch("/api/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ login, password }),
-            });
-
-            if (!res.ok) {
-                const errBody = await res.json().catch(() => null);
-                throw new Error(errBody?.message || `Request failed: ${res.status}`);
+        setTimeout(() => {
+            if (login === "admin" && password === "admin") {
+                // przykładowy „sukces”
+                localStorage.setItem("authToken", "fakeToken123");
+                setToast({ message: "Login successful!", type: "success" });
+                setTimeout(() => navigate("/"), 1000);
+            } else {
+                // przykładowy „błąd logowania”
+                setToast({ message: "Invalid login or password", type: "error" });
             }
-
-            const data = await res.json();
-            // adjust according to your backend response (e.g. data.token)
-            if (data.token) {
-                localStorage.setItem("authToken", data.token);
-            }
-            // optionally store user info
-            if (data.user) {
-                localStorage.setItem("user", JSON.stringify(data.user));
-            }
-
-            // navigate to protected route after login
-            navigate("/");
-        } catch (err) {
-            setError(err.message || "Login failed");
-        } finally {
             setLoading(false);
-        }
+        }, 1000); // symulacja krótkiego opóźnienia
     }
 
     return (
-        <main>
-            <h1>Login</h1>
-            <form onSubmit={handleSubmit} noValidate>
-                <div>
-                    <label htmlFor="login">Login</label>
-                    <input
-                        id="login"
-                        type="text"
-                        value={login}
-                        onChange={(e) => setLogin(e.target.value)}
-                        required
-                        autoComplete="username"
-                    />
-                </div>
-
-                <div>
-                    <label htmlFor="password">Password</label>
-                    <input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        autoComplete="current-password"
-                    />
-                </div>
-
-                {error && (
-                    <div role="alert" aria-live="polite">
-                        {error}
+        <div id="login-page">
+            <main>
+                <h1>BackOffice</h1>
+                <form onSubmit={handleSubmit} noValidate>
+                    <div>
+                        <label htmlFor="login">Login</label>
+                        <input
+                            id="login"
+                            type="text"
+                            placeholder="Login"
+                            value={login}
+                            onChange={(e) => setLogin(e.target.value)}
+                            required
+                            autoComplete="username"
+                        />
                     </div>
-                )}
-
-                <button type="submit" disabled={loading}>
+                    <div>
+                        <label htmlFor="password">Password</label>
+                        <input
+                            id="password"
+                            type="password"
+                            placeholder="Passowrd"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            autoComplete="current-password"
+                        />
+                    </div>
+                </form>
+                <button onClick={handleSubmit} disabled={loading}>
                     {loading ? "Logging in..." : "Log in"}
                 </button>
-            </form>
-        </main>
+            </main>
+            <footer>
+                <small>Engineering thesis project - Białystok University of Technology</small>
+                <small>&copy; 2025 Michał Grochowski</small>
+            </footer>
+            {toast && (
+            <MessageBox
+                message={toast.message}
+                type={toast.type}
+                duration={2500}
+                onClose={() => setToast(null)}
+            />)}
+        </div>
     );
 }
