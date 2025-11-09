@@ -30,7 +30,7 @@ export default function Dashboard() {
             <header>
                 <div className="nav-left">
                     <i className="fa-solid fa-house"></i>
-                    {Array.from({ length: 10 }).map((_, i) => (
+                    {Array.from({ length: 5 }).map((_, i) => (
                         <button key={i}>Option {i + 1}</button>
                     ))}
                 </div>
@@ -44,7 +44,7 @@ export default function Dashboard() {
             <main>
                 <section>
                     <div className="quick-options">
-                        {Array.from({ length: 9 }).map((_, i) => (
+                        {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className="option-card">
                             <div className="icon" />
                             <p>Option name</p>
@@ -52,10 +52,12 @@ export default function Dashboard() {
                     ))}
                     </div>
                     <div className="summary-card">
-                        <h4>Today's earnings</h4>
-                        <p className="value">5463 zł</p>
-                        <h4>Today's plan</h4>
-                        <p className="goal">8000 zł</p>
+                        <div className="summary-text">
+                            <h4>Today's earnings</h4>
+                            <p className="value">5463 zł</p>
+                            <h4>Today's plan</h4>
+                            <p className="value">8000 zł</p>
+                        </div>
                         <p>📊 Chart placeholder</p>
                     </div>
                 </section>

@@ -8,6 +8,7 @@
 
     /* === Text colors === */
     --text-dark: #0f1624;           /* main text */
+    --text-white: #ffffff;          /* white text */
     --text-light: #e0e6ff;          /* text on dark bg */
     --text-muted: #8592ad;          /* placeholders */
 
@@ -43,6 +44,10 @@
     --toast-info-bg: #ebf8ff;
     --toast-info-border: #1e3a8a;
     --toast-info-text: #1e3a8a;
+
+    --toast-warning-bg: #fffbea;
+    --toast-warning-border: #744210;
+    --toast-warning-text: #744210;
 }
 
 /* === Base === */
