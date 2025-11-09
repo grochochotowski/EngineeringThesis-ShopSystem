@@ -42,7 +42,7 @@ export default function LoginPage() {
             setToast({ message: "Login successful!", type: "success" });
 
             // delay redirect slightly
-            setTimeout(() => navigate("/404"), 1000);
+            setTimeout(() => navigate("/dashboard"), 1000);
 
         } catch (err) {
             setToast({ message: err.message || "Invalid login or password", type: "error" });
