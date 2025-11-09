@@ -35,7 +35,7 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <GlobalStateProvider>
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<Fallback />}>
                 <RouterProvider router={router} />
             </Suspense>
         </GlobalStateProvider>
