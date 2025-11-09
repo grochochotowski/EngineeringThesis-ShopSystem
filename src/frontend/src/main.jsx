@@ -16,14 +16,14 @@ const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 // Protected route wrapper
 const PrivateRoute = ({ children }) => {
     const { state } = useContext(GlobalStateContext);
-    return state.isLoggedIn ? children : <Navigate to="/login" replace/>;
+    return state.isLoggedIn ? children : <Navigate to="/" replace/>;
 };
 
 // Router definition
 const router = createBrowserRouter([
     { path: '/', element: <Login />, errorElement: <NotFound /> },
 
-    { path: '/dashboard', element:  <PrivateRoute><Dashboard /></PrivateRoute>, errorElement: <NotFound /> }, // i added this line
+    { path: '/dashboard', element:  <PrivateRoute><Dashboard /></PrivateRoute>, errorElement: <NotFound /> },
 
     { path: '/404', element: <NotFound /> },
     //{ path: '/fallback', element: <Fallback /> },

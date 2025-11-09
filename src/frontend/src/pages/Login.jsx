@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { GlobalStateContext } from "../GlobalState";
 
 import MessageBox from "../components/MessageBox";
 import "../styles/login.css";
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const { setState } = useContext(GlobalStateContext);
+
     const [login, setLogin] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -39,10 +42,12 @@ export default function LoginPage() {
                 })
             );
 
-            setToast({ message: "Login successful!", type: "success" });
+            // update global state
+            setState(prev => ({ ...prev, isLoggedIn: true }));
 
-            // delay redirect slightly
-            setTimeout(() => navigate("/dashboard"), 1000);
+            // send message & redirect
+            setToast({ message: "Login successful!", type: "success" });
+            navigate("/dashboard");
 
         } catch (err) {
             setToast({ message: err.message || "Invalid login or password", type: "error" });
