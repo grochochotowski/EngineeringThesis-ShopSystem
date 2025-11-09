@@ -10,16 +10,17 @@
     align-items: flex-start;
     gap: 10px;
 
-    border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    
     opacity: 0;
     transform: translateY(8px);
     transition: opacity 0.2s ease, transform 0.2s ease;
     z-index: 9999;
+    overflow: hidden;
 }
 
-/* animations */
+/* === Animations === */
 @keyframes fadeInToast {
     0% {
         opacity: 0;
@@ -42,7 +43,7 @@
     }
 }
 
-/* show/hide states */
+/* /* === Show/hide states ===*/
 .message-box.show {
     animation: fadeInToast 0.35s ease forwards;
 }
@@ -51,26 +52,26 @@
     animation: fadeOutToast 0.35s ease forwards;
 }
 
-/* message types */
+/* === Message types === */
 .message-box.success {
-    background-color: #e6fffa;
-    border: 1px solid #2f855a;
-    color: #22543d;
+    background-color: var(--toast-success-bg);
+    border: 1px solid var(--toast-success-border);
+    color: var(--toast-success-text);
 }
 
 .message-box.error {
-    background-color: #fff5f5;
-    border: 1px solid #c53030;
-    color: #742a2a;
+    background-color: var(--toast-error-bg);
+    border: 1px solid var(--toast-error-border);
+    color: var(--toast-error-text);
 }
 
 .message-box.info {
-    background-color: #ebf8ff;
-    border: 1px solid #2b6cb0;
-    color: #2a4365;
+    background-color: var(--toast-info-bg);
+    border: 1px solid var(--toast-info-border);
+    color: var(--toast-info-text);
 }
 
-/* inside elements */
+/* === Inside elements === */
 .message-box .icon {
     width: 20px;
     height: 20px;
@@ -95,7 +96,7 @@
     bottom: 0;
     height: 4px;
     background: currentColor;
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
     transition: width 0.05s linear;
     opacity: 0.6;
 }
