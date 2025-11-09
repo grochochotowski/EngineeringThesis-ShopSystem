@@ -28,6 +28,20 @@ namespace Backend.Api
             });
             builder.Services.AddEndpointsApiExplorer();
 
+            // --- CORS ---
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowedOrigins",
+                    policy =>
+                    {
+                        policy
+                            .WithOrigins("http://localhost:5173", "https://localhost:5173")
+                            .AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowCredentials();
+                    });
+            });
+
             // --- SWAGGER WITH JWT AUTH ---
             builder.Services.AddSwaggerGen(options =>
             {
@@ -97,6 +111,9 @@ namespace Backend.Api
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+            
+            // --- USE CORS ---
+            app.UseCors("AllowedOrigins");
 
             app.UseHttpsRedirection();
             app.UseAuthentication();
