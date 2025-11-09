@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import "../styles/messageBox.css";
+import "../styles/ComponentsStyles/messageBox.css";
 
 export default function MessageBox({ message, type = "success", duration = 3000, onClose }) {
     const [visible, setVisible] = useState(true);

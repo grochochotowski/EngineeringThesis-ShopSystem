@@ -8,6 +8,8 @@ import { GlobalStateProvider, GlobalStateContext } from './GlobalState';
 
 import './styles/style.css'
 
+import Fallback from "./components/Fallback";
+
 // Lazy loading pages
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/ErrorPages/NotFound.jsx'))
@@ -26,7 +28,7 @@ const router = createBrowserRouter([
     { path: '/dashboard', element:  <PrivateRoute><Dashboard /></PrivateRoute>, errorElement: <NotFound /> },
 
     { path: '/404', element: <NotFound /> },
-    //{ path: '/fallback', element: <Fallback /> },
+    { path: '/fallback', element: <Fallback /> },
 ]);
 
 // Root render
