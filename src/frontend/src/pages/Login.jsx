@@ -13,33 +13,49 @@ export default function LoginPage() {
 
     async function handleSubmit(e) {
         e.preventDefault();
-
-        if (!login.trim() || !password) {
-            setToast({ message: "Email and password are required.", type: "error" });
-            return;
-        }
-
-        // 🔹 symulacja logowania bez backendu
         setLoading(true);
-        setTimeout(() => {
-            if (login === "admin" && password === "admin") {
-                // przykładowy „sukces”
-                localStorage.setItem("authToken", "fakeToken123");
-                setToast({ message: "Login successful!", type: "success" });
-                setTimeout(() => navigate("/"), 1000);
-            } else {
-                // przykładowy „błąd logowania”
-                setToast({ message: "Invalid login or password", type: "error" });
-            }
+
+        try {
+            const res = await fetch("https://localhost:7132/api/Auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ login, password }),
+            });
+
+            const data = await res.json();
+            if (!res.ok)
+                throw new Error(data?.message || `Login failed (${res.status})`);
+
+            // store tokens & user data
+            localStorage.setItem("accessToken", data.accessToken);
+            localStorage.setItem("refreshToken", data.refreshToken);
+            localStorage.setItem(
+                "user",
+                JSON.stringify({
+                    id: data.id,
+                    name: `${data.firstName} ${data.lastName}`,
+                    email: data.email,
+                    role: data.role,
+                })
+            );
+
+            setToast({ message: "Login successful!", type: "success" });
+
+            // delay redirect slightly
+            setTimeout(() => navigate("/404"), 1000);
+
+        } catch (err) {
+            setToast({ message: err.message || "Invalid login or password", type: "error" });
+        } finally {
             setLoading(false);
-        }, 1000); // symulacja krótkiego opóźnienia
+        }
     }
 
     return (
         <div id="login-page">
             <main>
                 <h1>BackOffice</h1>
-                <form onSubmit={handleSubmit} noValidate>
+                <form id="loginForm" onSubmit={handleSubmit} noValidate>
                     <div>
                         <label htmlFor="login">Login</label>
                         <input
@@ -57,7 +73,7 @@ export default function LoginPage() {
                         <input
                             id="password"
                             type="password"
-                            placeholder="Passowrd"
+                            placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -65,7 +81,7 @@ export default function LoginPage() {
                         />
                     </div>
                 </form>
-                <button onClick={handleSubmit} disabled={loading}>
+                <button type="submit" form="loginForm" disabled={loading}>
                     {loading ? "Logging in..." : "Log in"}
                 </button>
             </main>
