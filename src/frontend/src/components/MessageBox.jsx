@@ -38,13 +38,8 @@ export default function MessageBox({ message, type = "success", duration = 3000,
             aria-live={type === "error" ? "assertive" : "polite"}
             className={`message-box ${type} ${visible ? "show" : "hide"}`}
         >
-            {/* 🔹 Ikona */}
             <div className={`icon icon-${type}`} aria-hidden="true"></div>
-
-            {/* 🔹 Tekst */}
             <div className="text">{message}</div>
-
-            {/* 🔹 Pasek postępu */}
             <div className="progress-bar" style={{ width: `${progress}%` }} />
         </div>
     );
