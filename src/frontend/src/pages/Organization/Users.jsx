@@ -11,17 +11,31 @@ export default function Users() {
     const [error, setError] = useState(null);
 
     const observerRef = useRef(null);
+    const loadedPages = useRef(new Set()); // keep track of already fetched pages
 
+    // Fetch users from API (paginated)
     const fetchUsers = useCallback(async (page = 1) => {
+        // Skip if this page was already fetched
+        if (loadedPages.current.has(page)) return;
+        loadedPages.current.add(page);
+
         try {
             setLoading(true);
-            const data = await api.get("/Users", {
+            const { items, totalPages } = await api.get("/Users", {
                 params: { PageNumber: page, PageSize: 10 },
             });
 
-            if (data?.items?.length > 0) {
-                setUsers(prev => [...prev, ...data.items]);
-                setHasMore(page < (data.totalPages || 1));
+            if (items?.length) {
+                setUsers(prev => {
+                    // Merge new and old items, remove duplicates by ID
+                    const merged = [...prev, ...items];
+                    const unique = merged.filter(
+                        (v, i, arr) => arr.findIndex(x => x.id === v.id) === i
+                    );
+                    return unique;
+                });
+                // Determine if more pages are available
+                setHasMore(page < (totalPages || 1));
             } else {
                 setHasMore(false);
             }
@@ -32,11 +46,14 @@ export default function Users() {
         }
     }, []);
 
+    // Initial load
     useEffect(() => {
-        fetchUsers(pageNumber);
-    }, [pageNumber, fetchUsers]);
+        setUsers([]);
+        loadedPages.current.clear();
+        fetchUsers(1);
+    }, [fetchUsers]);
 
-    // Infinite scroll observer
+    // Infinite scroll: trigger when reaching the bottom
     useEffect(() => {
         if (loading) return;
         const observer = new IntersectionObserver(entries => {
@@ -48,6 +65,11 @@ export default function Users() {
         return () => observer.disconnect();
     }, [loading, hasMore]);
 
+    // Fetch next page when pageNumber changes
+    useEffect(() => {
+        if (pageNumber > 1) fetchUsers(pageNumber);
+    }, [pageNumber, fetchUsers]);
+
     const columns = [
         { key: "id", label: "ID" },
         { key: "firstName", label: "First Name" },
@@ -58,7 +80,7 @@ export default function Users() {
         { key: "dateOfBirth", label: "Date of Birth" },
     ];
 
-    const rows = users.map((u) => ({
+    const rows = users.map(u => ({
         id: u.id,
         firstName: u.firstName,
         lastName: u.lastName,
@@ -90,8 +112,15 @@ export default function Users() {
                     onEdit={() => console.log("Edit user")}
                     onDelete={() => console.log("Delete user")}
                 />
-                {/* Wskaźnik końca listy */}
+                {/* Invisible marker used for IntersectionObserver */}
                 <div ref={observerRef} style={{ height: "1px" }} />
+                
+                {/* Loading indicator for bottom of list */}
+                {loading && (
+                    <p style={{ textAlign: "center", marginTop: 10 }}>
+                        Loading...
+                    </p>
+                )}
             </main>
         </div>
     );
