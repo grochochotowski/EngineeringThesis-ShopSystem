@@ -17,6 +17,8 @@ const NotFound = lazy(() => import('./pages/ErrorPages/NotFound.jsx'))
 const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 
+const Users = lazy(() => import("./pages/Organization/Users.jsx"));
+
 // Protected route wrapper
 const PrivateRoute = ({ children }) => {
     const { state } = useContext(GlobalStateContext);
