@@ -19,6 +19,8 @@ const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
 
+const Products = lazy(() => import("./pages/Storage/Products.jsx"));
+
 // Protected route wrapper
 const PrivateRoute = ({ children }) => {
     const { state } = useContext(GlobalStateContext);
@@ -37,6 +39,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="DeputyManager">
                     <Users />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/storage/products',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <Products />
                 </ProtectedRoute>
             </PrivateRoute>
         ),

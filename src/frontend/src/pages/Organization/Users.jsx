@@ -22,7 +22,7 @@ export default function Users() {
         try {
             setLoading(true);
             const { items, totalPages } = await api.get("/Users", {
-                params: { PageNumber: page, PageSize: 10 },
+                params: { PageNumber: page, PageSize: 50 },
             });
 
             if (items?.length) {
