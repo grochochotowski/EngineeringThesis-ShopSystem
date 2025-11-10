@@ -1,4 +1,4 @@
-.not-found-container {
+.error-container {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -14,7 +14,7 @@
     font-family: var(--font-family-main);
 }
 
-.not-found-content {
+.error-content {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -27,27 +27,26 @@
     animation: fadeIn 0.4s ease;
 }
 
-.not-found-content h1 {
+.error-content h1 {
     font-size: 6rem;
     font-weight: 800;
-    color: var(--accent-main);
     margin: 0;
 }
 
-.not-found-content h2 {
+.error-content h2 {
     font-size: 1.8rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: var(--text-white);
 }
 
-.not-found-content p {
+.error-content p {
     color: var(--text-light);
     font-size: 1rem;
     margin-bottom: 1.5rem;
 }
 
-.not-found-content button {
+.error-content button {
     background-color: var(--accent-main);
     color: var(--text-white);
     border: none;
@@ -59,7 +58,7 @@
     transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
-.not-found-content button:hover {
+.error-content button:hover {
     background-color: var(--accent-hover);
     transform: translateY(-1px);
 }

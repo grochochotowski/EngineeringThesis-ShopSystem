@@ -1,13 +1,13 @@
 import React from "react";
 import "../../styles/ErrorStyles/error.css";
 
-const NotFound = () => {
+const AccessDenied = () => {
     return (
         <div className="error-container">
             <div className="error-content">
-                <h1 style={{ color: "var(--accent-main)" }}>404</h1>
-                <h2>Page Not Found</h2>
-                <p>The page you are looking for does not exist.</p>
+                <h1 style={{ color: "var(--btn-danger-bg)" }}>403</h1>
+                <h2>Access Denied</h2>
+                <p>You don’t have permission to view this page.</p>
                 <button onClick={() => (window.location.href = "/dashboard")}>
                     Back to Dashboard
                 </button>
@@ -16,4 +16,4 @@ const NotFound = () => {
     );
 };
 
-export default NotFound;
+export default AccessDenied;
