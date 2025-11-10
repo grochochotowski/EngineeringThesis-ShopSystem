@@ -80,6 +80,10 @@ h1 {
 small {
     font-size: 0.75rem;
 }
+p {
+    margin: 0;
+}
+
 
 /* === Global icons === */
 .icon {
