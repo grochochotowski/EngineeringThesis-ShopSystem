@@ -3,10 +3,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #3b82f6;
-    color: #fff;
+    background-color: var(--accent-main);
+    color: var(--text-white);
     padding: 0.75rem 1.5rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-md);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -18,7 +18,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+    background: var(--bg-gradient-light);
     pointer-events: none;
     z-index: -1;
 }
@@ -37,12 +37,12 @@
 .main-header .nav-item button {
     background: transparent;
     border: none;
-    color: white;
+    color: var(--text-white);
     font-size: 0.95rem;
     cursor: pointer;
     font-weight: 500;
     padding: 0.3rem 0.6rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     transition: background 0.2s ease;
 }
 
@@ -57,10 +57,10 @@
     gap: 0.4rem;
     background: transparent;
     border: none;
-    color: white;
+    color: var(--text-white);
     font-size: 0.95rem;
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 0.4rem 0.8rem;
     cursor: pointer;
     transition: background 0.2s ease, transform 0.15s ease;
@@ -72,7 +72,7 @@
 }
 
 .main-header .home-btn svg {
-    fill: white;
+    fill: var(--text-white);
 }
 
 /* === DROPDOWN MENU === */
@@ -80,22 +80,22 @@
     position: absolute;
     top: 2.2rem;
     left: 0;
-    background: #fff;
-    color: #111;
+    background: var(--bg-card);
+    color: var(--text-dark);
     display: flex;
     flex-direction: column;
-    border-radius: 0.6rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
     min-width: 160px;
     overflow: hidden;
-    z-index: 50;
+    z-index: 150;
     animation: fadeIn 0.2s ease;
 }
 
 .main-header .dropdown button {
     background: transparent;
     border: none;
-    color: #111;
+    color: var(--text-dark);
     text-align: left;
     padding: 0.7rem 1rem;
     font-size: 0.95rem;
@@ -104,7 +104,7 @@
 }
 
 .main-header .dropdown button:hover {
-    background: #f3f4f6;
+    background: var(--bg-alt);
 }
 
 /* === RIGHT NAVIGATION === */
@@ -115,10 +115,10 @@
 }
 
 .main-header .user {
-    background-color: white;
-    color: #1e3a8a;
+    background-color: var(--text-white);
+    color: var(--accent-dark);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-weight: 600;
     padding: 0.4rem 0.8rem;
     cursor: pointer;
@@ -134,16 +134,17 @@
     position: absolute;
     right: 0;
     top: 2.8rem;
-    background: white;
-    color: #111;
-    border-radius: 0.6rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: var(--bg-card);
+    color: var(--text-dark);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
     padding: 1rem 1.2rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     min-width: 200px;
     animation: fadeIn 0.2s ease;
+    z-index: 150;
 }
 
 .main-header .user-modal h4 {
@@ -152,18 +153,20 @@
     margin: 0;
 }
 
+/* === LOGOUT BUTTON === */
 .main-header .logout {
-    background: #ef4444;
-    color: white;
+    background: var(--btn-danger-bg);
+    color: var(--btn-danger-text);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 0.5rem;
     cursor: pointer;
     font-weight: 500;
+    transition: background 0.2s ease;
 }
 
 .main-header .logout:hover {
-    background: #dc2626;
+    background: var(--btn-danger-hover);
 }
 
 /* === ANIMATIONS === */

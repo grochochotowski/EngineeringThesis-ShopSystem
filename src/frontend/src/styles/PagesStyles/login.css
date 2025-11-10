@@ -92,3 +92,40 @@
 #login-page button:hover {
     background-color: var(--accent-hover);
 }
+
+/* === LOGIN PAGE LOCAL THEME === */
+#login-page {
+    --bg-card: rgba(255, 255, 255, 0.15);
+    --bg-input: rgba(255, 255, 255, 0.8);
+    --accent-main: #5b7fff;
+    --accent-hover: #7d96ff;
+    --accent-dark: #001a5e;
+    --border-input: 1px solid #3b4b9a;
+    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+#login-page form {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(8px);
+}
+
+#login-page form input {
+    background-color: var(--bg-input);
+    color: var(--text-dark);
+}
+
+#login-page form label {
+    color: var(--text-light);
+}
+
+#login-page button {
+    background-color: var(--accent-main);
+    color: var(--text-white);
+}
+
+#login-page button:hover {
+    background-color: var(--accent-hover);
+}

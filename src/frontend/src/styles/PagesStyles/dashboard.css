@@ -36,9 +36,9 @@
 }
 
 .option-card {
-    background: #fff;
-    border-radius: 0.6rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -49,7 +49,7 @@
 
 .option-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
 }
 
 .option-card .icon {
@@ -63,9 +63,9 @@
 /* === SUMMARY CARD === */
 .summary-card {
     height: 33%;
-    background: #fff;
-    border-radius: 0.6rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
     padding: 1rem 1.5rem;
     display: flex;
     justify-content: space-between;
@@ -79,18 +79,20 @@
 }
 
 .summary-card h4 {
-    margin: 0.25rem 0 ;
+    margin: 0.25rem 0;
     font-weight: 600;
 }
+
 .summary-card .value {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--accent-main);
 }
+
 .summary-card .goal {
     font-size: 1.2rem;
     font-weight: 500;
-    color: #333;
+    color: var(--text-dark);
 }
 
 /* === RIGHT SECTION (MESSAGES) === */
@@ -102,9 +104,9 @@
 
 .messages {
     flex: 1;
-    background: #fff;
-    border-radius: 0.6rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
     padding: 1rem 1.5rem;
     overflow-y: auto;
 }
@@ -124,23 +126,26 @@
     gap: 0.5rem;
     font-size: 0.95rem;
     padding: 0.3rem 0.6rem;
-    border-radius: 0.3rem;
+    border-radius: var(--radius-sm);
 }
 
 .messages li span {
     font-weight: 600;
 }
 
+/* === TOAST TYPES === */
 .messages li.info {
     background: var(--toast-info-bg);
     border-left: 4px solid var(--toast-info-border);
     color: var(--toast-info-text);
 }
+
 .messages li.error {
     background: var(--toast-error-bg);
     border-left: 4px solid var(--toast-error-border);
     color: var(--toast-error-text);
 }
+
 .messages li.warning {
     background: var(--toast-warning-bg);
     border-left: 4px solid var(--toast-warning-border);

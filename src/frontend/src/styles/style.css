@@ -7,30 +7,42 @@
     --transition-fast: 150ms ease-in-out;
 
     /* === Text colors === */
-    --text-dark: #0f1624;           /* main text */
-    --text-white: #ffffff;          /* white text */
-    --text-light: #e0e6ff;          /* text on dark bg */
-    --text-muted: #8592ad;          /* placeholders */
-
-    /* === Backgrounds === */
-    --bg-main: #0a255c;             /* login page bg */
-    --bg-card: rgba(255, 255, 255, 0.15);  /* glass form bg */
-    --bg-input: rgba(255, 255, 255, 0.8);  /* input field */
+    --text-dark: #0f1624;
+    --text-white: #ffffff;
+    --text-light: #e0e6ff;
+    --text-muted: #8592ad;
 
     /* === Accent colors === */
-    --accent-main: #5b7fff;
-    --accent-hover: #7d96ff;
-    --accent-dark: #001a5e; 
+    --accent-main: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-light: #93c5fd;
+    --accent-dark: #1e3a8a;
 
-    /* === Borders & radiuses === */
+    /* === Backgrounds === */
+    --bg-main: #0a255c;
+    --bg-card: #ffffff;
+    --bg-alt: #f3f4f6;
+    --bg-gradient-light: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+
+    /* === Buttons & interactive === */
+    --btn-bg: var(--accent-main);
+    --btn-bg-hover: var(--accent-hover);
+    --btn-text: var(--text-white);
+    --btn-danger-bg: #ef4444;
+    --btn-danger-hover: #dc2626;
+    --btn-danger-text: #ffffff;
+
+    /* === Borders & radius === */
     --radius-sm: 6px;
     --radius-md: 8px;
-    --radius-lg: 10px;
-    --border-input: 1px solid #3b4b9a;
+    --radius-lg: 12px;
+    --border-light: 1px solid rgba(255, 255, 255, 0.3);
+    --border-muted: 1px solid #e5e7eb;
 
     /* === Shadows === */
-    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.2);
 
     /* === Toast colors === */
     --toast-success-bg: #e6fffa;

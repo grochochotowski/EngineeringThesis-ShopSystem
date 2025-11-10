@@ -15,42 +15,27 @@
     
     opacity: 0;
     transform: translateY(8px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: var(--transition-fast);
     z-index: 9999;
     overflow: hidden;
+
+    background: var(--bg-card);
+    color: var(--text-dark);
 }
 
 /* === Animations === */
 @keyframes fadeInToast {
-    0% {
-        opacity: 0;
-        transform: translateY(10px) scale(0.97);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    0% { opacity: 0; transform: translateY(10px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes fadeOutToast {
-    0% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(10px) scale(0.97);
-    }
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(10px) scale(0.97); }
 }
 
-/* /* === Show/hide states ===*/
-.message-box.show {
-    animation: fadeInToast 0.35s ease forwards;
-}
-
-.message-box.hide {
-    animation: fadeOutToast 0.35s ease forwards;
-}
+/* === Show/hide states === */
+.message-box.show { animation: fadeInToast 0.35s ease forwards; }
+.message-box.hide { animation: fadeOutToast 0.35s ease forwards; }
 
 /* === Message types === */
 .message-box.success {
@@ -69,6 +54,12 @@
     background-color: var(--toast-info-bg);
     border: 1px solid var(--toast-info-border);
     color: var(--toast-info-text);
+}
+
+.message-box.warning {
+    background-color: var(--toast-warning-bg);
+    border: 1px solid var(--toast-warning-border);
+    color: var(--toast-warning-text);
 }
 
 /* === Inside elements === */
