@@ -9,7 +9,58 @@ export default function Header({ user, onLogout }) {
     const userRef = useRef(null);
     const navigate = useNavigate();
 
-    // === Toggle dropdown menu ===
+    // === MENU STRUCTURE ===
+    const menuStructure = [
+        {
+            title: "Sales",
+            items: [
+                { name: "Sales documents", path: "/sales/documents" },
+                { name: "Reports", path: "/sales/reports" },
+            ],
+        },
+        {
+            title: "Storage",
+            items: [
+                { name: "Warehouses", path: "/storage/warehouses" },
+                { name: "Products", path: "/storage/products" },
+            ],
+        },
+        {
+            title: "Deliveries",
+            items: [
+                { name: "Incoming shipments", path: "/deliveries/shipments/incoming" },
+                { name: "Leaving shipments", path: "/deliveries/shipments/leaving" },
+            ],
+        },
+        {
+            title: "Organization",
+            items: [
+                { name: "Users", path: "/organization/users" },
+                { name: "Addresses", path: "/organization/addresses" },
+                { name: "Categories", path: "/organization/categories" },
+                { name: "Delivery companies", path: "/organization/companies" },
+            ],
+        },
+        {
+            title: "Dictionaries",
+            items: [
+                { name: "Client types", path: "/dictionaries/client-types" },
+                { name: "Payment options", path: "/dictionaries/payment-options" },
+                { name: "Sales document types", path: "/dictionaries/sales-document-types" },
+                { name: "Shipment status", path: "/dictionaries/shipment-status" },
+                { name: "Shipment types", path: "/dictionaries/shipment-types" },
+                { name: "User roles", path: "/dictionaries/user-roles" },
+            ],
+        },
+        {
+            title: "Events",
+            items: [
+                { name: "Events", path: "/events" },
+            ],
+        },
+    ];
+
+    // === Toggle dropdown ===
     const toggleMenu = (index) => {
         setOpenMenu(openMenu === index ? null : index);
     };
@@ -36,15 +87,17 @@ export default function Header({ user, onLogout }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // === Navigate to home (/dashboard) ===
-    const handleHomeClick = () => {
-        navigate("/dashboard");
+    // === Navigation ===
+    const handleNavigate = (path) => {
+        navigate(path);
+        setOpenMenu(null);
     };
+
+    const handleHomeClick = () => navigate("/dashboard");
 
     return (
         <header className="main-header">
             <div className="nav-left" ref={menuRef}>
-
                 {/* === HOME BUTTON === */}
                 <button className="home-btn" onClick={handleHomeClick}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
@@ -52,18 +105,29 @@ export default function Header({ user, onLogout }) {
                     </svg>
                 </button>
 
-                {/* === NAVIGATION ITEMS === */}
-                {Array.from({ length: 5 }).map((_, i) => (
+                {/* === MENU === */}
+                {menuStructure.map((menu, i) => (
                     <div key={i} className="nav-item">
-                        <button onClick={() => toggleMenu(i)}>
-                            Option {i + 1}
-                        </button>
+                        <button onClick={() => toggleMenu(i)}>{menu.title}</button>
 
                         {openMenu === i && (
                             <div className="dropdown">
-                                <button>Sub-option A</button>
-                                <button>Sub-option B</button>
-                                <button>Sub-option C</button>
+                                {menu.items.map((item, j) =>
+                                    item.sub ? (
+                                        <div key={j} className="dropdown-submenu">
+                                            <button className="submenu-title">{item.name}</button>
+                                            {item.sub.map((sub, k) => (
+                                                <button key={k} onClick={() => handleNavigate(sub.path)}>
+                                                    {sub.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <button key={j} onClick={() => handleNavigate(item.path)}>
+                                            {item.name}
+                                        </button>
+                                    )
+                                )}
                             </div>
                         )}
                     </div>
