@@ -30,7 +30,7 @@ export default function LoginPage() {
                 throw new Error(data?.message || `Login failed (${res.status})`);
 
             // store tokens & user data
-            localStorage.setItem("accessToken", data.accessToken);
+            localStorage.setItem("token", data.accessToken);
             localStorage.setItem("refreshToken", data.refreshToken);
             localStorage.setItem(
                 "user",

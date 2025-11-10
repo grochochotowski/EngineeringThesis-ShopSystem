@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import AccessDenied from "../pages/ErrorPages/AccessDenied";
 
 const roleHierarchy = {
     Unspecified: 0,
@@ -14,11 +14,19 @@ const roleHierarchy = {
 };
 
 const ProtectedRoute = ({ userRole, requiredRole, children }) => {
-    const userRank = roleHierarchy[userRole] ?? 0;
+    let userRank = 0;
     const requiredRank = roleHierarchy[requiredRole] ?? 0;
 
+    // Try parse number or string name
+    if (!isNaN(userRole)) {
+        userRank = parseInt(userRole, 10);
+    } else {
+        userRank = roleHierarchy[userRole] ?? 0;
+    }
+
+
     if (userRank < requiredRank) {
-        return <Navigate to="/403" replace />;
+        return <AccessDenied />;
     }
 
     return children;
