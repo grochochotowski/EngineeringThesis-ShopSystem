@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/PagesStyles/dashboard.css";
 
@@ -11,10 +11,23 @@ export default function Dashboard() {
     const [openMenu, setOpenMenu] = useState(null);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
+    const menuRef = useRef(null);
+
     //  === Load user data on mount ===
     useEffect(() => {
         const stored = localStorage.getItem("user");
         if (stored) setUser(JSON.parse(stored));
+    }, []);
+
+    // === Close dropdown when clicking outside ===
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setOpenMenu(null);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     // === Toggle menu visibility ===
@@ -40,7 +53,7 @@ export default function Dashboard() {
     return (
         <div id="dashboard">
             <header>
-                <div className="nav-left">
+                <div className="nav-left" ref={menuRef}>
                     {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="nav-item">
                             <button onClick={() => toggleMenu(i)}>
