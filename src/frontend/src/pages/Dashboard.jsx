@@ -8,6 +8,7 @@ export default function Dashboard() {
     const navigate = useNavigate();
 
     const [user, setUser] = useState(null);
+    const [openMenu, setOpenMenu] = useState(null);
 
     //  === Load user data on mount ===
     useEffect(() => {
@@ -21,6 +22,11 @@ export default function Dashboard() {
         navigate("/");
     }
 
+    // === Toogle menu visibility ===
+    const toggleMenu = (index) => {
+        setOpenMenu(openMenu === index ? null : index);
+    };
+
     // === If user data is not loaded yet ===
     if (!user) return <Fallback text="Loading dashboard..." />;
 
@@ -29,9 +35,20 @@ export default function Dashboard() {
         <div id="dashboard">
             <header>
                 <div className="nav-left">
-                    <i className="fa-solid fa-house"></i>
                     {Array.from({ length: 5 }).map((_, i) => (
-                        <button key={i}>Option {i + 1}</button>
+                        <div key={i} className="nav-item">
+                            <button onClick={() => toggleMenu(i)}>
+                                Option {i + 1}
+                            </button>
+
+                            {openMenu === i && (
+                                <div className="dropdown">
+                                    <button>Sub-option A</button>
+                                    <button>Sub-option B</button>
+                                    <button>Sub-option C</button>
+                                </div>
+                            )}
+                        </div>
                     ))}
                 </div>
                 <div className="nav-right">
