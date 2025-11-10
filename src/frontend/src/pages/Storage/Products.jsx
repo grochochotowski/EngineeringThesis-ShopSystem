@@ -38,7 +38,7 @@ export default function Products() {
                 const { items, totalPages } = await api.get("/Products", {
                     params: {
                         PageNumber: page,
-                        PageSize: 10,
+                        PageSize: 50,
                         ...(searchQuery && { q: searchQuery }),
                         ...(filters.minPrice && { minPrice: filters.minPrice }),
                         ...(filters.maxPrice && { maxPrice: filters.maxPrice }),

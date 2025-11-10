@@ -9,67 +9,85 @@ export default function Users() {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // --- Filters ---
+    const [filters, setFilters] = useState({
+        role: "",
+        isActive: "",
+    });
+
+    // --- Search ---
+    const [searchQuery, setSearchQuery] = useState("");
 
     const observerRef = useRef(null);
-    const loadedPages = useRef(new Set()); // keep track of already fetched pages
+    const loadedPages = useRef(new Set());
 
-    // Fetch users from API (paginated)
-    const fetchUsers = useCallback(async (page = 1) => {
-        // Skip if this page was already fetched
+    // === FETCH USERS ===
+    const fetchUsers = useCallback(
+    async (page = 1) => {
         if (loadedPages.current.has(page)) return;
         loadedPages.current.add(page);
 
         try {
             setLoading(true);
             const { items, totalPages } = await api.get("/Users", {
-                params: { PageNumber: page, PageSize: 50 },
+                params: {
+                    PageNumber: page,
+                    PageSize: 20,
+                    ...(searchQuery && { search: searchQuery }),
+                    ...(filters.role && { role: filters.role }),
+                    ...(filters.isActive !== "" && { isActive: filters.isActive }),
+                },
             });
 
             if (items?.length) {
-                setUsers(prev => {
-                    // Merge new and old items, remove duplicates by ID
-                    const merged = [...prev, ...items];
-                    const unique = merged.filter(
-                        (v, i, arr) => arr.findIndex(x => x.id === v.id) === i
-                    );
-                    return unique;
-                });
-                // Determine if more pages are available
+                setUsers(items);
                 setHasMore(page < (totalPages || 1));
             } else {
+                setUsers([]);
                 setHasMore(false);
             }
-        } catch {
+        } catch (err) {
+            console.error(err);
             setError("Failed to load users.");
         } finally {
             setLoading(false);
         }
-    }, []);
+    },
+    [filters, searchQuery]
+);
 
-    // Initial load
+    // === Auto refresh when filters/search change ===
     useEffect(() => {
-        setUsers([]);
-        loadedPages.current.clear();
-        fetchUsers(1);
-    }, [fetchUsers]);
+        const delay = setTimeout(() => {
+            setUsers([]);
+            loadedPages.current.clear();
+            setPageNumber(1);
+            fetchUsers(1);
+        }, 500);
 
-    // Infinite scroll: trigger when reaching the bottom
+        return () => clearTimeout(delay);
+    }, [filters, searchQuery, fetchUsers]);
+
+    // === Infinite scroll ===
     useEffect(() => {
         if (loading) return;
-        const observer = new IntersectionObserver(entries => {
+        const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && hasMore) {
-                setPageNumber(prev => prev + 1);
+                setPageNumber((prev) => prev + 1);
             }
         });
         if (observerRef.current) observer.observe(observerRef.current);
         return () => observer.disconnect();
     }, [loading, hasMore]);
 
-    // Fetch next page when pageNumber changes
+    // === Load next page ===
     useEffect(() => {
         if (pageNumber > 1) fetchUsers(pageNumber);
     }, [pageNumber, fetchUsers]);
 
+    // === Columns ===
     const columns = [
         { key: "id", label: "ID" },
         { key: "firstName", label: "First Name" },
@@ -77,21 +95,50 @@ export default function Users() {
         { key: "email", label: "Email" },
         { key: "phoneNumber", label: "Phone" },
         { key: "role", label: "Role" },
-        { key: "dateOfBirth", label: "Date of Birth" },
+        { key: "isActive", label: "Active" },
     ];
 
-    const rows = users.map(u => ({
+    const rows = users.map((u) => ({
         id: u.id,
         firstName: u.firstName,
         lastName: u.lastName,
         email: u.email,
-        phoneNumber: u.phoneNumber,
-        role: u.role,
-        dateOfBirth: new Date(u.dateOfBirth).toLocaleDateString(),
+        phoneNumber: u.phoneNumber || "—",
+        role: u.role || "—",
+        isActive: u.isActive ? "Yes" : "No",
     }));
 
     const user = JSON.parse(localStorage.getItem("user"));
 
+    // === Search change with debounce ===
+    const typingTimeout = useRef(null);
+    const handleSearchChange = (value) => {
+        setSearchQuery(value);
+
+        if (typingTimeout.current) clearTimeout(typingTimeout.current);
+        typingTimeout.current = setTimeout(() => {
+            setUsers([]);
+            loadedPages.current.clear();
+            setPageNumber(1);
+            fetchUsers(1);
+        }, 500);
+    };
+
+    // === Filter handlers ===
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleBooleanChange = (e) => {
+        const { name, value } = e.target;
+        setFilters((prev) => ({
+            ...prev,
+            [name]: value === "" ? "" : value === "true",
+        }));
+    };
+
+    // === Render ===
     return (
         <div className="page-container">
             <Header
@@ -111,15 +158,48 @@ export default function Users() {
                     onAdd={() => console.log("Add user")}
                     onEdit={() => console.log("Edit user")}
                     onDelete={() => console.log("Delete user")}
+                    onToggleFilters={() => setShowFilters((prev) => !prev)}
+                    onSearchChange={handleSearchChange}
+                    searchValue={searchQuery}
                 />
-                {/* Invisible marker used for IntersectionObserver */}
+
+                {/* === Filter Panel === */}
+                {showFilters && (
+                    <div className="filters-panel">
+                        <h4>Filters</h4>
+
+                        <select
+                            name="role"
+                            value={filters.role}
+                            onChange={handleFilterChange}
+                        >
+                            <option value="">All roles</option>
+                            <option value="Admin">Admin</option>
+                            <option value="CEO">CEO</option>
+                            <option value="Manager">Manager</option>
+                            <option value="DeputyManager">DeputyManager</option>
+                            <option value="ShopAssistant">ShopAssistant</option>
+                            <option value="ItTechnician">ItTechnician</option>
+                            <option value="Marketer">Marketer</option>
+                            <option value="Root">Root</option>
+                        </select>
+
+                        <select
+                            name="isActive"
+                            value={filters.isActive}
+                            onChange={handleBooleanChange}
+                        >
+                            <option value="">All statuses</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                )}
+
+                {/* Infinite scroll sentinel */}
                 <div ref={observerRef} style={{ height: "1px" }} />
-                
-                {/* Loading indicator for bottom of list */}
                 {loading && (
-                    <p style={{ textAlign: "center", marginTop: 10 }}>
-                        Loading...
-                    </p>
+                    <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
                 )}
             </main>
         </div>
