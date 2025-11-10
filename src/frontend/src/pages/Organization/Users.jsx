@@ -22,6 +22,7 @@ export default function Users() {
 
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
+    const filtersRef = useRef(null);
 
     // === FETCH USERS ===
     const fetchUsers = useCallback(
@@ -55,8 +56,7 @@ export default function Users() {
             setLoading(false);
         }
     },
-    [filters, searchQuery]
-);
+    [filters, searchQuery]);
 
     // === Auto refresh when filters/search change ===
     useEffect(() => {
@@ -138,6 +138,22 @@ export default function Users() {
         }));
     };
 
+    // === Close filters when clicking outside ===
+    useEffect(() => {
+        if (!showFilters) return;
+
+        const handleClickOutside = (event) => {
+            if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+                setShowFilters(false);
+            }
+        };
+
+        document.addEventListener("click", handleClickOutside);
+        return () => {
+            document.removeEventListener("click", handleClickOutside);
+        };
+    }, [showFilters]);
+
     // === Render ===
     return (
         <div className="page-container">
@@ -165,7 +181,7 @@ export default function Users() {
 
                 {/* === Filter Panel === */}
                 {showFilters && (
-                    <div className="filters-panel">
+                    <div className="filters-panel" ref={filtersRef}>
                         <h4>Filters</h4>
 
                         <select

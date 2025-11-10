@@ -40,7 +40,7 @@ export default function BaseListPage({
                             onChange={(e) => onSearchChange?.(e.target.value)} // 👈 update query on typing
                         />
                         <div className="search-buttons">
-                            <button className="btn-filter" onClick={() => onToggleFilters?.()}>
+                            <button className="btn-filter" onClick={(e) => { e.stopPropagation(); onToggleFilters?.()}}>
                                 Filters
                             </button>
                         </div>

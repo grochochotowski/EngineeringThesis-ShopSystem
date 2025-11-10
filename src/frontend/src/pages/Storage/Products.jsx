@@ -26,6 +26,7 @@ export default function Products() {
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
     const clearSelectionRef = useRef(null);
+    const filtersRef = useRef(null);
 
     // Fetch products from API with filters
     const fetchProducts = useCallback(
@@ -146,6 +147,23 @@ export default function Products() {
         }));
     };
 
+    // === Close filters when clicking outside ===
+    useEffect(() => {
+        if (!showFilters) return;
+
+        const handleClickOutside = (event) => {
+            if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+                setShowFilters(false);
+            }
+        };
+
+        document.addEventListener("click", handleClickOutside);
+        return () => {
+            document.removeEventListener("click", handleClickOutside);
+        };
+    }, [showFilters]);
+
+    // === Render ===
     return (
         <div className="page-container">
             <Header
@@ -173,7 +191,7 @@ export default function Products() {
 
                 {/* --- Sidebar filter panel (visible only when toggled) --- */}
                 {showFilters && (
-                    <div className="filters-panel">
+                    <div className="filters-panel" ref={filtersRef}>
                         <h4>Filters</h4>
                         <div className="filters-row">
                             <input
