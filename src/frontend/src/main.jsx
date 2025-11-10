@@ -9,10 +9,12 @@ import { GlobalStateProvider, GlobalStateContext } from './GlobalState';
 import './styles/style.css'
 
 import Fallback from "./components/Fallback";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Lazy loading pages
 const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/ErrorPages/NotFound.jsx'))
+const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 
 // Protected route wrapper
@@ -27,7 +29,20 @@ const router = createBrowserRouter([
 
     { path: '/dashboard', element:  <PrivateRoute><Dashboard /></PrivateRoute>, errorElement: <NotFound /> },
 
+    {
+        path: '/organization/users',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="DeputyManager">
+                    <Users />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+
     { path: '/404', element: <NotFound /> },
+    { path: '/403', element: <AccessDenied /> },
     { path: '/fallback', element: <Fallback /> },
 ]);
 
