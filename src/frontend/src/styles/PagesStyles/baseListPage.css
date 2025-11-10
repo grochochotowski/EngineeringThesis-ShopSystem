@@ -53,8 +53,8 @@
 .search-buttons {
     display: flex;
     justify-content: space-between;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .btn-filter,
@@ -199,25 +199,73 @@
     background: #dbeafe;
 }
 
-/* === PAGINATION === */
-.pagination {
+/* === FILTERS PANEL === */
+.filters-panel {
+    position: absolute;
+    top: 110px;
+    left: 300px;
+    width: 260px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 1rem;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.7rem;
+    z-index: 10;
+    animation: fadeIn 0.25s ease;
 }
 
-.pagination button {
+/* Inputs and selects inside filters */
+.filters-panel input[type="text"],
+.filters-panel input[type="number"],
+.filters-panel select {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filters-panel input:focus,
+.filters-panel select:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Min/Max price row */
+.filters-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Button */
+.btn-apply-filters {
     background: #3b82f6;
-    color: white;
+    color: #fff;
     border: none;
-    border-radius: 6px;
-    padding: 0.4rem 0.9rem;
-    cursor: pointer;
+    border-radius: 8px;
+    padding: 0.6rem;
     font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
 }
 
-.pagination button:hover {
+.btn-apply-filters:hover {
     background: #2563eb;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

@@ -9,10 +9,10 @@ export default function Products() {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [showFilters, setShowFilters] = useState(false);
 
     // Filters
     const [filters, setFilters] = useState({
-        q: "",
         minPrice: "",
         maxPrice: "",
         categoryId: "",
@@ -20,10 +20,14 @@ export default function Products() {
         isActive: "",
     });
 
+    // Main search input
+    const [searchQuery, setSearchQuery] = useState(""); 
+
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
+    const clearSelectionRef = useRef(null);
 
-    // Fetch products from API
+    // Fetch products from API with filters
     const fetchProducts = useCallback(
         async (page = 1) => {
             if (loadedPages.current.has(page)) return;
@@ -34,39 +38,44 @@ export default function Products() {
                 const { items, totalPages } = await api.get("/Products", {
                     params: {
                         PageNumber: page,
-                        PageSize: 50,
-                        ...filters,
+                        PageSize: 10,
+                        ...(searchQuery && { q: searchQuery }),
+                        ...(filters.minPrice && { minPrice: filters.minPrice }),
+                        ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
+                        ...(filters.categoryId && { categoryId: filters.categoryId }),
+                        ...(filters.defective !== "" && { defective: filters.defective }),
+                        ...(filters.isActive !== "" && { isActive: filters.isActive }),
                     },
                 });
 
                 if (items?.length) {
-                    setProducts((prev) => {
-                        const merged = [...prev, ...items];
-                        const unique = merged.filter(
-                            (v, i, arr) => arr.findIndex((x) => x.sku === v.sku) === i
-                        );
-                        return unique;
-                    });
+                    setProducts(items);
                     setHasMore(page < (totalPages || 1));
                 } else {
+                    setProducts([]);
                     setHasMore(false);
                 }
             } catch (err) {
+                console.error(err);
                 setError("Failed to load products.");
             } finally {
                 setLoading(false);
             }
         },
-        [filters]
+        [filters, searchQuery]
     );
 
-    // Initial load or filter change
+    // Reset and reload when filters or search change
     useEffect(() => {
-        setProducts([]);
-        loadedPages.current.clear();
-        setPageNumber(1);
-        fetchProducts(1);
-    }, [fetchProducts]);
+        const delay = setTimeout(() => {
+            setProducts([]);
+            loadedPages.current.clear();
+            setPageNumber(1);
+            fetchProducts(1);
+        }, 1000);
+
+        return () => clearTimeout(delay);
+    }, [filters, searchQuery, fetchProducts]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -106,12 +115,35 @@ export default function Products() {
 
     const user = JSON.parse(localStorage.getItem("user"));
 
-    // Handle search
-    const handleSearch = () => {
-        setProducts([]);
-        loadedPages.current.clear();
-        setPageNumber(1);
-        fetchProducts(1);
+    // Updating search query
+    const typingTimeout = useRef(null);
+
+    const handleSearchChange = (value) => {
+        setSearchQuery(value);
+
+        if (clearSelectionRef.current) clearSelectionRef.current();
+        if (typingTimeout.current) clearTimeout(typingTimeout.current);
+        typingTimeout.current = setTimeout(() => {
+            setProducts([]);
+            loadedPages.current.clear();
+            setPageNumber(1);
+            fetchProducts(1);
+
+        }, 1000);
+    };
+
+    // Auto-updating filters
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFilters((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleBooleanChange = (e) => {
+        const { name, value } = e.target;
+        setFilters((prev) => ({
+            ...prev,
+            [name]: value === "" ? "" : value === "true",
+        }));
     };
 
     return (
@@ -133,14 +165,64 @@ export default function Products() {
                     onAdd={() => console.log("Add product")}
                     onEdit={() => console.log("Edit product")}
                     onDelete={() => console.log("Delete product")}
+                    onToggleFilters={() => setShowFilters((prev) => !prev)}
+                    onSearchChange={handleSearchChange}
+                    searchValue={searchQuery}
+                    onClearSelection={(fn) => (clearSelectionRef.current = fn)}
                 />
 
-                {/* Bottom loader and scroll observer */}
+                {/* --- Sidebar filter panel (visible only when toggled) --- */}
+                {showFilters && (
+                    <div className="filters-panel">
+                        <h4>Filters</h4>
+                        <div className="filters-row">
+                            <input
+                                type="number"
+                                name="minPrice"
+                                placeholder="Min price"
+                                value={filters.minPrice}
+                                onChange={handleInputChange}
+                            />
+                            <input
+                                type="number"
+                                name="maxPrice"
+                                placeholder="Max price"
+                                value={filters.maxPrice}
+                                onChange={handleInputChange}
+                            />
+                        </div>
+                        <input
+                            type="number"
+                            name="categoryId"
+                            placeholder="Category ID"
+                            value={filters.categoryId}
+                            onChange={handleInputChange}
+                        />
+                        <select
+                            name="defective"
+                            value={filters.defective}
+                            onChange={handleBooleanChange}
+                        >
+                            <option value="">All products</option>
+                            <option value="true">Only defective</option>
+                            <option value="false">Only non-defective</option>
+                        </select>
+                        <select
+                            name="isActive"
+                            value={filters.isActive}
+                            onChange={handleBooleanChange}
+                        >
+                            <option value="">All statuses</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                )}
+
+                {/* Infinite scroll sentinel */}
                 <div ref={observerRef} style={{ height: "1px" }} />
                 {loading && (
-                    <p style={{ textAlign: "center", marginTop: 10 }}>
-                        Loading...
-                    </p>
+                    <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
                 )}
             </main>
         </div>

@@ -9,6 +9,10 @@ export default function BaseListPage({
     onAdd,
     onEdit,
     onDelete,
+    onToggleFilters,
+    onSearchChange,
+    searchValue = "",
+    onClearSelection,
 }) {
     const [selectedRow, setSelectedRow] = useState(null);
 
@@ -17,6 +21,11 @@ export default function BaseListPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data]);
 
+    // expose clear function to parent
+    useEffect(() => {
+        if (onClearSelection) onClearSelection(() => setSelectedRow(null));
+    }, [onClearSelection]);
+
     return (
         <div className="base-list-wrapper">
             <div className="base-list-container">
@@ -24,10 +33,16 @@ export default function BaseListPage({
                 <aside className="sidebar">
                     {/* Search */}
                     <div className="search-panel">
-                        <input type="text" placeholder="Search..." />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchValue}
+                            onChange={(e) => onSearchChange?.(e.target.value)} // 👈 update query on typing
+                        />
                         <div className="search-buttons">
-                            <button className="btn-filter">Filters</button>
-                            <button className="btn-search">Search</button>
+                            <button className="btn-filter" onClick={() => onToggleFilters?.()}>
+                                Filters
+                            </button>
                         </div>
                     </div>
 
