@@ -121,3 +121,40 @@ p {
 .icon-info {
     mask-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>");
 }
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: #64748b;
+    transition: 0.2s;
+}
+.btn-close:hover {
+    color: #1e293b;
+}
+
+.btn-cancel,
+.btn-confirm {
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-cancel {
+    background: #e2e8f0;
+    color: #334155;
+}
+.btn-cancel:hover {
+    background: #cbd5e1;
+}
+
+.btn-confirm {
+    background: #ef4444;
+    color: white;
+}
+.btn-confirm:hover {
+    background: #dc2626;
+}

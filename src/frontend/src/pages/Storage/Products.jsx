@@ -2,8 +2,15 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "../../api/apiClient";
 import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
+import Modal from "../../components/Modal";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 export default function Products() {
+    const [showModal, setShowModal] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+
+
     const [products, setProducts] = useState([]);
     const [pageNumber, setPageNumber] = useState(1);
     const [hasMore, setHasMore] = useState(true);
@@ -180,9 +187,18 @@ export default function Products() {
                     data={rows}
                     loading={loading}
                     error={error}
-                    onAdd={() => console.log("Add product")}
-                    onEdit={() => console.log("Edit product")}
-                    onDelete={() => console.log("Delete product")}
+                    onAdd={() => {
+                        setSelectedProduct(null);
+                        setShowModal(true);
+                    }}
+                    onEdit={(row) => {
+                        setSelectedProduct(row);
+                        setShowModal(true);
+                    }}
+                    onDelete={(row) => {
+                        setSelectedProduct(row);
+                        setShowConfirm(true);
+                    }}
                     onToggleFilters={() => setShowFilters((prev) => !prev)}
                     onSearchChange={handleSearchChange}
                     searchValue={searchQuery}
@@ -243,6 +259,47 @@ export default function Products() {
                     <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
                 )}
             </main>
+            {/* === MODAL: Add / Edit === */}
+            {showModal && (
+                <Modal
+                    title={selectedProduct ? "Edit Product" : "Add Product"}
+                    onClose={() => setShowModal(false)}
+                >
+                    <p>
+                        {selectedProduct
+                            ? `Editing product: ${selectedProduct.name}`
+                            : "Creating new product"}
+                    </p>
+                    {/* TODO: tutaj pójdzie ProductForm */}
+                    <div style={{ marginTop: "1rem", textAlign: "right" }}>
+                        <button className="btn-cancel" onClick={() => setShowModal(false)}>
+                            Close
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* === CONFIRM DIALOG: Delete / Deactivate === */}
+            {showConfirm && (
+                <ConfirmDialog
+                    title={
+                        selectedProduct?.isActive === "Yes"
+                            ? "Deactivate Product"
+                            : "Delete Product"
+                    }
+                    message={
+                        selectedProduct?.isActive === "Yes"
+                            ? `Are you sure you want to deactivate "${selectedProduct.name}"?`
+                            : `Are you sure you want to permanently delete "${selectedProduct.name}"?`
+                    }
+                    confirmText={selectedProduct?.isActive === "Yes" ? "Deactivate" : "Delete"}
+                    onConfirm={() => {
+                        console.log("Confirmed action for:", selectedProduct);
+                        setShowConfirm(false);
+                    }}
+                    onCancel={() => setShowConfirm(false)}
+                />
+            )}
         </div>
     );
 }
