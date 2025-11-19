@@ -18,7 +18,7 @@ export default function ConfirmDialog({
                     <button className="btn-cancel" onClick={onCancel}>
                         {cancelText}
                     </button>
-                    <button className="btn-confirm" onClick={onConfirm}>
+                    <button className="btn-confirm-negative" onClick={onConfirm}>
                         {confirmText}
                     </button>
                 </div>

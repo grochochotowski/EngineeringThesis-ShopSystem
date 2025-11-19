@@ -122,6 +122,46 @@ p {
     mask-image: url("data:image/svg+xml;utf8,<svg fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>");
 }
 
+/* === BUTTONS === */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #0f172a;
+    padding: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s ease;
+}
+
+.btn-action:not(.disabled):nth-child(1):hover {
+    background: #10b981;
+    color: white;
+}
+.btn-action:not(.disabled):nth-child(2):hover {
+    background: #f59e0b;
+    color: white;
+}
+.btn-action:not(.disabled):nth-child(3):hover {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-action.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .btn-close {
     background: none;
     border: none;
@@ -135,7 +175,8 @@ p {
 }
 
 .btn-cancel,
-.btn-confirm {
+.btn-confirm,
+.btn-confirm-negative {
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1rem;
@@ -151,10 +192,10 @@ p {
     background: #cbd5e1;
 }
 
-.btn-confirm {
+.btn-confirm-negative {
     background: #ef4444;
     color: white;
 }
-.btn-confirm:hover {
+.btn-confirm-negative:hover {
     background: #dc2626;
 }
