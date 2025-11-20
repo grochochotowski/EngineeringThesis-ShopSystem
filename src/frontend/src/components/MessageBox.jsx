@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import "../styles/ComponentsStyles/messageBox.css";
 
-export default function MessageBox({ message, type = "success", duration = 3000, onClose }) {
+export default function MessageBox({ message, type = "success", duration = 3000, onClose, className = "" }) {
     const [visible, setVisible] = useState(true);
     const [progress, setProgress] = useState(100);
 
@@ -36,7 +36,7 @@ export default function MessageBox({ message, type = "success", duration = 3000,
         <div
             role="status"
             aria-live={type === "error" ? "assertive" : "polite"}
-            className={`message-box ${type} ${visible ? "show" : "hide"}`}
+            className={`message-box ${type} ${visible ? "show" : "hide"} ${className}`}
         >
             <div className={`icon icon-${type}`} aria-hidden="true"></div>
             <div className="text">{message}</div>

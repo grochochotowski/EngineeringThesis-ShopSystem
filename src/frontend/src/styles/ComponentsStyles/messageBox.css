@@ -1,8 +1,9 @@
 .message-box {
     position: fixed;
     bottom: 20px;
+    width: fit-content;
+    max-width: 480px;
     min-width: 260px;
-    max-width: calc(100% - 40px);
     padding: 12px 14px 18px 14px;
 
     display: flex;
@@ -14,23 +15,29 @@
     box-shadow: var(--shadow-md);
     
     opacity: 0;
-    transform: translateY(8px);
     transition: var(--transition-fast);
-    z-index: 9999;
+    z-index: 99999;
     overflow: hidden;
 
     background: var(--bg-card);
     color: var(--text-dark);
 }
 
+.message-box.centered {
+    left: 50%;
+    transform: translateX(-50%);
+    right: auto;
+    margin-left: 0;
+}
+
 /* === Animations === */
 @keyframes fadeInToast {
-    0% { opacity: 0; transform: translateY(10px) scale(0.97); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+    0% { opacity: 0; transform: translate(-50%, 10px) scale(0.97); }
+    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 @keyframes fadeOutToast {
-    0% { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(10px) scale(0.97); }
+    0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, 10px) scale(0.97); }
 }
 
 /* === Show/hide states === */

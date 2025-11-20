@@ -39,6 +39,22 @@
     padding: 1.2rem;
 }
 
+.modal-body p {
+    margin-bottom: 0.75rem;
+}
+
+.modal-body form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
 /* === ANIMATIONS === */
 @keyframes fadeIn {
     from { opacity: 0; }

@@ -100,6 +100,7 @@ export default function LoginPage() {
                 type={toast.type}
                 duration={2500}
                 onClose={() => setToast(null)}
+                className="centered"
             />)}
         </div>
     );

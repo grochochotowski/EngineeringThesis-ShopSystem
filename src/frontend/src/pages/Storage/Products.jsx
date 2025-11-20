@@ -4,6 +4,7 @@ import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
 import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import ProductForm from "../../components/Forms/ProductForm";
 
 export default function Products() {
     const [showModal, setShowModal] = useState(false);
@@ -270,7 +271,14 @@ export default function Products() {
                             ? `Editing product: ${selectedProduct.name}`
                             : "Creating new product"}
                     </p>
-                    {/* TODO: tutaj pójdzie ProductForm */}
+                    <ProductForm
+                        product={selectedProduct}
+                        onSuccess={() => {
+                            setShowModal(false);
+                            fetchProducts(1);
+                        }}
+                        onCancel={() => setShowModal(false)}
+                    />
                     <div style={{ marginTop: "1rem", textAlign: "right" }}>
                         <button className="btn-cancel" onClick={() => setShowModal(false)}>
                             Close
