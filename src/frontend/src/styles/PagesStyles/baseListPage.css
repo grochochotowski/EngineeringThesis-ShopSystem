@@ -42,14 +42,6 @@
 }
 
 /* === SEARCH PANEL === */
-.search-panel input {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border: var(--border-muted);
-    border-radius: var(--radius-md);
-    font-size: 0.9rem;
-}
-
 .search-buttons {
     display: flex;
     justify-content: space-between;
@@ -57,8 +49,7 @@
     margin-bottom: 1rem;
 }
 
-.btn-filter,
-.btn-search {
+.btn-filter {
     flex: 1;
     border: none;
     border-radius: var(--radius-md);
@@ -69,8 +60,7 @@
     cursor: pointer;
     transition: var(--transition-fast);
 }
-.btn-filter:hover,
-.btn-search:hover {
+.btn-filter:hover{
     background: var(--accent-main);
 }
 
@@ -175,25 +165,6 @@
     gap: 0.7rem;
     z-index: 10;
     animation: fadeIn 0.25s ease;
-}
-
-/* Inputs and selects inside filters */
-.filters-panel input[type="text"],
-.filters-panel input[type="number"],
-.filters-panel select {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border: var(--border-muted);
-    border-radius: var(--radius-md);
-    font-size: 0.9rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.filters-panel input:focus,
-.filters-panel select:focus {
-    border-color: var(--accent-main);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 /* Min/Max price row */

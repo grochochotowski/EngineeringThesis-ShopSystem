@@ -134,6 +134,28 @@ p {
 }
 
 /* === FORMS === */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+select,
+textarea {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: var(--border-muted);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    background: var(--bg-card);
+    color: var(--text-dark);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent-main);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
 
 /* === BUTTONS === */
 .action-buttons {
