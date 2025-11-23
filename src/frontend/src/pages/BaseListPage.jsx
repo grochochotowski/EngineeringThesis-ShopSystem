@@ -11,8 +11,10 @@ export default function BaseListPage({
     onDelete,
     onToggleFilters,
     onSearchChange,
+    onSelectRow,
     searchValue = "",
     onClearSelection,
+    detailsData,
 }) {
     const [selectedRow, setSelectedRow] = useState(null);
 
@@ -89,30 +91,36 @@ export default function BaseListPage({
 
                     {/* === DETAILS PANEL === */}
                     <div className="details-panel">
-                        {selectedRow ? (
-                            <>
-                                <h3>Details</h3>
-                                <ul>
-                                    {Object.entries(selectedRow).map(([key, value]) => {
-                                        const column = columns.find(c => c.key === key);
-                                        const label =
-                                            column?.label ||
-                                            key
-                                                .replace(/([A-Z])/g, " $1")
-                                                .replace(/^./, s => s.toUpperCase());
-                                        return (
-                                            <li key={key}>
-                                                <strong>{label}:</strong> {String(value) || "—"}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </>
-                        ) : (
-                            <p className="details-placeholder">
-                                Select an item from the list to view details.
-                            </p>
-                        )}
+                    {detailsData  ? (
+                        <>
+                        <h3>Details</h3>
+                        <ul>
+                            <li><strong>Id:</strong> {detailsData.id}</li>
+                            <li><strong>SKU:</strong> {detailsData.sku}</li>
+                            <li><strong>Name:</strong> {detailsData.name}</li>
+                            <li><strong>Price:</strong> {detailsData.price}</li>
+                            <li><strong>Category:</strong> {detailsData.categoryId}</li>
+                            <li><strong>Tax Rate:</strong> {detailsData.taxRateId ?? "—"}</li>
+                            <li className="defective-info">
+                                <div className="top">
+                                    <strong>Defective:</strong>
+                                    {detailsData.defective ? "Yes" : "No"}
+                                </div>
+                                {detailsData.defective && (
+                                    <span className="defect-description">
+                                    {detailsData.defectDescription || "—"}
+                                    </span>
+                                )}
+                            </li>
+                            <li><strong>Description:</strong> {detailsData.description || "—"}</li>
+                            <li><strong>Active:</strong> {detailsData.isActive ? "Yes" : "No"}</li>
+                        </ul>
+                        </>
+                    ) : (
+                        <p className="details-placeholder">
+                        Select an item from the list to view details.
+                        </p>
+                    )}
                     </div>
                 </aside>
 
@@ -134,7 +142,10 @@ export default function BaseListPage({
                                     <tr
                                         key={i}
                                         className={selectedRow?.id === row.id ? "selected" : ""}
-                                        onClick={() => setSelectedRow(row)}
+                                        onClick={() => {
+                                            setSelectedRow(row);
+                                            onSelectRow?.(row);
+                                        }}
                                     >
                                         {columns.map((col, j) => (
                                             <td key={j}>{row[col.key]}</td>

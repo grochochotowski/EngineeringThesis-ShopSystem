@@ -175,6 +175,21 @@ export default function Products() {
         };
     }, [showFilters]);
 
+    // === Handle row selection to load full product details ===
+    const handleRowSelect = async (row) => {
+        try {
+            const full = await api.get(`/Products/${row.id}`);
+            setSelectedProduct(full);
+            setSelectedId(row.id);
+        } catch (err) {
+            console.error(err);
+            setToast({
+                message: err.response?.data?.message || "Failed to load product details.",
+                type: "error",
+            });
+        }
+    };
+
     // === Render ===
     return (
         <div className="page-container">
@@ -192,14 +207,20 @@ export default function Products() {
                     data={rows}
                     loading={loading}
                     error={error}
+                    onSelectRow={handleRowSelect}
+                    detailsData={selectedProduct}
                     onAdd={() => {
                         setSelectedProduct(null);
                         setShowModal(true);
                     }}
                     onEdit={async (row) => {
                         setSelectedId(row.id);
+                        if (selectedProduct && selectedProduct.id === row.id && selectedProduct.description) {
+                            setShowModal(true);
+                            return;
+                        }
+
                         try {
-                            console.log(row)
                             const full = await api.get(`/Products/${row.id}`);
                             setSelectedProduct(full);
                             setShowModal(true);
