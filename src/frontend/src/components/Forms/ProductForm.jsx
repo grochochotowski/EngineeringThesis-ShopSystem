@@ -43,13 +43,13 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
             setForm({
                 sku: product.sku || "",
                 name: product.name || "",
-                description: product.description || "",
+                description: product.description || product.Description || "",
                 price: product.price || "",
-                categoryId: product.categoryId || "",
-                categoryName: product.categoryName || "",
-                taxRateId: product.taxRateId || "",
+                categoryId: product.categoryId || product.CategoryId || "",
+                categoryName: product.categoryName || product.CategoryName || "",
+                taxRateId: product.taxRateId || product.TaxRateId || "",
                 defective: product.defective === "Yes" || product.defective === true,
-                defectDescription: product.defectDescription || "",
+                defectDescription: product.defectDescription || product.DefectDescription || "",
                 isActive: product.isActive === "Yes" || product.isActive === true,
             });
         }
@@ -120,6 +120,7 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
     // --- Render ---
     return (
         <form className="product-form" onSubmit={handleSubmit}>
+            {console.log(product)}
             <div className="form-grid">
                 <input
                     type="text"
@@ -200,15 +201,18 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
                     />{" "}
                     Defective
                 </label>
-                {form.defective && (
-                    <input
-                        type="text"
-                        name="defectDescription"
-                        placeholder="Defect description"
-                        value={form.defectDescription}
-                        onChange={handleChange}
-                    />
-                )}
+                <input
+                    type="text"
+                    name="defectDescription"
+                    placeholder="Defect description"
+                    value={form.defectDescription || ""}
+                    onChange={handleChange}
+                    disabled={!form.defective}
+                    style={{
+                        opacity: form.defective ? 1 : 0.5,
+                        cursor: form.defective ? "text" : "not-allowed",
+                    }}
+                />
             </div>
 
             <label style={{ marginTop: "0.5rem" }}>

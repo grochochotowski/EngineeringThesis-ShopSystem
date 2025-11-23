@@ -112,6 +112,7 @@ namespace Backend.Api.Api.Controllers
                 .OrderBy(p => p.Name)
                 .Select(p => new GetProductListItemDto
                 {
+                    Id = p.Id,
                     SKU = p.SKU,
                     Name = p.Name,
                     Price = p.Price,

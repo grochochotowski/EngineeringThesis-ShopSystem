@@ -20,6 +20,7 @@ namespace Backend.Api.Objects.DTOs
     // --- GET PRODUCT LIST INFO ---
     public class GetProductListItemDto
     {
+                                                public int Id                       { get; set; }
                                                 public string SKU                   { get; set; } = default!;
                                                 public string Name                  { get; set; } = default!;
                                                 public decimal Price                { get; set; }

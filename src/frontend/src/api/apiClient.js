@@ -10,17 +10,16 @@ export async function apiRequest(path, method = "GET", body = null, params = {})
         method,
         headers: {
             "Content-Type": "application/json",
-            ...(token && { "Authorization": `Bearer ${token}` }),
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
     };
 
-    if (body) {
-        options.body = JSON.stringify(body);
-    }
+    if (body) options.body = JSON.stringify(body);
 
     try {
         const response = await fetch(url, options);
 
+        // --- 401 refresh logic ---
         if (response.status === 401) {
             const refreshToken = localStorage.getItem("refreshToken");
             if (refreshToken) {
@@ -34,7 +33,7 @@ export async function apiRequest(path, method = "GET", body = null, params = {})
                     if (refreshRes.ok) {
                         const refreshData = await refreshRes.json();
                         localStorage.setItem("token", refreshData.accessToken);
-                        return await apiRequest(path, method, body, params); // 🔁 ponów zapytanie
+                        return await apiRequest(path, method, body, params); // retry
                     }
                 } catch {
                     console.warn("⚠️ Refresh token failed, redirecting to login...");
@@ -44,21 +43,29 @@ export async function apiRequest(path, method = "GET", body = null, params = {})
             return null;
         }
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`API error ${response.status}: ${text}`);
+        // --- read response ---
+        let data = null;
+        try {
+            data = await response.clone().json();
+        } catch {
+            data = await response.text();
         }
 
-        try {
-            return await response.json();
-        } catch {
-            return await response.text();
+        if (!response.ok) {
+            const message =
+                typeof data === "string"
+                    ? data
+                    : data?.message || `Request failed (${response.status})`;
+            throw new Error(`API error ${response.status}: ${message}`);
         }
+
+        return data;
     } catch (error) {
         console.error("❌ API request failed:", error.message);
         throw error;
     }
 }
+
 
 // === Shortcuts ===
 export const api = {

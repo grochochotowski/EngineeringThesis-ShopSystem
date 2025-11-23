@@ -5,11 +5,13 @@ import BaseListPage from "../BaseListPage";
 import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ProductForm from "../../components/Forms/ProductForm";
+import MessageBox from "../../components/MessageBox";
 
 export default function Products() {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [toast, setToast] = useState(null);
 
 
     const [products, setProducts] = useState([]);
@@ -114,6 +116,7 @@ export default function Products() {
     ];
 
     const rows = products.map((p) => ({
+        id: p.id,
         sku: p.sku,
         name: p.name,
         price: p.price.toFixed(2),
@@ -192,9 +195,19 @@ export default function Products() {
                         setSelectedProduct(null);
                         setShowModal(true);
                     }}
-                    onEdit={(row) => {
-                        setSelectedProduct(row);
-                        setShowModal(true);
+                    onEdit={async (row) => {
+                        try {
+                            console.log(row)
+                            const full = await api.get(`/Products/${row.id}`);
+                            setSelectedProduct(full);
+                            setShowModal(true);
+                        } catch (err) {
+                            console.error(err);
+                            setToast({
+                                message: err.response?.data?.message || "Failed to load full product details.",
+                                type: "error",
+                            });
+                        }
                     }}
                     onDelete={(row) => {
                         setSelectedProduct(row);
@@ -275,7 +288,15 @@ export default function Products() {
                         product={selectedProduct}
                         onSuccess={() => {
                             setShowModal(false);
+                            loadedPages.current.clear();
+                            setPageNumber(1);
                             fetchProducts(1);
+                            setToast({
+                                message: selectedProduct
+                                    ? "Product updated successfully!"
+                                    : "Product created successfully!",
+                                type: "success",
+                            });
                         }}
                         onCancel={() => setShowModal(false)}
                     />
@@ -306,6 +327,15 @@ export default function Products() {
                         setShowConfirm(false);
                     }}
                     onCancel={() => setShowConfirm(false)}
+                />
+            )}
+            {toast && (
+                <MessageBox
+                    message={toast.message}
+                    type={toast.type}
+                    duration={3000}
+                    onClose={() => setToast(null)}
+                    className="centered"
                 />
             )}
         </div>
