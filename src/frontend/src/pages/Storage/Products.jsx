@@ -11,6 +11,7 @@ export default function Products() {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedId, setSelectedId] = useState(null);
     const [toast, setToast] = useState(null);
 
 
@@ -196,6 +197,7 @@ export default function Products() {
                         setShowModal(true);
                     }}
                     onEdit={async (row) => {
+                        setSelectedId(row.id);
                         try {
                             console.log(row)
                             const full = await api.get(`/Products/${row.id}`);
@@ -210,6 +212,7 @@ export default function Products() {
                         }
                     }}
                     onDelete={(row) => {
+                        setSelectedId(row.id);
                         setSelectedProduct(row);
                         setShowConfirm(true);
                     }}
@@ -290,7 +293,11 @@ export default function Products() {
                             setShowModal(false);
                             loadedPages.current.clear();
                             setPageNumber(1);
-                            fetchProducts(1);
+                            fetchProducts(1).then(() => {
+                                if (selectedId && clearSelectionRef.current) {
+                                    clearSelectionRef.current(selectedId);
+                                }
+                            });
                             setToast({
                                 message: selectedProduct
                                     ? "Product updated successfully!"

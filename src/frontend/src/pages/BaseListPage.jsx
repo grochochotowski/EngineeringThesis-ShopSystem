@@ -16,16 +16,25 @@ export default function BaseListPage({
 }) {
     const [selectedRow, setSelectedRow] = useState(null);
 
-    useEffect(() => {
-        if (data.length > 0 && !selectedRow) setSelectedRow(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data]);
+    // save and restore selection
+     useEffect(() => {
+        if (onClearSelection) {
+            onClearSelection((restoreId) => {
+                if (!restoreId) return setSelectedRow(null);
+                const found = data.find((r) => r.id === restoreId);
+                if (found) setSelectedRow(found);
+            });
+        }
+    }, [onClearSelection, data]);
 
-    // expose clear function to parent
+    // clear selection if data changes or selected row is gone
     useEffect(() => {
-        if (onClearSelection) onClearSelection(() => setSelectedRow(null));
-    }, [onClearSelection]);
+        if (selectedRow && !data.some((r) => r.id === selectedRow.id)) {
+            setSelectedRow(null);
+        }
+    }, [data, selectedRow]);
 
+    // --- Render ---
     return (
         <div className="base-list-wrapper">
             <div className="base-list-container">
@@ -124,7 +133,7 @@ export default function BaseListPage({
                                 data.map((row, i) => (
                                     <tr
                                         key={i}
-                                        className={selectedRow === row ? "selected" : ""}
+                                        className={selectedRow?.id === row.id ? "selected" : ""}
                                         onClick={() => setSelectedRow(row)}
                                     >
                                         {columns.map((col, j) => (

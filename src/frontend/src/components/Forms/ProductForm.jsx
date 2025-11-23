@@ -120,7 +120,6 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
     // --- Render ---
     return (
         <form className="product-form" onSubmit={handleSubmit}>
-            {console.log(product)}
             <div className="form-grid">
                 <input
                     type="text"
