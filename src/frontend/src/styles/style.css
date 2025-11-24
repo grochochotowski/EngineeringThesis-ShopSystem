@@ -36,6 +36,10 @@
     --btn-danger-bg: #ef4444;
     --btn-danger-hover: #dc2626;
     --btn-danger-text: #ffffff;
+    --btn-success-bg: #10b981;
+    --btn-success-hover: #059669;
+    --btn-edit-bg: #f59e0b;
+    --btn-edit-hover: #eab308;
 
     /* === Borders & radius === */
     --radius-sm: 6px;
@@ -179,22 +183,29 @@ textarea:focus {
     transition: 0.25s ease;
 }
 
-.btn-action:not(.disabled):nth-child(1):hover {
-    background: #10b981;
+.btn-action.btn-add:hover {
+    background-color: var(--btn-success-bg);
     color: white;
 }
-.btn-action:not(.disabled):nth-child(2):hover {
-    background: #f59e0b;
-    color: white;
-}
-.btn-action:not(.disabled):nth-child(3):hover {
-    background: #ef4444;
+
+.btn-action.btn-edit:hover {
+    background-color: var(--btn-edit-bg);
     color: white;
 }
 
 .btn-action.disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.btn-action.btn-confirm-positive:hover {
+    background-color: var(--btn-success-bg);
+    color: white;
+}
+
+.action-buttons.btn-action.btn-confirm-negative:hover {
+    background-color: var(--btn-danger-bg);
+    color: white;
 }
 
 .btn-close {
@@ -211,7 +222,8 @@ textarea:focus {
 
 .btn-cancel,
 .btn-confirm,
-.btn-confirm-negative {
+.dialog-btn-confirm-negative,
+.dialog-btn-confirm-positive {
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1rem;
@@ -227,12 +239,26 @@ textarea:focus {
     background: #cbd5e1;
 }
 
-.btn-confirm-negative {
-    background: #ef4444;
+.dialog-btn-confirm-negative {
+    background: var(--btn-danger-bg);
     color: white;
 }
-.btn-confirm-negative:hover {
-    background: #dc2626;
+.dialog-btn-confirm-negative:hover {
+    background: var(--btn-danger-hover);
 }
 
-/* === ANIMATIONS === */
+.btn-confirm {
+    background: var(--accent-main);
+    color: white;
+}
+.btn-confirm:hover {
+    background: var(--accent-hover);
+}
+
+.dialog-btn-confirm-positive {
+    background: var(--btn-success-bg);
+    color: white;
+}
+.dialog-btn-confirm-positive:hover {
+    background: var(--btn-success-hover);
+}

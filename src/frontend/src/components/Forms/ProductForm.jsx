@@ -13,7 +13,6 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
         taxRateId: "",
         defective: false,
         defectDescription: "",
-        isActive: true,
     });
 
     const [categories, setCategories] = useState([]);
@@ -50,7 +49,6 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
                 taxRateId: product.taxRateId || product.TaxRateId || "",
                 defective: product.defective === "Yes" || product.defective === true,
                 defectDescription: product.defectDescription || product.DefectDescription || "",
-                isActive: product.isActive === "Yes" || product.isActive === true,
             });
         }
     }, [product]);
@@ -79,16 +77,18 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
                 taxRateId: form.taxRateId,
                 defective: form.defective,
                 defectDescription: form.defectDescription || null,
-                isActive: form.isActive,
             };
 
+            let productId;
             if (product) {
                 await api.put(`/Products/${product.id}`, payload);
+                productId = product.id;
             } else {
-                await api.post("/Products", payload);
+                const response = await api.post("/Products", payload);
+                productId = response.id;
             }
 
-            onSuccess();
+            onSuccess(productId);
         } catch (err) {
             console.error(err);
 
@@ -213,16 +213,6 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
                     }}
                 />
             </div>
-
-            <label style={{ marginTop: "0.5rem" }}>
-                <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={form.isActive}
-                    onChange={handleChange}
-                />{" "}
-                Active
-            </label>
 
             <div className="form-actions">
                 <button type="button" className="btn-cancel" onClick={onCancel}>

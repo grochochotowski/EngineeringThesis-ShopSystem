@@ -91,15 +91,21 @@
 
 .details-panel li {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
     padding: 0.3rem 0;
     border-bottom: var(--border-muted);
     font-size: 0.9rem;
     word-break: break-word;
 }
 
-.details-panel strong {
+.details-panel .detail-label {
     color: var(--text-dark);
+    margin-right: 0.5rem; /* Add some space between label and value */
+}
+
+.details-panel .detail-value {
+    margin-left: auto; /* Pushes the value to the right */
+    text-align: right;
 }
 
 .details-placeholder {
@@ -113,11 +119,14 @@ li.list-column {
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 0.3rem;
+    padding: 0.3rem 0;
+    border-bottom: var(--border-muted);
+    font-size: 0.9rem;
+    word-break: break-word;
 }
 li.list-column .top {
     display: flex;
-    justify-content: space-between;
+    align-items: center; /* Align items vertically in the middle */
     width: 100%;
 }
 
@@ -126,6 +135,7 @@ li.list-column .description {
     font-style: italic;
     color: var(--text-muted);
     font-size: 0.9rem;
+    margin-top: 0.3rem; /* Add some space between the top line and description */
 }
 
 /* === TITLE ROW WITH BADGE === */

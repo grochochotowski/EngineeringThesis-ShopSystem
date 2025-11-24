@@ -1,5 +1,77 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import "../styles/PagesStyles/baseListPage.css";
+
+const RenderDetails = ({ detailsConfig, detailsData }) => {
+    if (!detailsData) {
+        return <p className="details-placeholder">Select an item to view details.</p>;
+    }
+
+    const effectiveDetailsConfig = detailsConfig || {
+        status: null,
+        fields: Object.keys(detailsData).map(key => ({
+            key: key,
+            label: key.charAt(0).toUpperCase() + key.slice(1),
+            isColumn: false,
+        }))
+    };
+
+    return (
+        <>
+            <div className="title-details-row">
+                <h3>Details</h3>
+                {effectiveDetailsConfig.status && (
+                    <div className={detailsData[effectiveDetailsConfig.status.key] ? "badge status-active" : "badge status-inactive"}>
+                        {detailsData[effectiveDetailsConfig.status.key] ? effectiveDetailsConfig.status.activeLabel : effectiveDetailsConfig.status.inactiveLabel}
+                    </div>
+                )}
+            </div>
+            <ul>
+                {effectiveDetailsConfig.fields.map((field, index) => {
+                    let fieldValue = detailsData[field.key];
+                    if (field.key === "price" && typeof fieldValue === "number") {
+                        fieldValue = fieldValue.toFixed(2);
+                    }
+                    if (field.key === "defective" && fieldValue !== undefined) {
+                        fieldValue = fieldValue ? "Yes" : "No";
+                    }
+                    if (field.key === "isActive" && fieldValue !== undefined) {
+                        fieldValue = fieldValue ? "Yes" : "No";
+                    }
+
+                    if (field.isColumn) {
+                        return (
+                            <li key={index} className="list-column">
+                                <div className="top">
+                                    <strong className="detail-label">{field.label}:</strong>
+                                    {field.key === "defective" && (
+                                        <span className="detail-value">{fieldValue}</span>
+                                    )}
+                                </div>
+                                {field.key === "defective" && detailsData.defective && (
+                                    <span className="description detail-value">
+                                        {detailsData.defectDescription || "—"}
+                                    </span>
+                                )}
+                                {field.key === "description" && (
+                                    <span className="description detail-value">
+                                        {detailsData.description || "—"}
+                                    </span>
+                                )}
+                            </li>
+                        );
+                    } else {
+                        return (
+                            <li key={index}>
+                                <strong className="detail-label">{field.label}:</strong>
+                                <span className="detail-value"> {fieldValue ?? "—"}</span>
+                            </li>
+                        );
+                    }
+                })}
+            </ul>
+        </>
+    );
+};
 
 export default function BaseListPage({
     title,
@@ -13,30 +85,13 @@ export default function BaseListPage({
     onSearchChange,
     onSelectRow,
     searchValue = "",
-    onClearSelection,
     detailsData,
+    detailsConfig,
+    deleteButtonLabel = "Delete",
+    deleteButtonIcon,
+    deleteButtonClass = "",
+    selectedRow,
 }) {
-    const [selectedRow, setSelectedRow] = useState(null);
-
-    // save and restore selection
-     useEffect(() => {
-        if (onClearSelection) {
-            onClearSelection((restoreId) => {
-                if (!restoreId) return setSelectedRow(null);
-                const found = data.find((r) => r.id === restoreId);
-                if (found) setSelectedRow(found);
-            });
-        }
-    }, [onClearSelection, data]);
-
-    // clear selection if data changes or selected row is gone
-    useEffect(() => {
-        if (selectedRow && !data.some((r) => r.id === selectedRow.id)) {
-            setSelectedRow(null);
-        }
-    }, [data, selectedRow]);
-
-    // --- Render ---
     return (
         <div className="base-list-wrapper">
             <div className="base-list-container">
@@ -59,7 +114,7 @@ export default function BaseListPage({
 
                     {/* Actions */}
                     <div className="action-buttons">
-                        <button onClick={onAdd} className="btn-action">
+                        <button onClick={onAdd} className="btn-action btn-add">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                                 <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 5v14M5 12h14"/>
                             </svg>
@@ -68,7 +123,7 @@ export default function BaseListPage({
 
                         <button
                             onClick={() => selectedRow && onEdit?.(selectedRow)}
-                            className={`btn-action ${!selectedRow ? "disabled" : ""}`}
+                            className={`btn-action btn-edit ${!selectedRow ? "disabled" : ""}`}
                             disabled={!selectedRow}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
@@ -79,59 +134,21 @@ export default function BaseListPage({
 
                         <button
                             onClick={() => selectedRow && onDelete?.(selectedRow)}
-                            className={`btn-action ${!selectedRow ? "disabled" : ""}`}
+                            className={`btn-action ${deleteButtonClass} ${!selectedRow ? "disabled" : ""}`}
                             disabled={!selectedRow}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M3 6h18M8 6V4h8v2m-1 0v14H9V6h6z"/>
-                            </svg>
-                            Delete
+                            {deleteButtonIcon || (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M3 6h18M8 6V4h8v2m-1 0v14H9V6h6z"/>
+                                </svg>
+                            )}
+                            {deleteButtonLabel}
                         </button>
                     </div>
 
                     {/* === DETAILS PANEL === */}
                     <div className="details-panel">
-                    {detailsData  ? (
-                        <>
-                        <div className="title-details-row">
-                            <h3>Details</h3>
-                            <div className={detailsData.isActive ? "badge status-active" : "bbadge status-inactive"}>
-                                {detailsData.isActive ? "Active" : "Inactive"}
-                            </div>
-                        </div>
-                        <ul>
-                            <li><strong>Id:</strong> {detailsData.id}</li>
-                            <li><strong>SKU:</strong> {detailsData.sku}</li>
-                            <li><strong>Name:</strong> {detailsData.name}</li>
-                            <li><strong>Price:</strong> {detailsData.price}</li>
-                            <li><strong>Category:</strong> {detailsData.categoryId}</li>
-                            <li><strong>Tax Rate:</strong> {detailsData.taxRateId ?? "—"}</li>
-                            <li className="list-column">
-                                <div className="top">
-                                    <strong>Defective:</strong>
-                                    {detailsData.defective ? "Yes" : "No"}
-                                </div>
-                                {detailsData.defective && (
-                                    <span className="description">
-                                    {detailsData.defectDescription || "—"}
-                                    </span>
-                                )}
-                            </li>
-                            <li className="list-column">
-                                <div className="top">
-                                    <strong>Description:</strong>
-                                </div>
-                                <span className="description">
-                                    {detailsData.description || "—"}
-                                </span>
-                            </li>
-                        </ul>
-                        </>
-                    ) : (
-                        <p className="details-placeholder">
-                        Select an item from the list to view details.
-                        </p>
-                    )}
+                        <RenderDetails detailsConfig={detailsConfig} detailsData={detailsData} />
                     </div>
                 </aside>
 
@@ -153,10 +170,7 @@ export default function BaseListPage({
                                     <tr
                                         key={i}
                                         className={selectedRow?.id === row.id ? "selected" : ""}
-                                        onClick={() => {
-                                            setSelectedRow(row);
-                                            onSelectRow?.(row);
-                                        }}
+                                        onClick={() => onSelectRow?.(row)}
                                     >
                                         {columns.map((col, j) => (
                                             <td key={j}>{row[col.key]}</td>

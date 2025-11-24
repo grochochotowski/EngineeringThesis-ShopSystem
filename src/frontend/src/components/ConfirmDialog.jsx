@@ -8,6 +8,7 @@ export default function ConfirmDialog({
     cancelText = "Cancel",
     onConfirm,
     onCancel,
+    confirmButtonClass = "dialog-btn-confirm-negative",
 }) {
     return (
         <div className="confirm-overlay" onClick={onCancel}>
@@ -18,7 +19,7 @@ export default function ConfirmDialog({
                     <button className="btn-cancel" onClick={onCancel}>
                         {cancelText}
                     </button>
-                    <button className="btn-confirm-negative" onClick={onConfirm}>
+                    <button className={confirmButtonClass} onClick={onConfirm}>
                         {confirmText}
                     </button>
                 </div>

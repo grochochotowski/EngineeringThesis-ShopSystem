@@ -10,9 +10,10 @@ import MessageBox from "../../components/MessageBox";
 export default function Products() {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [selectedId, setSelectedId] = useState(null);
+    const [selectedProductDetails, setSelectedProductDetails] = useState(null);
+    const [selectedRow, setSelectedRow] = useState(null);
     const [toast, setToast] = useState(null);
+    const [actionableProduct, setActionableProduct] = useState(null);
 
 
     const [products, setProducts] = useState([]);
@@ -36,7 +37,6 @@ export default function Products() {
 
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
-    const clearSelectionRef = useRef(null);
     const filtersRef = useRef(null);
 
     // Fetch products from API with filters
@@ -133,8 +133,8 @@ export default function Products() {
 
     const handleSearchChange = (value) => {
         setSearchQuery(value);
-
-        if (clearSelectionRef.current) clearSelectionRef.current();
+        setSelectedRow(null);
+        setSelectedProductDetails(null);
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
         typingTimeout.current = setTimeout(() => {
             setProducts([]);
@@ -177,10 +177,16 @@ export default function Products() {
 
     // === Handle row selection to load full product details ===
     const handleRowSelect = async (row) => {
+        if (!row) {
+            setSelectedRow(null);
+            setSelectedProductDetails(null);
+            return;
+        }
+
+        setSelectedRow(row);
         try {
             const full = await api.get(`/Products/${row.id}`);
-            setSelectedProduct(full);
-            setSelectedId(row.id);
+            setSelectedProductDetails(full);
         } catch (err) {
             console.error(err);
             setToast({
@@ -188,6 +194,24 @@ export default function Products() {
                 type: "error",
             });
         }
+    };
+
+    const productDetailsConfig = {
+        status: {
+            key: "isActive",
+            activeLabel: "Active",
+            inactiveLabel: "Inactive",
+        },
+        fields: [
+            { label: "Id", key: "id" },
+            { label: "SKU", key: "sku" },
+            { label: "Name", key: "name" },
+            { label: "Price", key: "price" },
+            { label: "Category", key: "categoryId" },
+            { label: "Tax Rate", key: "taxRateId" },
+            { label: "Defective", key: "defective", isColumn: true },
+            { label: "Description", key: "description", isColumn: true },
+        ],
     };
 
     // === Render ===
@@ -207,22 +231,24 @@ export default function Products() {
                     data={rows}
                     loading={loading}
                     error={error}
+                    selectedRow={selectedRow}
                     onSelectRow={handleRowSelect}
-                    detailsData={selectedProduct}
+                    detailsData={selectedProductDetails}
+                    detailsConfig={productDetailsConfig}
                     onAdd={() => {
-                        setSelectedProduct(null);
+                        setSelectedRow(null);
+                        setSelectedProductDetails(null);
                         setShowModal(true);
                     }}
                     onEdit={async (row) => {
-                        setSelectedId(row.id);
-                        if (selectedProduct && selectedProduct.id === row.id && selectedProduct.description) {
+                        if (selectedProductDetails && selectedProductDetails.id === row.id && selectedProductDetails.description) {
                             setShowModal(true);
                             return;
                         }
 
                         try {
                             const full = await api.get(`/Products/${row.id}`);
-                            setSelectedProduct(full);
+                            setSelectedProductDetails(full);
                             setShowModal(true);
                         } catch (err) {
                             console.error(err);
@@ -233,14 +259,29 @@ export default function Products() {
                         }
                     }}
                     onDelete={(row) => {
-                        setSelectedId(row.id);
-                        setSelectedProduct(row);
+                        setActionableProduct({ ...row, isActive: row.isActive === "Yes" });
                         setShowConfirm(true);
                     }}
                     onToggleFilters={() => setShowFilters((prev) => !prev)}
                     onSearchChange={handleSearchChange}
                     searchValue={searchQuery}
-                    onClearSelection={(fn) => (clearSelectionRef.current = fn)}
+                    deleteButtonLabel={!selectedRow || selectedRow.isActive === "Yes" ? "Deactivate" : "Activate"}
+                    deleteButtonIcon={
+                        !selectedRow || selectedRow.isActive === "Yes" ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M20 6L9 17l-5-5"/>
+                            </svg>
+                        )
+                    }
+                    deleteButtonClass={
+                        !selectedRow || selectedRow.isActive === "Yes"
+                            ? "btn-confirm-negative"
+                            : "btn-confirm-positive"
+                    }
                 />
 
                 {/* --- Sidebar filter panel (visible only when toggled) --- */}
@@ -300,27 +341,44 @@ export default function Products() {
             {/* === MODAL: Add / Edit === */}
             {showModal && (
                 <Modal
-                    title={selectedProduct ? "Edit Product" : "Add Product"}
+                    title={selectedProductDetails ? "Edit Product" : "Add Product"}
                     onClose={() => setShowModal(false)}
                 >
                     <p>
-                        {selectedProduct
-                            ? `Editing product: ${selectedProduct.name}`
+                        {selectedProductDetails
+                            ? `Editing product: ${selectedProductDetails.name}`
                             : "Creating new product"}
                     </p>
                     <ProductForm
-                        product={selectedProduct}
-                        onSuccess={() => {
+                        product={selectedProductDetails}
+                        onSuccess={async (productId) => {
                             setShowModal(false);
+
+                            if (productId) {
+                                try {
+                                    const full = await api.get(`/Products/${productId}`);
+                                    setSelectedProductDetails(full);
+                                    setSelectedRow({
+                                        id: full.id,
+                                        sku: full.sku,
+                                        name: full.name,
+                                        price: full.price.toFixed(2),
+                                        defective: full.defective ? "Yes" : "No",
+                                        categoryId: full.categoryId,
+                                        isActive: full.isActive ? "Yes" : "No",
+                                    });
+                                } catch (err) {
+                                    console.error("Failed to re-fetch updated product details:", err);
+                                }
+                            }
+                            
+                            // Refresh the main list in the background
                             loadedPages.current.clear();
                             setPageNumber(1);
-                            fetchProducts(1).then(() => {
-                                if (selectedId && clearSelectionRef.current) {
-                                    clearSelectionRef.current(selectedId);
-                                }
-                            });
+                            fetchProducts(1);
+
                             setToast({
-                                message: selectedProduct
+                                message: productId
                                     ? "Product updated successfully!"
                                     : "Product created successfully!",
                                 type: "success",
@@ -337,27 +395,75 @@ export default function Products() {
             )}
 
             {/* === CONFIRM DIALOG: Delete / Deactivate === */}
-            {showConfirm && (
+                        {showConfirm && (
                 <ConfirmDialog
                     title={
-                        selectedProduct?.isActive === "Yes"
+                        actionableProduct?.isActive
                             ? "Deactivate Product"
-                            : "Delete Product"
+                            : "Activate Product"
                     }
                     message={
-                        selectedProduct?.isActive === "Yes"
-                            ? `Are you sure you want to deactivate "${selectedProduct.name}"?`
-                            : `Are you sure you want to permanently delete "${selectedProduct.name}"?`
+                        actionableProduct?.isActive
+                            ? `Are you sure you want to deactivate "${actionableProduct.name}"?`
+                            : `Are you sure you want to activate "${actionableProduct.name}"?`
                     }
-                    confirmText={selectedProduct?.isActive === "Yes" ? "Deactivate" : "Delete"}
-                    onConfirm={() => {
-                        console.log("Confirmed action for:", selectedProduct);
-                        setShowConfirm(false);
+                    confirmText={actionableProduct?.isActive ? "Deactivate" : "Activate"}
+                    confirmButtonClass={
+                        actionableProduct?.isActive
+                            ? "dialog-btn-confirm-negative"
+                            : "dialog-btn-confirm-positive"
+                    }
+                    onConfirm={async () => {
+                        if (!actionableProduct) return;
+                        
+                        try {
+                            setLoading(true);
+                            let newStatus;
+                            if (actionableProduct.isActive) {
+                                await api.delete(`/Products/${actionableProduct.id}`);
+                                newStatus = false;
+                                setToast({
+                                    message: "Product deactivated successfully!",
+                                    type: "success",
+                                });
+                            } else {
+                                await api.post(`/Products/${actionableProduct.id}/restore`);
+                                newStatus = true;
+                                setToast({
+                                    message: "Product activated successfully!",
+                                    type: "success",
+                                });
+                            }
+
+                            // Manually update the states for immediate feedback
+                            const newIsActiveString = newStatus ? "Yes" : "No";
+                            if (selectedRow && selectedRow.id === actionableProduct.id) {
+                                setSelectedRow(prev => ({ ...prev, isActive: newIsActiveString }));
+                            }
+                            if (selectedProductDetails && selectedProductDetails.id === actionableProduct.id) {
+                                setSelectedProductDetails(prev => ({ ...prev, isActive: newStatus }));
+                            }
+
+                            // Refresh the product list in the background
+                            loadedPages.current.clear();
+                            setPageNumber(1);
+                            fetchProducts(1);
+
+                        } catch (err) {
+                            console.error(err);
+                            setToast({
+                                message: err.response?.data?.message || "Failed to update the product.",
+                                type: "error",
+                            });
+                        } finally {
+                            setLoading(false);
+                            setShowConfirm(false);
+                            setActionableProduct(null);
+                        }
                     }}
                     onCancel={() => setShowConfirm(false)}
                 />
-            )}
-            {toast && (
+            )}            {toast && (
                 <MessageBox
                     message={toast.message}
                     type={toast.type}
