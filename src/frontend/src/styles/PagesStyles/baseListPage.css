@@ -10,7 +10,7 @@
 .base-list-container {
     display: flex;
     width: 100%;
-    height: calc(100vh - 70px);
+    min-height: calc(100vh - 70px);
     background: var(--bg-app);
 }
 
@@ -40,25 +40,6 @@
 .sidebar::-webkit-scrollbar-thumb:hover,
 .details-panel::-webkit-scrollbar-thumb:hover {
     background-color: var(--scrollbar-thumb-hover);
-}
-
-li.defective-info {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    gap: 0.3rem;
-}
-li.defective-info .top {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-}
-
-li.defective-info .defect-description {
-    text-align: right;
-    font-style: italic;
-    color: var(--text-muted);
-    font-size: 0.9rem;
 }
 
 /* === SEARCH PANEL === */
@@ -126,6 +107,63 @@ li.defective-info .defect-description {
     text-align: center;
     font-size: 0.9rem;
     padding-top: 1rem;
+}
+
+li.list-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.3rem;
+}
+li.list-column .top {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+li.list-column .description {
+    text-align: right;
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* === TITLE ROW WITH BADGE === */
+.title-details-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.title-details-row h3 {
+    font-size: 1.2rem;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+/* === STATUS BADGES === */
+.badge {
+    text-align: center;
+    font-weight: 700;
+    border: 2px solid;
+    border-radius: 0.4rem;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.status-active {
+    background: var(--toast-success-bg);
+    border-color: var(--toast-success-border);
+    color: var(--toast-success-text);
+}
+
+.status-inactive {
+    background: var(--toast-error-bg);
+    border-color: var(--toast-error-border);
+    color: var(--toast-error-text);
 }
 
 /* === MAIN TABLE === */

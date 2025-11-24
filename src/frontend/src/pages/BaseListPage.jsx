@@ -93,7 +93,12 @@ export default function BaseListPage({
                     <div className="details-panel">
                     {detailsData  ? (
                         <>
-                        <h3>Details</h3>
+                        <div className="title-details-row">
+                            <h3>Details</h3>
+                            <div className={detailsData.isActive ? "badge status-active" : "bbadge status-inactive"}>
+                                {detailsData.isActive ? "Active" : "Inactive"}
+                            </div>
+                        </div>
                         <ul>
                             <li><strong>Id:</strong> {detailsData.id}</li>
                             <li><strong>SKU:</strong> {detailsData.sku}</li>
@@ -101,19 +106,25 @@ export default function BaseListPage({
                             <li><strong>Price:</strong> {detailsData.price}</li>
                             <li><strong>Category:</strong> {detailsData.categoryId}</li>
                             <li><strong>Tax Rate:</strong> {detailsData.taxRateId ?? "—"}</li>
-                            <li className="defective-info">
+                            <li className="list-column">
                                 <div className="top">
                                     <strong>Defective:</strong>
                                     {detailsData.defective ? "Yes" : "No"}
                                 </div>
                                 {detailsData.defective && (
-                                    <span className="defect-description">
+                                    <span className="description">
                                     {detailsData.defectDescription || "—"}
                                     </span>
                                 )}
                             </li>
-                            <li><strong>Description:</strong> {detailsData.description || "—"}</li>
-                            <li><strong>Active:</strong> {detailsData.isActive ? "Yes" : "No"}</li>
+                            <li className="list-column">
+                                <div className="top">
+                                    <strong>Description:</strong>
+                                </div>
+                                <span className="description">
+                                    {detailsData.description || "—"}
+                                </span>
+                            </li>
                         </ul>
                         </>
                     ) : (
