@@ -27,24 +27,32 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
             </div>
             <ul>
                 {effectiveDetailsConfig.fields.map((field, index) => {
-                    let fieldValue = detailsData[field.key];
-                    if (field.key === "price" && typeof fieldValue === "number") {
-                        fieldValue = fieldValue.toFixed(2);
-                    }
-                    if (field.key === "defective" && fieldValue !== undefined) {
-                        fieldValue = fieldValue ? "Yes" : "No";
-                    }
-                    if (field.key === "isActive" && fieldValue !== undefined) {
-                        fieldValue = fieldValue ? "Yes" : "No";
-                    }
+                    // Use custom renderer if provided, otherwise format the value
+                    const renderValue = () => {
+                        if (field.render) {
+                            return field.render(detailsData);
+                        }
+                        
+                        let fieldValue = detailsData[field.key];
+                        if (field.key === "price" && typeof fieldValue === "number") {
+                            fieldValue = fieldValue.toFixed(2);
+                        }
+                        if (field.key === "defective" && fieldValue !== undefined) {
+                            fieldValue = fieldValue ? "Yes" : "No";
+                        }
+                        if (field.key === "isActive" && fieldValue !== undefined) {
+                            fieldValue = fieldValue ? "Yes" : "No";
+                        }
+                        return fieldValue ?? "—";
+                    };
 
                     if (field.isColumn) {
                         return (
                             <li key={index} className="list-column">
                                 <div className="top">
                                     <strong className="detail-label">{field.label}:</strong>
-                                    {field.key === "defective" && (
-                                        <span className="detail-value">{fieldValue}</span>
+                                    {!(field.key === "description") && ( // Only render value if not description
+                                        <span className="detail-value">{renderValue()}</span>
                                     )}
                                 </div>
                                 {field.key === "defective" && detailsData.defective && (
@@ -63,7 +71,7 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
                         return (
                             <li key={index}>
                                 <strong className="detail-label">{field.label}:</strong>
-                                <span className="detail-value"> {fieldValue ?? "—"}</span>
+                                <span className="detail-value"> {renderValue()}</span>
                             </li>
                         );
                     }

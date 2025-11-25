@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../../api/apiClient";
 import MessageBox from "../MessageBox";
 
-export default function ProductForm({ product, onSuccess, onCancel }) {
+export default function ProductForm({ product, categories, onSuccess, onCancel }) {
     const [form, setForm] = useState({
         sku: "",
         name: "",
@@ -15,20 +15,15 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
         defectDescription: "",
     });
 
-    const [categories, setCategories] = useState([]);
     const [taxRates, setTaxRates] = useState([]);
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
 
-    // --- Load categories and tax rates once ---
+    // --- Load tax rates once ---
     useEffect(() => {
         (async () => {
             try {
-                const [cats, taxes] = await Promise.all([
-                    api.get("/Categories"),
-                    api.get("/TaxRate"),
-                ]);
-                setCategories(cats.items || []);
+                const taxes = await api.get("/TaxRate");
                 setTaxRates(taxes || []);
             } catch (err) {
                 console.error(err);
@@ -158,9 +153,9 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
                 <option value="" disabled>
                     Select Category
                 </option>
-                {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                        {cat.name}
+                {Array.from(categories.entries()).map(([id, name]) => (
+                    <option key={id} value={id}>
+                        {name}
                     </option>
                 ))}
             </select>

@@ -15,6 +15,8 @@ export default function Products() {
     const [toast, setToast] = useState(null);
     const [actionableProduct, setActionableProduct] = useState(null);
 
+    const [categories, setCategories] = useState(new Map());
+
 
     const [products, setProducts] = useState([]);
     const [pageNumber, setPageNumber] = useState(1);
@@ -22,6 +24,7 @@ export default function Products() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
     // Filters
     const [filters, setFilters] = useState({
@@ -39,9 +42,28 @@ export default function Products() {
     const loadedPages = useRef(new Set());
     const filtersRef = useRef(null);
 
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                const categoriesRes = await api.get("/Categories");
+                
+                const categoriesMap = new Map(categoriesRes.items.map(c => [c.id, c.name]));
+
+                setCategories(categoriesMap);
+                setInitialDataLoaded(true);
+            } catch (err) {
+                console.error("Failed to fetch initial data", err);
+                setError("Failed to load initial page data.");
+            }
+        };
+
+        fetchInitialData();
+    }, []);
+
     // Fetch products from API with filters
     const fetchProducts = useCallback(
         async (page = 1) => {
+            if (!initialDataLoaded) return;
             if (loadedPages.current.has(page)) return;
             loadedPages.current.add(page);
 
@@ -74,11 +96,12 @@ export default function Products() {
                 setLoading(false);
             }
         },
-        [filters, searchQuery]
+        [filters, searchQuery, initialDataLoaded]
     );
 
     // Reset and reload when filters or search change
     useEffect(() => {
+        if (!initialDataLoaded) return;
         const delay = setTimeout(() => {
             setProducts([]);
             loadedPages.current.clear();
@@ -87,7 +110,7 @@ export default function Products() {
         }, 1000);
 
         return () => clearTimeout(delay);
-    }, [filters, searchQuery, fetchProducts]);
+    }, [filters, searchQuery, fetchProducts, initialDataLoaded]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -112,7 +135,7 @@ export default function Products() {
         { key: "name", label: "Name" },
         { key: "price", label: "Price" },
         { key: "defective", label: "Defective" },
-        { key: "categoryId", label: "Category ID" },
+        { key: "category", label: "Category" },
         { key: "isActive", label: "Active" },
     ];
 
@@ -122,7 +145,7 @@ export default function Products() {
         name: p.name,
         price: p.price.toFixed(2),
         defective: p.defective ? "Yes" : "No",
-        categoryId: p.categoryId,
+        category: categories.get(p.categoryId) || "—",
         isActive: p.isActive ? "Yes" : "No",
     }));
 
@@ -207,7 +230,11 @@ export default function Products() {
             { label: "SKU", key: "sku" },
             { label: "Name", key: "name" },
             { label: "Price", key: "price" },
-            { label: "Category", key: "categoryId" },
+            { 
+                label: "Category", 
+                key: "categoryId",
+                render: (data) => categories.get(data.categoryId) || "—",
+            },
             { label: "Tax Rate", key: "taxRateId" },
             { label: "Defective", key: "defective", isColumn: true },
             { label: "Description", key: "description", isColumn: true },
@@ -234,7 +261,7 @@ export default function Products() {
                     selectedRow={selectedRow}
                     onSelectRow={handleRowSelect}
                     detailsData={selectedProductDetails}
-                    detailsConfig={productDetailsConfig}
+                    detailsConfig={initialDataLoaded ? productDetailsConfig : null}
                     onAdd={() => {
                         setSelectedRow(null);
                         setSelectedProductDetails(null);
@@ -351,6 +378,7 @@ export default function Products() {
                     </p>
                     <ProductForm
                         product={selectedProductDetails}
+                        categories={categories}
                         onSuccess={async (productId) => {
                             setShowModal(false);
 
@@ -364,7 +392,7 @@ export default function Products() {
                                         name: full.name,
                                         price: full.price.toFixed(2),
                                         defective: full.defective ? "Yes" : "No",
-                                        categoryId: full.categoryId,
+                                        category: categories.get(full.categoryId) || "—",
                                         isActive: full.isActive ? "Yes" : "No",
                                     });
                                 } catch (err) {
