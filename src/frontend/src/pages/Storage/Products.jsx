@@ -166,12 +166,12 @@ export default function Products() {
 
     // Columns for table
     const columns = [
-        { key: "sku", label: "SKU" },
-        { key: "name", label: "Name" },
-        { key: "price", label: "Price" },
-        { key: "defective", label: "Defective" },
-        { key: "category", label: "Category" },
-        { key: "isactive", label: "Active" },
+        { key: "sku", label: "SKU", width: "20%" },
+        { key: "name", label: "Name", width: "30%" },
+        { key: "price", label: "Price", width: "15%" },
+        { key: "defective", label: "Defective", width: "15%" },
+        { key: "category", label: "Category", width: "10%" },
+        { key: "isactive", label: "Active", width: "10%" },
     ];
 
     const rows = products.map((p) => ({
@@ -386,27 +386,31 @@ export default function Products() {
                                 value={filters.minPrice}
                                 onChange={handleInputChange}
                             />
-                            <input
-                                type="number"
-                                name="maxPrice"
-                                placeholder="Max price"
-                                value={filters.maxPrice}
-                                onChange={handleInputChange}
-                            />
-                        </div>
-                        <input
-                            type="number"
-                            name="categoryId"
-                            placeholder="Category ID"
-                            value={filters.categoryId}
-                            onChange={handleInputChange}
-                        />
-                        <select
-                            name="defective"
-                            value={filters.defective}
-                            onChange={handleBooleanChange}
-                        >
-                            <option value="">All products</option>
+                                                    <input
+                                                        type="number"
+                                                        name="maxPrice"
+                                                        placeholder="Max price"
+                                                        value={filters.maxPrice}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                </div>
+                                                <select
+                                                    name="categoryId"
+                                                    value={filters.categoryId}
+                                                    onChange={handleInputChange}
+                                                >
+                                                    <option value="">All Categories</option>
+                                                    {Array.from(categories.entries()).map(([id, name]) => (
+                                                        <option key={id} value={id}>
+                                                            {name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    name="defective"
+                                                    value={filters.defective}
+                                                    onChange={handleBooleanChange}
+                                                >                            <option value="">All products</option>
                             <option value="true">Only defective</option>
                             <option value="false">Only non-defective</option>
                         </select>

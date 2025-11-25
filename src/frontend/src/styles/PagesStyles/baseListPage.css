@@ -65,6 +65,11 @@
     background: var(--accent-main);
 }
 
+.btn-confirm-negative:hover {
+    background-color: var(--btn-danger-hover); /* A slightly darker red */
+    color: white;
+}
+
 /* === DETAILS PANEL === */
 .details-panel {
     flex: 1;

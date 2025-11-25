@@ -175,6 +175,7 @@ export default function BaseListPage({
                                         key={i} 
                                         onClick={() => onSort?.(col.key)}
                                         className={`sortable ${sortColumn === col.key ? 'sorted' : ''}`}
+                                        style={{ width: col.width }}
                                     >
                                         {col.label}
                                         {sortColumn === col.key && (

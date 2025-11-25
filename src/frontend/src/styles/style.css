@@ -203,10 +203,7 @@ textarea:focus {
     color: white;
 }
 
-.action-buttons.btn-action.btn-confirm-negative:hover {
-    background-color: var(--btn-danger-bg);
-    color: white;
-}
+
 
 .btn-close {
     background: none;
