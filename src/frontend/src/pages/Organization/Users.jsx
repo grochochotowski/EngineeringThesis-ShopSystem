@@ -276,6 +276,7 @@ export default function Users() {
             { label: "Id", key: "id" },
             { label: "First Name", key: "firstName" },
             { label: "Last Name", key: "lastName" },
+            { label: "Login", key: "login" },
             { label: "Email", key: "email" },
             { label: "Phone", key: "phoneNumber" },
             { label: "Role", key: "role" },
