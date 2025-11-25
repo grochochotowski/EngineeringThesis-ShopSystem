@@ -149,9 +149,6 @@ export default function Users() {
             setUsers([]);
             loadedPages.current.clear();
             setPageNumber(1);
-            setSelectedRow(null);
-            setSelectedUserDetails(null);
-            lastSelectedId.current = null;
             fetchUsers(1, true);
             setIsDelayedRefresh(false);
         }, isDelayedRefresh ? 500 : 0);
@@ -207,9 +204,6 @@ export default function Users() {
     // === Search change with debounce ===
     const handleSearchChange = (value) => {
         setSearchQuery(value);
-        setSelectedRow(null);
-        setSelectedUserDetails(null);
-        lastSelectedId.current = null;
         setIsDelayedRefresh(true);
 
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
@@ -344,8 +338,6 @@ export default function Users() {
         setFormAddressData(initialAddress);
         setUserFormMode("create");
         setShowUserModal(true);
-        setSelectedUserDetails(null);
-        lastSelectedId.current = null;
     };
 
     const openEditModal = async (row) => {
