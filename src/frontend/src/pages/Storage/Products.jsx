@@ -25,7 +25,7 @@ export default function Products() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
-    const [isFiltering, setIsFiltering] = useState(false);
+    const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
     const [sortColumn, setSortColumn] = useState("name");
     const [sortDirection, setSortDirection] = useState("asc");
@@ -81,7 +81,7 @@ export default function Products() {
                 setHasMore(false);
             }
         } catch (err) {
-            if (api.isCancel(err)) {
+            if (axios.isCancel(err)) {
                 // Ignore if request was cancelled
                 return;
             }
@@ -111,17 +111,17 @@ export default function Products() {
     }, []);
 
     const debouncedFetchProducts = useCallback(() => {
-        if (!initialDataLoaded || !isFiltering) return;
+        if (!initialDataLoaded) return;
         const delay = setTimeout(() => {
             setProducts([]);
             loadedPages.current.clear();
             setPageNumber(1);
             fetchProductsData(1, filters, searchQuery, sortColumn, sortDirection);
-            setIsFiltering(false);
+            setIsDelayedRefresh(false);
         }, 1000);
 
         return () => clearTimeout(delay);
-    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection, isFiltering]);
+    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection]);
 
     const immediateFetchProducts = useCallback(() => {
         if (!initialDataLoaded) return;
@@ -133,17 +133,12 @@ export default function Products() {
 
     // Trigger debounced fetch for filters/search
     useEffect(() => {
-        if(isFiltering) {
+        if(isDelayedRefresh) {
             debouncedFetchProducts();
-        }
-    }, [debouncedFetchProducts, isFiltering]);
-
-    // Trigger immediate fetch for sorting
-    useEffect(() => {
-        if(!isFiltering) {
+        } else {
             immediateFetchProducts();
         }
-    }, [immediateFetchProducts, isFiltering]);
+    }, [debouncedFetchProducts, immediateFetchProducts, isDelayedRefresh]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -187,31 +182,26 @@ export default function Products() {
     const user = JSON.parse(localStorage.getItem("user"));
 
     // Updating search query
-    const typingTimeout = useRef(null);
-
     const handleSearchChange = (value) => {
-        setIsFiltering(true);
+        setIsDelayedRefresh(true);
         setSearchQuery(value);
         setSelectedRow(null);
         setSelectedProductDetails(null);
-        if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => {
-            setProducts([]);
-            loadedPages.current.clear();
-            setPageNumber(1);
-            debouncedFetchProducts(); // Call debounced fetch
-        }, 1000);
     };
 
     // Auto-updating filters
     const handleInputChange = (e) => {
-        setIsFiltering(true);
         const { name, value } = e.target;
+        if (name === "minPrice" || name === "maxPrice") {
+            setIsDelayedRefresh(true);
+        } else {
+            setIsDelayedRefresh(false);
+        }
         setFilters((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleBooleanChange = (e) => {
-        setIsFiltering(true);
+        setIsDelayedRefresh(false);
         const { name, value } = e.target;
         setFilters((prev) => ({
             ...prev,
@@ -279,11 +269,7 @@ export default function Products() {
     };
 
     const handleSort = (column) => {
-        setIsFiltering(false);
-        setProducts([]);
-        loadedPages.current.clear();
-        setPageNumber(1);
-
+        setIsDelayedRefresh(false);
         if (sortColumn === column) {
             if (sortDirection === "asc") {
                 setSortDirection("desc");
@@ -298,7 +284,6 @@ export default function Products() {
             setSortColumn(column);
             setSortDirection("asc");
         }
-        immediateFetchProducts();
     };
 
     // === Render ===
