@@ -36,6 +36,7 @@ namespace Backend.Api.Api.Controllers
         {
             return await _db.Users
                 .AsNoTracking()
+                .Include(u => u.Credentials)
                 .Select(u => new GetUserDto
                 {
                     Id = u.Id,
@@ -45,7 +46,8 @@ namespace Backend.Api.Api.Controllers
                     PhoneNumber = u.PhoneNumber,
                     DateOfBirth = u.DateOfBirth,
                     Role = u.Role,
-                    AddressId = u.AddressId
+                    AddressId = u.AddressId,
+                    IsActive = u.Credentials.IsActive
                 })
                 .FirstOrDefaultAsync(x => x.Id == id, ct);
         }
@@ -90,7 +92,8 @@ namespace Backend.Api.Api.Controllers
                 PhoneNumber = u.PhoneNumber,
                 DateOfBirth = u.DateOfBirth,
                 Role = u.Role,
-                AddressId = u.AddressId
+                AddressId = u.AddressId,
+                IsActive = u.Credentials.IsActive
             });
 
             return await mapped.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);

@@ -14,7 +14,8 @@ namespace Backend.Api.Objects.DTOs
                                                 public DateTime DateOfBirth         { get; set; }
                                                 public UserRole Role                { get; set; }
                                                 public int AddressId                { get; set; }
-                                                public GetAddressDto? Address { get; set; }
+                                                public GetAddressDto? Address      { get; set; }
+                                                public bool IsActive                { get; set; }
     }
 
     // --- GET USER LIST INFO ---
