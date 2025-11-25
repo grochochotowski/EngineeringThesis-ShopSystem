@@ -50,6 +50,7 @@ export default function Users() {
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [toast, setToast] = useState(null);
+    const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
 
     const [selectedRow, setSelectedRow] = useState(null);
     const [selectedUserDetails, setSelectedUserDetails] = useState(null);
@@ -73,6 +74,16 @@ export default function Users() {
         role: "",
         isActive: "",
     });
+    const [sortColumn, setSortColumn] = useState("lastName");
+    const [sortDirection, setSortDirection] = useState("asc");
+
+    const sortKeyMap = {
+        firstName: "firstName",
+        lastName: "lastName",
+        email: "email",
+        role: "role",
+        isActiveLabel: "isActive",
+    };
 
     // --- Search ---
     const [searchQuery, setSearchQuery] = useState("");
@@ -95,6 +106,7 @@ export default function Users() {
 
             try {
                 setLoading(true);
+                const mappedSort = sortKeyMap[sortColumn] || undefined;
                 const { items = [], totalPages = 1 } = await api.get("/Users", {
                     params: {
                         PageNumber: page,
@@ -102,6 +114,8 @@ export default function Users() {
                         ...(searchQuery && { search: searchQuery }),
                         ...(filters.role && { role: filters.role }),
                         ...(filters.isActive !== "" && { isActive: filters.isActive }),
+                        ...(mappedSort && { orderBy: mappedSort }),
+                        ...(sortDirection && { sortDirection }),
                     },
                 });
 
@@ -121,7 +135,7 @@ export default function Users() {
                 setLoading(false);
             }
         },
-        [filters, searchQuery]
+        [filters, searchQuery, sortColumn, sortDirection]
     );
 
     // === Initial load ===
@@ -139,10 +153,11 @@ export default function Users() {
             setSelectedUserDetails(null);
             lastSelectedId.current = null;
             fetchUsers(1, true);
-        }, 500);
+            setIsDelayedRefresh(false);
+        }, isDelayedRefresh ? 500 : 0);
 
         return () => clearTimeout(delay);
-    }, [filters, searchQuery, fetchUsers]);
+    }, [filters, searchQuery, isDelayedRefresh, fetchUsers]);
 
     // === Infinite scroll ===
     useEffect(() => {
@@ -163,13 +178,13 @@ export default function Users() {
 
     // === Columns ===
     const columns = [
-        { key: "id", label: "ID" },
-        { key: "firstName", label: "First Name" },
-        { key: "lastName", label: "Last Name" },
-        { key: "email", label: "Email" },
-        { key: "phoneNumber", label: "Phone" },
-        { key: "role", label: "Role" },
-        { key: "isActiveLabel", label: "Active" },
+        { key: "id", label: "ID", width: "8%", sortable: false },
+        { key: "firstName", label: "First Name", width: "16%" },
+        { key: "lastName", label: "Last Name", width: "16%" },
+        { key: "email", label: "Email", width: "22%" },
+        { key: "phoneNumber", label: "Phone", width: "14%", sortable: false },
+        { key: "role", label: "Role", width: "14%" },
+        { key: "isActiveLabel", label: "Active", width: "10%" },
     ];
 
     const toRow = useCallback((u) => {
@@ -195,6 +210,7 @@ export default function Users() {
         setSelectedRow(null);
         setSelectedUserDetails(null);
         lastSelectedId.current = null;
+        setIsDelayedRefresh(true);
 
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
         typingTimeout.current = setTimeout(() => {
@@ -202,17 +218,40 @@ export default function Users() {
             loadedPages.current.clear();
             setPageNumber(1);
             fetchUsers(1, true);
+            setIsDelayedRefresh(false);
         }, 500);
+    };
+
+    const handleSort = (column) => {
+        if (!sortKeyMap[column]) return;
+        setIsDelayedRefresh(false);
+
+        if (sortColumn === column) {
+            if (sortDirection === "asc") {
+                setSortDirection("desc");
+            } else if (sortDirection === "desc") {
+                setSortColumn(null);
+                setSortDirection(null);
+            } else {
+                setSortColumn(column);
+                setSortDirection("asc");
+            }
+        } else {
+            setSortColumn(column);
+            setSortDirection("asc");
+        }
     };
 
     // === Filter handlers ===
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
+        setIsDelayedRefresh(false);
         setFilters((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleBooleanChange = (e) => {
         const { name, value } = e.target;
+        setIsDelayedRefresh(false);
         setFilters((prev) => ({
             ...prev,
             [name]: value === "" ? "" : value === "true",
@@ -572,6 +611,9 @@ export default function Users() {
                     onToggleFilters={() => setShowFilters((prev) => !prev)}
                     onSearchChange={handleSearchChange}
                     searchValue={searchQuery}
+                    onSort={handleSort}
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
                     deleteButtonLabel={
                         !selectedRow || selectedRow._isActive ? "Deactivate" : "Activate"
                     }

@@ -23,9 +23,11 @@ namespace Backend.Api.Controllers
             [FromQuery] string? search,
             [FromQuery] UserRole? role,
             [FromQuery] bool? isActive,
+            [FromQuery] string? orderBy,
+            [FromQuery] string? sortDirection,
             CancellationToken ct)
         {
-            var result = await _service.GetAllAsync(pagination, search, role, isActive, ct);
+            var result = await _service.GetAllAsync(pagination, search, role, isActive, orderBy, sortDirection, ct);
             return Ok(result);
         }
 

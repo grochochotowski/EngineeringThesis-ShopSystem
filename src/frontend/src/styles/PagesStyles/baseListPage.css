@@ -96,11 +96,16 @@
 
 .details-panel li {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     padding: 0.3rem 0;
     border-bottom: var(--border-muted);
     font-size: 0.9rem;
     word-break: break-word;
+}
+
+.details-panel li.list-row {
+    flex-direction: row;
+    align-items: baseline;
 }
 
 .details-panel .detail-label {
@@ -213,6 +218,10 @@ li.list-column .description {
 
 .data-table th.sortable:hover {
     background: var(--accent-hover);
+}
+
+.data-table th:not(.sortable) {
+    cursor: default;
 }
 
 .data-table th .sort-arrow {

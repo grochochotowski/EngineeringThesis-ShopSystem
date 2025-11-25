@@ -46,13 +46,15 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
                         return fieldValue ?? "—";
                     };
 
+                    const listClass = field.isColumn ? "list-column" : "list-row";
+
                     if (field.isColumn) {
                         return (
-                            <li key={index} className="list-column">
+                            <li key={index} className={listClass}>
                                 <div className="top">
                                     <strong className="detail-label">{field.label}:</strong>
                                     {!(field.key === "description") && ( // Only render value if not description
-                                        <span className="detail-value">{renderValue()}</span>
+                                        <span className={`detail-value ${field.className || ""}`}>{renderValue()}</span>
                                     )}
                                 </div>
                                 {field.key === "defective" && detailsData.defective && (
@@ -69,9 +71,9 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
                         );
                     } else {
                         return (
-                            <li key={index}>
-                                <strong className="detail-label">{field.label}:</strong>
-                                <span className="detail-value"> {renderValue()}</span>
+                            <li key={index} className={listClass}>
+                                <strong className="detail-label">{field.label}</strong>
+                                <span className={`detail-value ${field.className || ""}`}> {renderValue()}</span>
                             </li>
                         );
                     }
@@ -217,21 +219,24 @@ export default function BaseListPage({
                     <table className="data-table">
                         <thead>
                             <tr>
-                                {columns.map((col, i) => (
-                                    <th 
-                                        key={i} 
-                                        onClick={() => onSort?.(col.key)}
-                                        className={`sortable ${sortColumn === col.key ? 'sorted' : ''}`}
-                                        style={{ width: col.width }}
-                                    >
-                                        {col.label}
-                                        {sortColumn === col.key && (
-                                            <span className={`sort-arrow ${sortDirection === 'asc' ? 'asc' : 'desc'}`}>
-                                                {sortDirection === 'asc' ? ' ▲' : ' ▼'}
-                                            </span>
-                                        )}
-                                    </th>
-                                ))}
+                                {columns.map((col, i) => {
+                                    const sortable = col.sortable !== false && !!onSort;
+                                    return (
+                                        <th 
+                                            key={i} 
+                                            onClick={() => sortable && onSort?.(col.key)}
+                                            className={`${sortable ? "sortable" : ""} ${sortable && sortColumn === col.key ? 'sorted' : ''}`}
+                                            style={{ width: col.width, cursor: sortable ? "pointer" : "default" }}
+                                        >
+                                            {col.label}
+                                            {sortable && sortColumn === col.key && (
+                                                <span className={`sort-arrow ${sortDirection === 'asc' ? 'asc' : 'desc'}`}>
+                                                    {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                                                </span>
+                                            )}
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody>

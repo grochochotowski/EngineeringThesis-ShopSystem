@@ -14,6 +14,8 @@ namespace Backend.Api.Api.Controllers
             string? search = null,
             UserRole? role = null,
             bool? isActive = null,
+            string? orderBy = null,
+            string? sortDirection = null,
             CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateUserDto dto, CancellationToken ct = default);
         Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
@@ -59,6 +61,8 @@ namespace Backend.Api.Api.Controllers
             string? search = null,
             UserRole? role = null,
             bool? isActive = null,
+            string? orderBy = null,
+            string? sortDirection = null,
             CancellationToken ct = default)
         {
             var query = _db.Users
@@ -82,7 +86,27 @@ namespace Backend.Api.Api.Controllers
             if (isActive.HasValue)
                 query = query.Where(u => u.Credentials.IsActive == isActive.Value);
 
-            query = query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
+            var direction = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+            var ord = (orderBy ?? "lastName").ToLower();
+
+            query = ord switch
+            {
+                "firstname" => direction == "desc"
+                    ? query.OrderByDescending(u => u.FirstName).ThenByDescending(u => u.LastName)
+                    : query.OrderBy(u => u.FirstName).ThenBy(u => u.LastName),
+                "email" => direction == "desc"
+                    ? query.OrderByDescending(u => u.Email)
+                    : query.OrderBy(u => u.Email),
+                "role" => direction == "desc"
+                    ? query.OrderByDescending(u => u.Role)
+                    : query.OrderBy(u => u.Role),
+                "isactive" => direction == "desc"
+                    ? query.OrderByDescending(u => u.Credentials.IsActive)
+                    : query.OrderBy(u => u.Credentials.IsActive),
+                _ => direction == "desc"
+                    ? query.OrderByDescending(u => u.LastName).ThenByDescending(u => u.FirstName)
+                    : query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+            };
 
             var mapped = query.Select(u => new GetUserDto
             {
