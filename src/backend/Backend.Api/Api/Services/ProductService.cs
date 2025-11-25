@@ -113,9 +113,11 @@ namespace Backend.Api.Api.Controllers
 
             // sorting
             var isDescending = sortDirection?.ToLower() == "desc";
-            
-            // Join with categories for sorting by category name
-            var queryWithCategory = qry.Join(_db.Categories, p => p.CategoryId, c => c.Id, (p, c) => new { Product = p, CategoryName = c.Name });
+
+            var queryWithCategory = from p in qry
+                                    join c in _db.Categories on p.CategoryId equals c.Id into g
+                                    from c in g.DefaultIfEmpty()
+                                    select new { Product = p, CategoryName = c.Name };
 
             switch (orderBy?.ToLower())
             {

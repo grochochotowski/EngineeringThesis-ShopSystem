@@ -171,7 +171,7 @@ export default function Products() {
         { key: "price", label: "Price" },
         { key: "defective", label: "Defective" },
         { key: "category", label: "Category" },
-        { key: "isActive", label: "Active" },
+        { key: "isactive", label: "Active" },
     ];
 
     const rows = products.map((p) => ({
@@ -181,7 +181,7 @@ export default function Products() {
         price: p.price.toFixed(2),
         defective: p.defective ? "Yes" : "No",
         category: categories.get(p.categoryId) || "—",
-        isActive: p.isActive ? "Yes" : "No",
+        isactive: p.isActive ? "Yes" : "No",
     }));
 
     const user = JSON.parse(localStorage.getItem("user"));
@@ -349,15 +349,15 @@ export default function Products() {
                         }
                     }}
                     onDelete={(row) => {
-                        setActionableProduct({ ...row, isActive: row.isActive === "Yes" });
+                        setActionableProduct({ ...row, isActive: row.isactive === "Yes" });
                         setShowConfirm(true);
                     }}
                     onToggleFilters={() => setShowFilters((prev) => !prev)}
                     onSearchChange={handleSearchChange}
                     searchValue={searchQuery}
-                    deleteButtonLabel={!selectedRow || selectedRow.isActive === "Yes" ? "Deactivate" : "Activate"}
+                    deleteButtonLabel={!selectedRow || selectedRow.isactive === "Yes" ? "Deactivate" : "Activate"}
                     deleteButtonIcon={
-                        !selectedRow || selectedRow.isActive === "Yes" ? (
+                        !selectedRow || selectedRow.isactive === "Yes" ? (
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                                 <path fill="none" stroke="currentColor" strokeWidth="2" d="M18 6L6 18M6 6l12 12"/>
                             </svg>
@@ -368,7 +368,7 @@ export default function Products() {
                         )
                     }
                     deleteButtonClass={
-                        !selectedRow || selectedRow.isActive === "Yes"
+                        !selectedRow || selectedRow.isactive === "Yes"
                             ? "btn-confirm-negative"
                             : "btn-confirm-positive"
                     }
@@ -456,7 +456,7 @@ export default function Products() {
                                         price: full.price.toFixed(2),
                                         defective: full.defective ? "Yes" : "No",
                                         category: categories.get(full.categoryId) || "—",
-                                        isActive: full.isActive ? "Yes" : "No",
+                                        isactive: full.isActive ? "Yes" : "No",
                                     });
                                 } catch (err) {
                                     console.error("Failed to re-fetch updated product details:", err);
@@ -529,7 +529,7 @@ export default function Products() {
                             // Manually update the states for immediate feedback
                             const newIsActiveString = newStatus ? "Yes" : "No";
                             if (selectedRow && selectedRow.id === actionableProduct.id) {
-                                setSelectedRow(prev => ({ ...prev, isActive: newIsActiveString }));
+                                setSelectedRow(prev => ({ ...prev, isactive: newIsActiveString }));
                             }
                             if (selectedProductDetails && selectedProductDetails.id === actionableProduct.id) {
                                 setSelectedProductDetails(prev => ({ ...prev, isActive: newStatus }));
