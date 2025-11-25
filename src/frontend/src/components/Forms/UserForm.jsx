@@ -23,7 +23,7 @@ const initialAddress = {
     postalCode: "",
 };
 
-export default function UserForm({ mode = "create", user, address, roles = [], onSuccess }) {
+export default function UserForm({ mode = "create", user, address, roles = [], roleLimit, onSuccess }) {
     const [userForm, setUserForm] = useState(initialUser);
     const [addressForm, setAddressForm] = useState(initialAddress);
     const [loading, setLoading] = useState(false);
@@ -158,11 +158,19 @@ export default function UserForm({ mode = "create", user, address, roles = [], o
                     onChange={handleUserChange}
                     required
                 >
-                    {roles.map((r) => (
-                        <option key={r} value={r}>
-                            {r}
-                        </option>
-                    ))}
+                    {roles
+                        .filter((r) => {
+                            if (!roleLimit) return true;
+                            const hierarchy = ["ShopAssistant", "ItTechnician", "Marketer", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+                            const limitRank = hierarchy.indexOf(roleLimit);
+                            const roleRank = hierarchy.indexOf(r);
+                            return roleRank <= limitRank;
+                        })
+                        .map((r) => (
+                            <option key={r} value={r}>
+                                {r}
+                            </option>
+                        ))}
                 </select>
             </div>
 

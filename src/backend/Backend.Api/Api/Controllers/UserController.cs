@@ -46,6 +46,33 @@ namespace Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return ValidationProblem(ModelState);
 
+            // Role protection: only DeputyManager+ can edit roles, and only for lower-role users or self
+            var actorIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var actorRoleStr = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (string.IsNullOrEmpty(actorIdStr) || string.IsNullOrEmpty(actorRoleStr))
+                return Forbid();
+
+            var actorId = int.Parse(actorIdStr);
+            if (!Enum.TryParse<UserRole>(actorRoleStr, out var actorRole))
+                return Forbid();
+
+            // If role is changed, enforce hierarchy (only lower roles; cannot change own role)
+            if (dto.Role != default)
+            {
+                if (actorRole < UserRole.DeputyManager)
+                    return Forbid();
+
+                var target = await _service.GetByIdAsync(id, ct);
+                if (target == null)
+                    return NotFound();
+
+                if (actorId == id)
+                    return Forbid();
+
+                if (target.Role >= actorRole)
+                    return Forbid();
+            }
+
             try
             {
                 var ok = await _service.UpdateAsync(id, dto, ct);

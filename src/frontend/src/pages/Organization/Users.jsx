@@ -684,6 +684,7 @@ export default function Users() {
                         user={userFormMode === "edit" ? formUserData : null}
                         address={formAddressData}
                         roles={roles}
+                        roleLimit={currentUser?.role}
                         onSuccess={async (userId) => {
                             setShowUserModal(false);
                             if (userId) {
