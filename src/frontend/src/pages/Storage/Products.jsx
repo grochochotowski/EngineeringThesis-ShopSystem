@@ -477,13 +477,7 @@ export default function Products() {
                                 type: "success",
                             });
                         }}
-                        onCancel={() => setShowModal(false)}
                     />
-                    <div style={{ marginTop: "1rem", textAlign: "right" }}>
-                        <button className="btn-cancel" onClick={() => setShowModal(false)}>
-                            Close
-                        </button>
-                    </div>
                 </Modal>
             )}
 

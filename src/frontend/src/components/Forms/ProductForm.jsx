@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../../api/apiClient";
 import MessageBox from "../MessageBox";
 
-export default function ProductForm({ product, categories, onSuccess, onCancel }) {
+export default function ProductForm({ product, categories, onSuccess }) {
     const [form, setForm] = useState({
         sku: "",
         name: "",
@@ -209,14 +209,11 @@ export default function ProductForm({ product, categories, onSuccess, onCancel }
                 />
             </div>
 
-            <div className="form-actions">
-                <button type="button" className="btn-cancel" onClick={onCancel}>
-                    Cancel
-                </button>
-                <button type="submit" className="btn-confirm" disabled={loading}>
-                    {loading ? "Saving..." : "Save"}
-                </button>
-            </div>
+        <div className="form-actions">
+            <button type="submit" className="btn-confirm" disabled={loading}>
+                {loading ? "Saving..." : "Save"}
+            </button>
+        </div>
         {toast && (
             <MessageBox
                 message={toast.message}
