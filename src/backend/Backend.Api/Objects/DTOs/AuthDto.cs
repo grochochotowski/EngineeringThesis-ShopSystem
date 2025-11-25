@@ -47,7 +47,8 @@ namespace Backend.Api.Objects.DTOs
     // --- CHANGE PASSWORD ---
     public class ChangePasswordDto
     {
-        [Required, MaxLength(128)]              public string CurrentPassword       { get; set; } = default!;
+                                                public int? UserId                  { get; set; }
+        [MaxLength(128)]                        public string? CurrentPassword      { get; set; }
         [Required, MaxLength(128)]              public string NewPassword           { get; set; } = default!;
         [Required, MaxLength(128)]              public string ConfirmNewPassword    { get; set; } = default!;
     }

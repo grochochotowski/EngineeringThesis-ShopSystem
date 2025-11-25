@@ -63,11 +63,18 @@ namespace Backend.Api.Api.Controllers
             if (string.IsNullOrEmpty(userIdClaim))
                 return Unauthorized(new { message = "Invalid user context." });
 
-            var userId = int.Parse(userIdClaim);
+            var currentUserId = int.Parse(userIdClaim);
+            var targetUserId = dto.UserId ?? currentUserId;
+            var requireCurrent = targetUserId == currentUserId;
 
-            var success = await _auth.ChangePasswordAsync(userId, dto, ct);
+            var success = await _auth.ChangePasswordAsync(
+                targetUserId,
+                dto,
+                requireCurrentPassword: requireCurrent,
+                ct);
+
             if (!success)
-                return BadRequest(new { message = "Incorrect current password." });
+                return BadRequest(new { message = "Failed to change password." });
 
             return Ok(new { message = "Password changed successfully." });
         }

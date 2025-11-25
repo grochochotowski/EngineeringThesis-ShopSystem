@@ -15,7 +15,7 @@ namespace Backend.Api.Api.Services
         Task<AuthUserDto> RegisterAsync(RegisterUserDto dto, CancellationToken ct = default);
         Task<AuthUserDto?> LoginAsync(LoginDto dto, CancellationToken ct = default);
         Task<AuthUserDto?> RefreshTokenAsync(RefreshTokenDto dto, CancellationToken ct = default);
-        Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto, CancellationToken ct = default);
+        Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto, bool requireCurrentPassword = true, CancellationToken ct = default);
     }
 
     public class AuthService : IAuthService
@@ -172,13 +172,18 @@ namespace Backend.Api.Api.Services
         }
 
         // --- CHANGE PASSWORD ---
-        public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto, CancellationToken ct = default)
+        public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto, bool requireCurrentPassword = true, CancellationToken ct = default)
         {
             var credentials = await _db.UserCredentials.FirstOrDefaultAsync(u => u.UserId == userId, ct);
             if (credentials == null) return false;
 
-            if (!VerifyPassword(dto.CurrentPassword, credentials.PasswordHash, credentials.PasswordSalt))
-                return false;
+            if (requireCurrentPassword)
+            {
+                if (string.IsNullOrWhiteSpace(dto.CurrentPassword))
+                    return false;
+                if (!VerifyPassword(dto.CurrentPassword, credentials.PasswordHash, credentials.PasswordSalt))
+                    return false;
+            }
 
             CreatePasswordHash(dto.NewPassword, out var newHash, out var newSalt);
             credentials.PasswordHash = Convert.ToBase64String(newHash);
