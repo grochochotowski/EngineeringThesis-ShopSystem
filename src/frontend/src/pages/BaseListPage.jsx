@@ -107,6 +107,11 @@ export default function BaseListPage({
     changePasswordButtonClass = "",
     changePasswordButtonIcon,
     changePasswordDisabled = false,
+    onChangeLogin,
+    changeLoginButtonLabel = "Change Login",
+    changeLoginButtonClass = "",
+    changeLoginButtonIcon,
+    changeLoginDisabled = false,
     disableAdd = false,
     disableEdit = false,
     disableDelete = false,
@@ -180,6 +185,21 @@ export default function BaseListPage({
                                     </svg>
                                 )}
                                 {changePasswordButtonLabel}
+                            </button>
+                        )}
+
+                        {onChangeLogin && (
+                            <button
+                                onClick={() => selectedRow && !changeLoginDisabled && onChangeLogin?.(selectedRow)}
+                                className={`btn-action ${changeLoginButtonClass} ${(!selectedRow || changeLoginDisabled) ? "disabled" : ""}`}
+                                disabled={!selectedRow || changeLoginDisabled}
+                            >
+                                {changeLoginButtonIcon || (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M5 5h14v14H5zM9 9h6v6H9z"/>
+                                    </svg>
+                                )}
+                                {changeLoginButtonLabel}
                             </button>
                         )}
                     </div>

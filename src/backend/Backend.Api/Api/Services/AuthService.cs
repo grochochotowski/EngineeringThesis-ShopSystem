@@ -16,6 +16,7 @@ namespace Backend.Api.Api.Services
         Task<AuthUserDto?> LoginAsync(LoginDto dto, CancellationToken ct = default);
         Task<AuthUserDto?> RefreshTokenAsync(RefreshTokenDto dto, CancellationToken ct = default);
         Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto, bool requireCurrentPassword = true, CancellationToken ct = default);
+        Task<bool> ChangeLoginAsync(int userId, ChangeLoginDto dto, bool requireCurrentPassword = true, CancellationToken ct = default);
     }
 
     public class AuthService : IAuthService
@@ -190,6 +191,30 @@ namespace Backend.Api.Api.Services
             credentials.PasswordSalt = Convert.ToBase64String(newSalt);
             credentials.PasswordUpdatedAt = DateTimeOffset.UtcNow;
 
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // --- CHANGE LOGIN ---
+        public async Task<bool> ChangeLoginAsync(int userId, ChangeLoginDto dto, bool requireCurrentPassword = true, CancellationToken ct = default)
+        {
+            var credentials = await _db.UserCredentials.FirstOrDefaultAsync(u => u.UserId == userId, ct);
+            if (credentials == null) return false;
+
+            if (requireCurrentPassword)
+            {
+                if (string.IsNullOrWhiteSpace(dto.CurrentPassword))
+                    return false;
+                if (!VerifyPassword(dto.CurrentPassword, credentials.PasswordHash, credentials.PasswordSalt))
+                    return false;
+            }
+
+            var normalizedLogin = dto.NewLogin.Trim();
+            var loginTaken = await _db.UserCredentials.AnyAsync(c => c.Login == normalizedLogin && c.UserId != userId, ct);
+            if (loginTaken)
+                throw new InvalidOperationException("Login already exists.");
+
+            credentials.Login = normalizedLogin;
             await _db.SaveChangesAsync(ct);
             return true;
         }

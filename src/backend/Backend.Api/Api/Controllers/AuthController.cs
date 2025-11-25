@@ -78,5 +78,37 @@ namespace Backend.Api.Api.Controllers
 
             return Ok(new { message = "Password changed successfully." });
         }
+
+        // --- CHANGE LOGIN ---
+        [Authorize(Roles = "Root, Admin, CEO, Manager, DeputyManager")]
+        [HttpPost("change-login")]
+        public async Task<IActionResult> ChangeLogin([FromBody] ChangeLoginDto dto, CancellationToken ct)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized(new { message = "Invalid user context." });
+
+            var currentUserId = int.Parse(userIdClaim);
+            var targetUserId = dto.UserId ?? currentUserId;
+            var requireCurrent = targetUserId == currentUserId;
+
+            try
+            {
+                var success = await _auth.ChangeLoginAsync(
+                    targetUserId,
+                    dto,
+                    requireCurrentPassword: requireCurrent,
+                    ct);
+
+                if (!success)
+                    return BadRequest(new { message = "Failed to change login." });
+
+                return Ok(new { message = "Login changed successfully." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
     }
 }

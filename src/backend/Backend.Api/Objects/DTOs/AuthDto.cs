@@ -52,4 +52,12 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(128)]              public string NewPassword           { get; set; } = default!;
         [Required, MaxLength(128)]              public string ConfirmNewPassword    { get; set; } = default!;
     }
+
+    // --- CHANGE LOGIN ---
+    public class ChangeLoginDto
+    {
+                                                public int? UserId                  { get; set; }
+        [MaxLength(128)]                        public string? CurrentPassword      { get; set; }
+        [Required, MaxLength(64)]               public string NewLogin              { get; set; } = default!;
+    }
 }

@@ -58,6 +58,7 @@ export default function Users() {
 
     const [showUserModal, setShowUserModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
     const [userFormMode, setUserFormMode] = useState("create"); // create | edit
     const [formUserData, setFormUserData] = useState(null);
     const [formAddressData, setFormAddressData] = useState(initialAddress);
@@ -65,6 +66,7 @@ export default function Users() {
         newPassword: "",
         confirmNewPassword: "",
     });
+    const [loginForm, setLoginForm] = useState({ newLogin: "" });
 
     // --- Filters ---
     const [filters, setFilters] = useState({
@@ -450,6 +452,17 @@ export default function Users() {
         setShowPasswordModal(true);
     };
 
+    // === Change login ===
+    const handleOpenLoginModal = (row) => {
+        if (!row) return;
+        if (!canChangeAnyPassword) {
+            setToast({ message: "Only Deputy Manager or higher can change logins.", type: "error" });
+            return;
+        }
+        setLoginForm({ newLogin: "" });
+        setShowLoginModal(true);
+    };
+
     // Reselect previously chosen row after data refresh
     useEffect(() => {
         if (!lastSelectedId.current || users.length === 0) return;
@@ -492,6 +505,38 @@ export default function Users() {
             console.error(err);
             setToast({
                 message: err.response?.data?.message || "Failed to change password.",
+                type: "error",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmitLogin = async (e) => {
+        e.preventDefault();
+        if (!selectedRow) return;
+
+        const isSelf = selectedRow.id === currentUser?.id;
+        let currentPassword = "";
+        if (isSelf) {
+            const prompt = window.prompt("Enter your current password to confirm:");
+            if (prompt === null) return;
+            currentPassword = prompt;
+        }
+
+        try {
+            setLoading(true);
+            await api.post("/Auth/change-login", {
+                userId: selectedRow.id,
+                currentPassword,
+                newLogin: loginForm.newLogin,
+            });
+            setToast({ message: "Login changed successfully.", type: "success" });
+            setShowLoginModal(false);
+        } catch (err) {
+            console.error(err);
+            setToast({
+                message: err.response?.data?.message || "Failed to change login.",
                 type: "error",
             });
         } finally {
@@ -546,6 +591,9 @@ export default function Users() {
                     onChangePassword={handleOpenPasswordModal}
                     changePasswordDisabled={!selectedRow || !canChangeAnyPassword}
                     changePasswordButtonClass="btn-edit"
+                    onChangeLogin={handleOpenLoginModal}
+                    changeLoginDisabled={!selectedRow || !canChangeAnyPassword}
+                    changeLoginButtonClass="btn-edit"
                     disableAdd={disableManageActions}
                     disableEdit={disableManageActions}
                     disableDelete={disableManageActions}
@@ -668,6 +716,32 @@ export default function Users() {
                             </button>
                             <button type="submit" className="btn-confirm">
                                 Change Password
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {/* === MODAL: Change Login === */}
+            {showLoginModal && (
+                <Modal title="Change Login" onClose={() => setShowLoginModal(false)}>
+                    <form onSubmit={handleSubmitLogin} className="form-grid">
+                        <label>
+                            New Login
+                            <input
+                                type="text"
+                                name="newLogin"
+                                value={loginForm.newLogin}
+                                onChange={(e) => setLoginForm({ newLogin: e.target.value })}
+                                required
+                            />
+                        </label>
+                        <div className="form-actions" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.5rem" }}>
+                            <button type="button" className="btn-cancel" onClick={() => setShowLoginModal(false)}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn-confirm">
+                                Change Login
                             </button>
                         </div>
                     </form>
