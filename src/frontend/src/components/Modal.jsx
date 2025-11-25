@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import "../styles/ComponentsStyles/modal.css";
 
-export default function Modal({ title, children, onClose }) {
+export default function Modal({ title, children, onClose, wide = false }) {
     // Close on ESC
     useEffect(() => {
         const handleEsc = (e) => {
@@ -13,7 +13,7 @@ export default function Modal({ title, children, onClose }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className={`modal-container ${wide ? "wide" : ""}`} onClick={(e) => e.stopPropagation()}>
                 <header className="modal-header">
                     <h3>{title}</h3>
                     <button className="btn-close" onClick={onClose}>×</button>

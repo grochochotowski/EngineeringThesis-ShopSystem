@@ -434,6 +434,7 @@ export default function Products() {
                 <Modal
                     title={selectedProductDetails ? "Edit Product" : "Add Product"}
                     onClose={() => setShowModal(false)}
+                    wide
                 >
                     <p>
                         {selectedProductDetails

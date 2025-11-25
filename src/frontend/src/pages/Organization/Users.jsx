@@ -1,7 +1,46 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { api } from "../../api/apiClient";
 import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
+import Modal from "../../components/Modal";
+import UserForm from "../../components/Forms/UserForm";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import MessageBox from "../../components/MessageBox";
+
+const roles = [
+    "Root",
+    "Admin",
+    "CEO",
+    "Manager",
+    "DeputyManager",
+    "ShopAssistant",
+    "ItTechnician",
+    "Marketer",
+];
+
+const isManagerOrAbove = (role) =>
+    ["Root", "Admin", "CEO", "Manager", "DeputyManager"].includes(role);
+
+const formatDateForInput = (value) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().split("T")[0];
+};
+
+const formatDateReadable = (value) => {
+    if (!value) return "—";
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString();
+};
+
+const initialAddress = {
+    country: "",
+    city: "",
+    street: "",
+    building: "",
+    premises: "",
+    postalCode: "",
+};
 
 export default function Users() {
     const [users, setUsers] = useState([]);
@@ -10,6 +49,22 @@ export default function Users() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [toast, setToast] = useState(null);
+
+    const [selectedRow, setSelectedRow] = useState(null);
+    const [selectedUserDetails, setSelectedUserDetails] = useState(null);
+    const [actionableUser, setActionableUser] = useState(null);
+    const lastSelectedId = useRef(null);
+
+    const [showUserModal, setShowUserModal] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [userFormMode, setUserFormMode] = useState("create"); // create | edit
+    const [formUserData, setFormUserData] = useState(null);
+    const [formAddressData, setFormAddressData] = useState(initialAddress);
+    const [passwordForm, setPasswordForm] = useState({
+        newPassword: "",
+        confirmNewPassword: "",
+    });
 
     // --- Filters ---
     const [filters, setFilters] = useState({
@@ -23,40 +78,54 @@ export default function Users() {
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
     const filtersRef = useRef(null);
+    const typingTimeout = useRef(null);
+
+    const currentUser = JSON.parse(localStorage.getItem("user"));
+    const canManageUsers = isManagerOrAbove(currentUser?.role);
+    const canChangeAnyPassword = isManagerOrAbove(currentUser?.role);
+    const disableManageActions = !canManageUsers;
 
     // === FETCH USERS ===
     const fetchUsers = useCallback(
-    async (page = 1) => {
-        if (loadedPages.current.has(page)) return;
-        loadedPages.current.add(page);
+        async (page = 1, reset = false) => {
+            if (loadedPages.current.has(page) && !reset) return;
+            loadedPages.current.add(page);
 
-        try {
-            setLoading(true);
-            const { items, totalPages } = await api.get("/Users", {
-                params: {
-                    PageNumber: page,
-                    PageSize: 20,
-                    ...(searchQuery && { search: searchQuery }),
-                    ...(filters.role && { role: filters.role }),
-                    ...(filters.isActive !== "" && { isActive: filters.isActive }),
-                },
-            });
+            try {
+                setLoading(true);
+                const { items = [], totalPages = 1 } = await api.get("/Users", {
+                    params: {
+                        PageNumber: page,
+                        PageSize: 20,
+                        ...(searchQuery && { search: searchQuery }),
+                        ...(filters.role && { role: filters.role }),
+                        ...(filters.isActive !== "" && { isActive: filters.isActive }),
+                    },
+                });
 
-            if (items?.length) {
-                setUsers(items);
+                setUsers((prev) =>
+                    page === 1 ? items : [...prev, ...items.filter((i) => !prev.some((p) => p.id === i.id))]
+                );
                 setHasMore(page < (totalPages || 1));
-            } else {
-                setUsers([]);
-                setHasMore(false);
+
+                if (page === 1 && items.length === 0) {
+                    setSelectedRow(null);
+                    setSelectedUserDetails(null);
+                }
+            } catch (err) {
+                console.error(err);
+                setError("Failed to load users.");
+            } finally {
+                setLoading(false);
             }
-        } catch (err) {
-            console.error(err);
-            setError("Failed to load users.");
-        } finally {
-            setLoading(false);
-        }
-    },
-    [filters, searchQuery]);
+        },
+        [filters, searchQuery]
+    );
+
+    // === Initial load ===
+    useEffect(() => {
+        fetchUsers(1, true);
+    }, [fetchUsers]);
 
     // === Auto refresh when filters/search change ===
     useEffect(() => {
@@ -64,7 +133,10 @@ export default function Users() {
             setUsers([]);
             loadedPages.current.clear();
             setPageNumber(1);
-            fetchUsers(1);
+            setSelectedRow(null);
+            setSelectedUserDetails(null);
+            lastSelectedId.current = null;
+            fetchUsers(1, true);
         }, 500);
 
         return () => clearTimeout(delay);
@@ -95,32 +167,39 @@ export default function Users() {
         { key: "email", label: "Email" },
         { key: "phoneNumber", label: "Phone" },
         { key: "role", label: "Role" },
-        { key: "isActive", label: "Active" },
+        { key: "isActiveLabel", label: "Active" },
     ];
 
-    const rows = users.map((u) => ({
-        id: u.id,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        email: u.email,
-        phoneNumber: u.phoneNumber || "—",
-        role: u.role || "—",
-        isActive: u.isActive ? "Yes" : "No",
-    }));
+    const toRow = useCallback((u) => {
+        const active = typeof u.isActive === "boolean" ? u.isActive : Boolean(u.isActive);
+        return {
+            id: u.id,
+            firstName: u.firstName,
+            lastName: u.lastName,
+            email: u.email,
+            phoneNumber: u.phoneNumber || "—",
+            role: u.role || "—",
+            isActiveLabel: active ? "Yes" : "No",
+            _isActive: active,
+            addressId: u.addressId,
+        };
+    }, []);
 
-    const user = JSON.parse(localStorage.getItem("user"));
+    const rows = useMemo(() => users.map(toRow), [users, toRow]);
 
     // === Search change with debounce ===
-    const typingTimeout = useRef(null);
     const handleSearchChange = (value) => {
         setSearchQuery(value);
+        setSelectedRow(null);
+        setSelectedUserDetails(null);
+        lastSelectedId.current = null;
 
         if (typingTimeout.current) clearTimeout(typingTimeout.current);
         typingTimeout.current = setTimeout(() => {
             setUsers([]);
             loadedPages.current.clear();
             setPageNumber(1);
-            fetchUsers(1);
+            fetchUsers(1, true);
         }, 500);
     };
 
@@ -154,11 +233,277 @@ export default function Users() {
         };
     }, [showFilters]);
 
+    // === Handle row selection to load full user details ===
+    const handleRowSelect = useCallback(async (row) => {
+        if (!row) {
+            setSelectedRow(null);
+            setSelectedUserDetails(null);
+            lastSelectedId.current = null;
+            return;
+        }
+
+        lastSelectedId.current = row.id;
+        setSelectedRow(row);
+        try {
+            const full = await api.get(`/Users/${row.id}`);
+            let address = null;
+            if (full?.addressId) {
+                try {
+                    address = await api.get(`/Addresses/${full.addressId}`);
+                } catch (addrErr) {
+                    console.error("Failed to load address", addrErr);
+                }
+            }
+            setSelectedUserDetails({ ...full, isActive: full.isActive ?? row._isActive, address });
+        } catch (err) {
+            console.error(err);
+            setToast({
+                message: err.response?.data?.message || "Failed to load user details.",
+                type: "error",
+            });
+        }
+    }, []);
+
+    const userDetailsConfig = {
+        status: {
+            key: "isActive",
+            activeLabel: "Active",
+            inactiveLabel: "Inactive",
+        },
+        fields: [
+            { label: "Id", key: "id" },
+            { label: "First Name", key: "firstName" },
+            { label: "Last Name", key: "lastName" },
+            { label: "Email", key: "email" },
+            { label: "Phone", key: "phoneNumber" },
+            { label: "Role", key: "role" },
+            { label: "Date of Birth", key: "dateOfBirth", render: (data) => formatDateReadable(data.dateOfBirth) },
+            {
+                label: "Address",
+                key: "address",
+                render: (data) => {
+                    if (!data?.address) return "—";
+                    const a = data.address;
+                    const line1 = [a.street, a.building, a.premises].filter(Boolean).join(" ");
+                    const line2 = [a.postalCode, a.city].filter(Boolean).join(" ");
+                    return [line1, line2, a.country].filter(Boolean).join(", ");
+                },
+            },
+        ],
+    };
+
+    // === Form helpers ===
+    const openCreateModal = () => {
+        if (!canManageUsers) {
+            setToast({ message: "Only Deputy Manager or higher can register users.", type: "error" });
+            return;
+        }
+        setFormUserData(null);
+        setFormAddressData(initialAddress);
+        setUserFormMode("create");
+        setShowUserModal(true);
+        setSelectedUserDetails(null);
+        lastSelectedId.current = null;
+    };
+
+    const openEditModal = async (row) => {
+        if (!row) return;
+        if (!canManageUsers) {
+            setToast({ message: "Only Deputy Manager or higher can edit users.", type: "error" });
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const full = await api.get(`/Users/${row.id}`);
+            let addressData = initialAddress;
+            if (full?.addressId) {
+                try {
+                    const addr = await api.get(`/Addresses/${full.addressId}`);
+                    addressData = {
+                        country: addr.country || "",
+                        city: addr.city || "",
+                        street: addr.street || "",
+                        building: addr.building || "",
+                        premises: addr.premises || "",
+                        postalCode: addr.postalCode || "",
+                    };
+                } catch (addrErr) {
+                    console.error("Failed to fetch address", addrErr);
+                }
+            }
+            setFormUserData({ ...full, dateOfBirth: formatDateForInput(full.dateOfBirth) });
+            setFormAddressData(addressData);
+            setUserFormMode("edit");
+            setShowUserModal(true);
+            setSelectedUserDetails({ ...full, isActive: full.isActive ?? row._isActive, address: addressData });
+            lastSelectedId.current = row.id;
+        } catch (err) {
+            console.error(err);
+            setToast({
+                message: err.response?.data?.message || "Failed to load full user details.",
+                type: "error",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchAndSelectUser = useCallback(
+        async (userId) => {
+            if (!userId) return;
+            try {
+                const full = await api.get(`/Users/${userId}`);
+                let address = null;
+                if (full?.addressId) {
+                    try {
+                        address = await api.get(`/Addresses/${full.addressId}`);
+                    } catch (addrErr) {
+                        console.error("Failed to load address", addrErr);
+                    }
+                }
+                const mappedRow = toRow(full);
+                setSelectedRow(mappedRow);
+                setSelectedUserDetails({ ...full, isActive: full.isActive ?? mappedRow._isActive, address });
+                lastSelectedId.current = userId;
+
+                // Ensure table shows latest data for that user (keep API shape)
+                setUsers((prev) => {
+                    const without = prev.filter((u) => u.id !== userId);
+                    return [full, ...without];
+                });
+            } catch (err) {
+                console.error("Failed to reselect user", err);
+            }
+        },
+        [toRow]
+    );
+
+    // === Activate / deactivate ===
+    const handleStatusToggle = (row) => {
+        if (!canManageUsers) {
+            setToast({ message: "Only Deputy Manager or higher can change user status.", type: "error" });
+            return;
+        }
+        setActionableUser(row);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!actionableUser) return;
+        try {
+            setLoading(true);
+            if (actionableUser._isActive) {
+                await api.delete(`/Users/${actionableUser.id}`);
+                setToast({ message: "User deactivated successfully.", type: "success" });
+            } else {
+                await api.put(`/Users/${actionableUser.id}/activate`);
+                setToast({ message: "User activated successfully.", type: "success" });
+            }
+
+            setUsers((prev) =>
+                prev.map((u) =>
+                    u.id === actionableUser.id
+                        ? { ...u, isActive: !actionableUser._isActive }
+                        : u
+                )
+            );
+
+            if (selectedRow && selectedRow.id === actionableUser.id) {
+                const newActive = !actionableUser._isActive;
+            setSelectedRow((prev) => prev ? { ...prev, _isActive: newActive, isActiveLabel: newActive ? "Yes" : "No" } : prev);
+            setSelectedUserDetails((prev) => prev ? { ...prev, isActive: newActive } : prev);
+        }
+
+            // refresh list to keep pagination consistent
+            loadedPages.current.clear();
+            setPageNumber(1);
+            fetchUsers(1, true);
+            lastSelectedId.current = actionableUser.id;
+        } catch (err) {
+            console.error(err);
+            setToast({
+                message: err.response?.data?.message || "Failed to update user status.",
+                type: "error",
+            });
+        } finally {
+            setLoading(false);
+            setShowConfirm(false);
+            setActionableUser(null);
+        }
+    };
+
+    const [showConfirm, setShowConfirm] = useState(false);
+    useEffect(() => {
+        if (actionableUser) {
+            setShowConfirm(true);
+        }
+    }, [actionableUser]);
+
+    // === Change password ===
+    const handleOpenPasswordModal = (row) => {
+        if (!row) return;
+        if (!canChangeAnyPassword) {
+            setToast({ message: "Only Deputy Manager or higher can change passwords.", type: "error" });
+            return;
+        }
+        setPasswordForm({ newPassword: "", confirmNewPassword: "" });
+        setShowPasswordModal(true);
+    };
+
+    // Reselect previously chosen row after data refresh
+    useEffect(() => {
+        if (!lastSelectedId.current || users.length === 0) return;
+        const target = users.find((u) => u.id === lastSelectedId.current);
+        if (!target) {
+            setSelectedRow(null);
+            setSelectedUserDetails(null);
+            return;
+        }
+        if (selectedRow?.id === target.id && selectedUserDetails) return;
+        handleRowSelect(toRow(target));
+    }, [users, selectedRow, selectedUserDetails, handleRowSelect]);
+
+    const handleSubmitPassword = async (e) => {
+        e.preventDefault();
+        if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+            setToast({ message: "Passwords do not match.", type: "error" });
+            return;
+        }
+
+        const isSelf = selectedRow?.id === currentUser?.id;
+        let currentPassword = "";
+        if (isSelf) {
+            const prompt = window.prompt("Enter your current password to confirm:");
+            if (prompt === null) return;
+            currentPassword = prompt;
+        }
+
+        try {
+            setLoading(true);
+            await api.post("/Auth/change-password", {
+                userId: selectedRow?.id,
+                currentPassword,
+                newPassword: passwordForm.newPassword,
+                confirmNewPassword: passwordForm.confirmNewPassword,
+            });
+            setToast({ message: "Password changed successfully.", type: "success" });
+            setShowPasswordModal(false);
+        } catch (err) {
+            console.error(err);
+            setToast({
+                message: err.response?.data?.message || "Failed to change password.",
+                type: "error",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // === Render ===
     return (
         <div className="page-container">
             <Header
-                user={user}
+                user={currentUser}
                 onLogout={() => {
                     localStorage.clear();
                     window.location.href = "/";
@@ -171,12 +516,39 @@ export default function Users() {
                     data={rows}
                     loading={loading}
                     error={error}
-                    onAdd={() => console.log("Add user")}
-                    onEdit={() => console.log("Edit user")}
-                    onDelete={() => console.log("Delete user")}
+                    selectedRow={selectedRow}
+                    onSelectRow={handleRowSelect}
+                    detailsData={selectedUserDetails}
+                    detailsConfig={userDetailsConfig}
+                    onAdd={openCreateModal}
+                    onEdit={openEditModal}
+                    onDelete={handleStatusToggle}
                     onToggleFilters={() => setShowFilters((prev) => !prev)}
                     onSearchChange={handleSearchChange}
                     searchValue={searchQuery}
+                    deleteButtonLabel={
+                        !selectedRow || selectedRow._isActive ? "Deactivate" : "Activate"
+                    }
+                    deleteButtonClass={
+                        !selectedRow || selectedRow._isActive ? "btn-confirm-negative" : "btn-confirm-positive"
+                    }
+                    deleteButtonIcon={
+                        !selectedRow || selectedRow._isActive ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M20 6L9 17l-5-5"/>
+                            </svg>
+                        )
+                    }
+                    onChangePassword={handleOpenPasswordModal}
+                    changePasswordDisabled={!selectedRow || !canChangeAnyPassword}
+                    changePasswordButtonClass="btn-edit"
+                    disableAdd={disableManageActions}
+                    disableEdit={disableManageActions}
+                    disableDelete={disableManageActions}
                 />
 
                 {/* === Filter Panel === */}
@@ -190,14 +562,11 @@ export default function Users() {
                             onChange={handleFilterChange}
                         >
                             <option value="">All roles</option>
-                            <option value="Admin">Admin</option>
-                            <option value="CEO">CEO</option>
-                            <option value="Manager">Manager</option>
-                            <option value="DeputyManager">DeputyManager</option>
-                            <option value="ShopAssistant">ShopAssistant</option>
-                            <option value="ItTechnician">ItTechnician</option>
-                            <option value="Marketer">Marketer</option>
-                            <option value="Root">Root</option>
+                            {roles.map((r) => (
+                                <option key={r} value={r}>
+                                    {r}
+                                </option>
+                            ))}
                         </select>
 
                         <select
@@ -218,6 +587,102 @@ export default function Users() {
                     <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
                 )}
             </main>
+
+            {showUserModal && (
+                <Modal
+                    title={userFormMode === "create" ? "Register User" : "Edit User"}
+                    onClose={() => setShowUserModal(false)}
+                    wide
+                >
+                    <UserForm
+                        mode={userFormMode}
+                        user={userFormMode === "edit" ? formUserData : null}
+                        address={formAddressData}
+                        roles={roles}
+                        onSuccess={async (userId) => {
+                            setShowUserModal(false);
+                            if (userId) {
+                                lastSelectedId.current = userId;
+                                await fetchAndSelectUser(userId);
+                            }
+                            loadedPages.current.clear();
+                            setPageNumber(1);
+                            await fetchUsers(1, true);
+                        }}
+                    />
+                </Modal>
+            )}
+
+            {/* === CONFIRM DIALOG: Activate / Deactivate === */}
+            {showConfirm && actionableUser && (
+                <ConfirmDialog
+                    title={actionableUser._isActive ? "Deactivate User" : "Activate User"}
+                    message={
+                        actionableUser._isActive
+                            ? `Are you sure you want to deactivate "${actionableUser.firstName} ${actionableUser.lastName}"?`
+                            : `Are you sure you want to activate "${actionableUser.firstName} ${actionableUser.lastName}"?`
+                    }
+                    confirmText={actionableUser._isActive ? "Deactivate" : "Activate"}
+                    confirmButtonClass={
+                        actionableUser._isActive ? "dialog-btn-confirm-negative" : "dialog-btn-confirm-positive"
+                    }
+                    onConfirm={confirmStatusChange}
+                    onCancel={() => {
+                        setShowConfirm(false);
+                        setActionableUser(null);
+                    }}
+                />
+            )}
+
+            {/* === MODAL: Change Password === */}
+            {showPasswordModal && (
+                <Modal title="Change Password" onClose={() => setShowPasswordModal(false)}>
+                    <form onSubmit={handleSubmitPassword} className="form-grid">
+                        <label>
+                            New Password
+                            <input
+                                type="password"
+                                name="newPassword"
+                                value={passwordForm.newPassword}
+                                onChange={(e) =>
+                                    setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+                                }
+                                required
+                            />
+                        </label>
+                        <label>
+                            Confirm New Password
+                            <input
+                                type="password"
+                                name="confirmNewPassword"
+                                value={passwordForm.confirmNewPassword}
+                                onChange={(e) =>
+                                    setPasswordForm((prev) => ({ ...prev, confirmNewPassword: e.target.value }))
+                                }
+                                required
+                            />
+                        </label>
+                        <div className="form-actions" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.5rem" }}>
+                            <button type="button" className="btn-cancel" onClick={() => setShowPasswordModal(false)}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn-confirm">
+                                Change Password
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {toast && (
+                <MessageBox
+                    message={toast.message}
+                    type={toast.type}
+                    duration={3000}
+                    onClose={() => setToast(null)}
+                    className="centered"
+                />
+            )}
         </div>
     );
 }

@@ -102,6 +102,14 @@ export default function BaseListPage({
     deleteButtonIcon,
     deleteButtonClass = "",
     selectedRow,
+    onChangePassword,
+    changePasswordButtonLabel = "Change Password",
+    changePasswordButtonClass = "",
+    changePasswordButtonIcon,
+    changePasswordDisabled = false,
+    disableAdd = false,
+    disableEdit = false,
+    disableDelete = false,
 }) {
     return (
         <div className="base-list-wrapper">
@@ -125,7 +133,11 @@ export default function BaseListPage({
 
                     {/* Actions */}
                     <div className="action-buttons">
-                        <button onClick={onAdd} className="btn-action btn-add">
+                        <button
+                            onClick={!disableAdd ? onAdd : undefined}
+                            className={`btn-action btn-add ${disableAdd ? "disabled" : ""}`}
+                            disabled={disableAdd}
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                                 <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 5v14M5 12h14"/>
                             </svg>
@@ -133,9 +145,9 @@ export default function BaseListPage({
                         </button>
 
                         <button
-                            onClick={() => selectedRow && onEdit?.(selectedRow)}
-                            className={`btn-action btn-edit ${!selectedRow ? "disabled" : ""}`}
-                            disabled={!selectedRow}
+                            onClick={() => !disableEdit && selectedRow && onEdit?.(selectedRow)}
+                            className={`btn-action btn-edit ${(!selectedRow || disableEdit) ? "disabled" : ""}`}
+                            disabled={!selectedRow || disableEdit}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                                 <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 20h9M16.5 3.5l4 4L7 21H3v-4L16.5 3.5z"/>
@@ -144,9 +156,9 @@ export default function BaseListPage({
                         </button>
 
                         <button
-                            onClick={() => selectedRow && onDelete?.(selectedRow)}
-                            className={`btn-action ${deleteButtonClass} ${!selectedRow ? "disabled" : ""}`}
-                            disabled={!selectedRow}
+                            onClick={() => !disableDelete && selectedRow && onDelete?.(selectedRow)}
+                            className={`btn-action ${deleteButtonClass} ${(!selectedRow || disableDelete) ? "disabled" : ""}`}
+                            disabled={!selectedRow || disableDelete}
                         >
                             {deleteButtonIcon || (
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
@@ -155,6 +167,21 @@ export default function BaseListPage({
                             )}
                             {deleteButtonLabel}
                         </button>
+
+                        {onChangePassword && (
+                            <button
+                                onClick={() => selectedRow && !changePasswordDisabled && onChangePassword?.(selectedRow)}
+                                className={`btn-action ${changePasswordButtonClass} ${(!selectedRow || changePasswordDisabled) ? "disabled" : ""}`}
+                                disabled={!selectedRow || changePasswordDisabled}
+                            >
+                                {changePasswordButtonIcon || (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 3l4 4-9 9-4 1 1-4 9-9zm3 9h6"/>
+                                    </svg>
+                                )}
+                                {changePasswordButtonLabel}
+                            </button>
+                        )}
                     </div>
 
                     {/* === DETAILS PANEL === */}
