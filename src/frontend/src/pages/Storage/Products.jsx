@@ -17,6 +17,7 @@ export default function Products() {
     const [actionableProduct, setActionableProduct] = useState(null);
 
     const [categories, setCategories] = useState(new Map());
+    const [taxRates, setTaxRates] = useState(new Map());
 
 
     const [products, setProducts] = useState([]);
@@ -95,11 +96,16 @@ export default function Products() {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const categoriesRes = await api.get("/Categories");
+                const [categoriesRes, taxRatesRes] = await Promise.all([
+                    api.get("/Categories"),
+                    api.get("/TaxRate"),
+                ]);
                 
                 const categoriesMap = new Map(categoriesRes.items.map(c => [c.id, c.name]));
+                const taxRatesMap = new Map(taxRatesRes.map(t => [t.id, t.rate]));
 
                 setCategories(categoriesMap);
+                setTaxRates(taxRatesMap);
                 setInitialDataLoaded(true);
             } catch (err) {
                 console.error("Failed to fetch initial data", err);
@@ -257,17 +263,23 @@ export default function Products() {
             { label: "SKU", key: "sku" },
             { label: "Name", key: "name" },
             { label: "Price", key: "price" },
-            { 
-                label: "Category", 
-                key: "categoryId",
-                render: (data) => categories.get(data.categoryId) || "—",
-            },
-            { label: "Tax Rate", key: "taxRateId" },
-            { label: "Defective", key: "defective", isColumn: true },
-            { label: "Description", key: "description", isColumn: true },
-        ],
-    };
-
+                        {
+                            label: "Category",
+                            key: "categoryId",
+                            render: (data) => categories.get(data.categoryId) || "—",
+                        },
+                        {
+                            label: "Tax Rate",
+                            key: "taxRateId",
+                            render: (data) => {
+                                const rate = taxRates.get(data.taxRateId);
+                                return rate !== undefined ? `${(rate * 100).toFixed(0)}%` : "—";
+                            },
+                        },
+                        { label: "Defective", key: "defective", isColumn: true },
+                        { label: "Description", key: "description", isColumn: true },
+                    ],
+                };
     const handleSort = (column) => {
         setIsDelayedRefresh(false);
         if (sortColumn === column) {
@@ -431,6 +443,7 @@ export default function Products() {
                     <ProductForm
                         product={selectedProductDetails}
                         categories={categories}
+                        taxRates={taxRates}
                         onSuccess={async (productId) => {
                             setShowModal(false);
 
