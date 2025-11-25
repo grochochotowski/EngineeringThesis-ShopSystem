@@ -17,6 +17,7 @@ namespace Backend.Api.Api.Services
         Task<AuthUserDto?> RefreshTokenAsync(RefreshTokenDto dto, CancellationToken ct = default);
         Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto, bool requireCurrentPassword = true, CancellationToken ct = default);
         Task<bool> ChangeLoginAsync(int userId, ChangeLoginDto dto, bool requireCurrentPassword = true, CancellationToken ct = default);
+        Task<bool> CanManageUserAsync(int actorUserId, int targetUserId, CancellationToken ct = default);
     }
 
     public class AuthService : IAuthService
@@ -217,6 +218,18 @@ namespace Backend.Api.Api.Services
             credentials.Login = normalizedLogin;
             await _db.SaveChangesAsync(ct);
             return true;
+        }
+
+        public async Task<bool> CanManageUserAsync(int actorUserId, int targetUserId, CancellationToken ct = default)
+        {
+            if (actorUserId == targetUserId) return true;
+
+            var actor = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == actorUserId, ct);
+            var target = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == targetUserId, ct);
+
+            if (actor == null || target == null) return false;
+
+            return actor.Role > target.Role;
         }
 
         // --- HELPERS ---
