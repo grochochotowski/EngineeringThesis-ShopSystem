@@ -160,19 +160,6 @@ export default function BaseListPage({
                             Edit
                         </button>
 
-                        <button
-                            onClick={() => !disableDelete && selectedRow && onDelete?.(selectedRow)}
-                            className={`btn-action ${deleteButtonClass} ${(!selectedRow || disableDelete) ? "disabled" : ""}`}
-                            disabled={!selectedRow || disableDelete}
-                        >
-                            {deleteButtonIcon || (
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M3 6h18M8 6V4h8v2m-1 0v14H9V6h6z"/>
-                                </svg>
-                            )}
-                            {deleteButtonLabel}
-                        </button>
-
                         {onChangePassword && (
                             <button
                                 onClick={() => selectedRow && !changePasswordDisabled && onChangePassword?.(selectedRow)}
@@ -202,6 +189,19 @@ export default function BaseListPage({
                                 {changeLoginButtonLabel}
                             </button>
                         )}
+
+                        <button
+                            onClick={() => !disableDelete && selectedRow && onDelete?.(selectedRow)}
+                            className={`btn-action ${deleteButtonClass} ${(!selectedRow || disableDelete) ? "disabled" : ""}`}
+                            disabled={!selectedRow || disableDelete}
+                        >
+                            {deleteButtonIcon || (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M3 6h18M8 6V4h8v2m-1 0v14H9V6h6z"/>
+                                </svg>
+                            )}
+                            {deleteButtonLabel}
+                        </button>
                     </div>
 
                     {/* === DETAILS PANEL === */}
