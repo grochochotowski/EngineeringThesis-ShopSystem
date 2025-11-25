@@ -488,6 +488,15 @@ export default function Users() {
             setToast({ message: "Only Deputy Manager or higher can change passwords.", type: "error" });
             return;
         }
+        if (currentUser && row.role && currentUser.role) {
+            const hierarchy = ["ShopAssistant", "ItTechnician", "Marketer", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+            const actorRank = hierarchy.indexOf(currentUser.role);
+            const targetRank = hierarchy.indexOf(row.role);
+            if (targetRank >= actorRank && row.id !== currentUser.id) {
+                setToast({ message: "You can only change password for users with lower role or yourself.", type: "error" });
+                return;
+            }
+        }
         setPasswordForm({ newPassword: "", confirmNewPassword: "" });
         setShowPasswordModal(true);
     };
@@ -498,6 +507,15 @@ export default function Users() {
         if (!canChangeAnyPassword) {
             setToast({ message: "Only Deputy Manager or higher can change logins.", type: "error" });
             return;
+        }
+        if (currentUser && row.role && currentUser.role) {
+            const hierarchy = ["ShopAssistant", "ItTechnician", "Marketer", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+            const actorRank = hierarchy.indexOf(currentUser.role);
+            const targetRank = hierarchy.indexOf(row.role);
+            if (targetRank >= actorRank && row.id !== currentUser.id) {
+                setToast({ message: "You can only change login for users with lower role or yourself.", type: "error" });
+                return;
+            }
         }
         setLoginForm({ newLogin: "" });
         setShowLoginModal(true);
@@ -523,19 +541,11 @@ export default function Users() {
             return;
         }
 
-        const isSelf = selectedRow?.id === currentUser?.id;
-        let currentPassword = "";
-        if (isSelf) {
-            const prompt = window.prompt("Enter your current password to confirm:");
-            if (prompt === null) return;
-            currentPassword = prompt;
-        }
-
         try {
             setLoading(true);
             await api.post("/Auth/change-password", {
                 userId: selectedRow?.id,
-                currentPassword,
+                currentPassword: "",
                 newPassword: passwordForm.newPassword,
                 confirmNewPassword: passwordForm.confirmNewPassword,
             });
@@ -556,19 +566,11 @@ export default function Users() {
         e.preventDefault();
         if (!selectedRow) return;
 
-        const isSelf = selectedRow.id === currentUser?.id;
-        let currentPassword = "";
-        if (isSelf) {
-            const prompt = window.prompt("Enter your current password to confirm:");
-            if (prompt === null) return;
-            currentPassword = prompt;
-        }
-
         try {
             setLoading(true);
             await api.post("/Auth/change-login", {
                 userId: selectedRow.id,
-                currentPassword,
+                currentPassword: "",
                 newLogin: loginForm.newLogin,
             });
             setToast({ message: "Login changed successfully.", type: "success" });

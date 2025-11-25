@@ -65,7 +65,14 @@ namespace Backend.Api.Api.Controllers
 
             var currentUserId = int.Parse(userIdClaim);
             var targetUserId = dto.UserId ?? currentUserId;
-            var requireCurrent = targetUserId == currentUserId;
+            var requireCurrent = targetUserId != currentUserId ? false : false;
+
+            // Role check: only allow targeting self or users with lower role
+            var currentRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (targetUserId != currentUserId && currentRole is null)
+                return Forbid();
+            if (targetUserId != currentUserId && !await _auth.CanManageUserAsync(currentUserId, targetUserId, ct))
+                return Forbid();
 
             var success = await _auth.ChangePasswordAsync(
                 targetUserId,
@@ -90,7 +97,14 @@ namespace Backend.Api.Api.Controllers
 
             var currentUserId = int.Parse(userIdClaim);
             var targetUserId = dto.UserId ?? currentUserId;
-            var requireCurrent = targetUserId == currentUserId;
+            var requireCurrent = false;
+
+            // Role check: only allow targeting self or users with lower role
+            var currentRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (targetUserId != currentUserId && currentRole is null)
+                return Forbid();
+            if (targetUserId != currentUserId && !await _auth.CanManageUserAsync(currentUserId, targetUserId, ct))
+                return Forbid();
 
             try
             {
