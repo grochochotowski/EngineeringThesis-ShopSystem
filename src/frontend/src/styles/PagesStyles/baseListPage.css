@@ -202,6 +202,20 @@ li.list-column .description {
     font-weight: 600;
 }
 
+.data-table th.sortable {
+    cursor: pointer;
+}
+
+.data-table th.sortable:hover {
+    background: var(--accent-hover);
+}
+
+.data-table th .sort-arrow {
+    font-size: 0.8em;
+    margin-left: 5px;
+    color: var(--text-white-muted);
+}
+
 .data-table td {
     padding: 0.6rem;
     border-bottom: var(--border-muted);

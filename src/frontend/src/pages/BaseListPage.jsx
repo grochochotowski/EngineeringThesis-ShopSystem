@@ -92,6 +92,9 @@ export default function BaseListPage({
     onToggleFilters,
     onSearchChange,
     onSelectRow,
+    onSort,
+    sortColumn,
+    sortDirection,
     searchValue = "",
     detailsData,
     detailsConfig,
@@ -168,7 +171,18 @@ export default function BaseListPage({
                         <thead>
                             <tr>
                                 {columns.map((col, i) => (
-                                    <th key={i}>{col.label}</th>
+                                    <th 
+                                        key={i} 
+                                        onClick={() => onSort?.(col.key)}
+                                        className={`sortable ${sortColumn === col.key ? 'sorted' : ''}`}
+                                    >
+                                        {col.label}
+                                        {sortColumn === col.key && (
+                                            <span className={`sort-arrow ${sortDirection === 'asc' ? 'asc' : 'desc'}`}>
+                                                {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                                            </span>
+                                        )}
+                                    </th>
                                 ))}
                             </tr>
                         </thead>

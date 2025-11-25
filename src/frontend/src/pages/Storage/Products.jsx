@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import axios from "axios";
 import { api } from "../../api/apiClient";
 import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
@@ -24,7 +25,10 @@ export default function Products() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [isFiltering, setIsFiltering] = useState(false);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+    const [sortColumn, setSortColumn] = useState("name");
+    const [sortDirection, setSortDirection] = useState("asc");
 
     // Filters
     const [filters, setFilters] = useState({
@@ -41,6 +45,52 @@ export default function Products() {
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
     const filtersRef = useRef(null);
+
+    // Helper function to fetch products from API
+    const fetchProductsData = async (
+        page,
+        currentFilters,
+        currentSearchQuery,
+        currentSortColumn,
+        currentSortDirection
+    ) => {
+        try {
+            setLoading(true);
+            const source = axios.CancelToken.source(); // Use CancelToken for cancellation
+            const { items, totalPages } = await api.get("/Products", {
+                params: {
+                    PageNumber: page,
+                    PageSize: 50,
+                    ...(currentSearchQuery && { q: currentSearchQuery }),
+                    ...(currentFilters.minPrice && { minPrice: currentFilters.minPrice }),
+                    ...(currentFilters.maxPrice && { maxPrice: currentFilters.maxPrice }),
+                    ...(currentFilters.categoryId && { categoryId: currentFilters.categoryId }),
+                    ...(currentFilters.defective !== "" && { defective: currentFilters.defective }),
+                    ...(currentFilters.isActive !== "" && { isActive: currentFilters.isActive }),
+                    ...(currentSortColumn && { orderBy: currentSortColumn }),
+                    ...(currentSortDirection && { sortDirection: currentSortDirection }),
+                },
+                cancelToken: source.token,
+            });
+
+            if (items?.length) {
+                setProducts(items);
+                setHasMore(page < (totalPages || 1));
+            } else {
+                setProducts([]);
+                setHasMore(false);
+            }
+        } catch (err) {
+            if (api.isCancel(err)) {
+                // Ignore if request was cancelled
+                return;
+            }
+            console.error(err);
+            setError("Failed to load products.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -60,57 +110,40 @@ export default function Products() {
         fetchInitialData();
     }, []);
 
-    // Fetch products from API with filters
-    const fetchProducts = useCallback(
-        async (page = 1) => {
-            if (!initialDataLoaded) return;
-            if (loadedPages.current.has(page)) return;
-            loadedPages.current.add(page);
-
-            try {
-                setLoading(true);
-                const { items, totalPages } = await api.get("/Products", {
-                    params: {
-                        PageNumber: page,
-                        PageSize: 50,
-                        ...(searchQuery && { q: searchQuery }),
-                        ...(filters.minPrice && { minPrice: filters.minPrice }),
-                        ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
-                        ...(filters.categoryId && { categoryId: filters.categoryId }),
-                        ...(filters.defective !== "" && { defective: filters.defective }),
-                        ...(filters.isActive !== "" && { isActive: filters.isActive }),
-                    },
-                });
-
-                if (items?.length) {
-                    setProducts(items);
-                    setHasMore(page < (totalPages || 1));
-                } else {
-                    setProducts([]);
-                    setHasMore(false);
-                }
-            } catch (err) {
-                console.error(err);
-                setError("Failed to load products.");
-            } finally {
-                setLoading(false);
-            }
-        },
-        [filters, searchQuery, initialDataLoaded]
-    );
-
-    // Reset and reload when filters or search change
-    useEffect(() => {
-        if (!initialDataLoaded) return;
+    const debouncedFetchProducts = useCallback(() => {
+        if (!initialDataLoaded || !isFiltering) return;
         const delay = setTimeout(() => {
             setProducts([]);
             loadedPages.current.clear();
             setPageNumber(1);
-            fetchProducts(1);
+            fetchProductsData(1, filters, searchQuery, sortColumn, sortDirection);
+            setIsFiltering(false);
         }, 1000);
 
         return () => clearTimeout(delay);
-    }, [filters, searchQuery, fetchProducts, initialDataLoaded]);
+    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection, isFiltering]);
+
+    const immediateFetchProducts = useCallback(() => {
+        if (!initialDataLoaded) return;
+        setProducts([]);
+        loadedPages.current.clear();
+        setPageNumber(1);
+        fetchProductsData(1, filters, searchQuery, sortColumn, sortDirection);
+    }, [sortColumn, sortDirection, filters, searchQuery, initialDataLoaded]);
+
+    // Trigger debounced fetch for filters/search
+    useEffect(() => {
+        if(isFiltering) {
+            debouncedFetchProducts();
+        }
+    }, [debouncedFetchProducts, isFiltering]);
+
+    // Trigger immediate fetch for sorting
+    useEffect(() => {
+        if(!isFiltering) {
+            immediateFetchProducts();
+        }
+    }, [immediateFetchProducts, isFiltering]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -126,8 +159,10 @@ export default function Products() {
 
     // Load next page
     useEffect(() => {
-        if (pageNumber > 1) fetchProducts(pageNumber);
-    }, [pageNumber, fetchProducts]);
+        if (pageNumber > 1) {
+            fetchProductsData(pageNumber, filters, searchQuery, sortColumn, sortDirection);
+        }
+    }, [pageNumber, filters, searchQuery, sortColumn, sortDirection]);
 
     // Columns for table
     const columns = [
@@ -155,6 +190,7 @@ export default function Products() {
     const typingTimeout = useRef(null);
 
     const handleSearchChange = (value) => {
+        setIsFiltering(true);
         setSearchQuery(value);
         setSelectedRow(null);
         setSelectedProductDetails(null);
@@ -163,18 +199,19 @@ export default function Products() {
             setProducts([]);
             loadedPages.current.clear();
             setPageNumber(1);
-            fetchProducts(1);
-
+            debouncedFetchProducts(); // Call debounced fetch
         }, 1000);
     };
 
     // Auto-updating filters
     const handleInputChange = (e) => {
+        setIsFiltering(true);
         const { name, value } = e.target;
         setFilters((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleBooleanChange = (e) => {
+        setIsFiltering(true);
         const { name, value } = e.target;
         setFilters((prev) => ({
             ...prev,
@@ -241,6 +278,29 @@ export default function Products() {
         ],
     };
 
+    const handleSort = (column) => {
+        setIsFiltering(false);
+        setProducts([]);
+        loadedPages.current.clear();
+        setPageNumber(1);
+
+        if (sortColumn === column) {
+            if (sortDirection === "asc") {
+                setSortDirection("desc");
+            } else if (sortDirection === "desc") {
+                setSortColumn(null);
+                setSortDirection(null);
+            } else {
+                setSortColumn(column);
+                setSortDirection("asc");
+            }
+        } else {
+            setSortColumn(column);
+            setSortDirection("asc");
+        }
+        immediateFetchProducts();
+    };
+
     // === Render ===
     return (
         <div className="page-container">
@@ -262,6 +322,9 @@ export default function Products() {
                     onSelectRow={handleRowSelect}
                     detailsData={selectedProductDetails}
                     detailsConfig={initialDataLoaded ? productDetailsConfig : null}
+                    onSort={handleSort}
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
                     onAdd={() => {
                         setSelectedRow(null);
                         setSelectedProductDetails(null);
@@ -403,7 +466,7 @@ export default function Products() {
                             // Refresh the main list in the background
                             loadedPages.current.clear();
                             setPageNumber(1);
-                            fetchProducts(1);
+                            immediateFetchProducts();
 
                             setToast({
                                 message: productId
@@ -475,7 +538,7 @@ export default function Products() {
                             // Refresh the product list in the background
                             loadedPages.current.clear();
                             setPageNumber(1);
-                            fetchProducts(1);
+                            immediateFetchProducts();
 
                         } catch (err) {
                             console.error(err);

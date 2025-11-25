@@ -47,12 +47,14 @@ namespace Backend.Api.Controllers
             [FromQuery] int? categoryId,
             [FromQuery] bool? defective,
             [FromQuery] bool? isActive,
+            [FromQuery] string? orderBy,
+            [FromQuery] string? sortDirection,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
         {
             var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
-            var result = await _service.GetAllAsync(q, minPrice, maxPrice, categoryId, defective, isActive, pagination, ct);
+            var result = await _service.GetAllAsync(q, minPrice, maxPrice, categoryId, defective, isActive, orderBy, sortDirection, pagination, ct);
             return Ok(result);
         }
 

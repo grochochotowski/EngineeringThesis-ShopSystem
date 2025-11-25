@@ -16,6 +16,8 @@ namespace Backend.Api.Api.Controllers
             int? categoryId = null,
             bool? defective = null,
             bool? isActive = null,
+            string? orderBy = null,
+            string? sortDirection = null,
             PaginationParams? pagination = null,
             CancellationToken ct = default);
 
@@ -76,6 +78,8 @@ namespace Backend.Api.Api.Controllers
             int? categoryId = null,
             bool? defective = null,
             bool? isActive = null,
+            string? orderBy = null,
+            string? sortDirection = null,
             PaginationParams? pagination = null,
             CancellationToken ct = default)
         {
@@ -107,18 +111,48 @@ namespace Backend.Api.Api.Controllers
             // defective
             if (defective.HasValue) qry = qry.Where(p => p.Defective == defective.Value);
 
+            // sorting
+            var isDescending = sortDirection?.ToLower() == "desc";
+            
+            // Join with categories for sorting by category name
+            var queryWithCategory = qry.Join(_db.Categories, p => p.CategoryId, c => c.Id, (p, c) => new { Product = p, CategoryName = c.Name });
+
+            switch (orderBy?.ToLower())
+            {
+                case "sku":
+                    queryWithCategory = isDescending ? queryWithCategory.OrderByDescending(x => x.Product.SKU) : queryWithCategory.OrderBy(x => x.Product.SKU);
+                    break;
+                case "name":
+                    queryWithCategory = isDescending ? queryWithCategory.OrderByDescending(x => x.Product.Name) : queryWithCategory.OrderBy(x => x.Product.Name);
+                    break;
+                case "price":
+                    queryWithCategory = isDescending ? queryWithCategory.OrderByDescending(x => x.Product.Price) : queryWithCategory.OrderBy(x => x.Product.Price);
+                    break;
+                case "category":
+                    queryWithCategory = isDescending ? queryWithCategory.OrderByDescending(x => x.CategoryName) : queryWithCategory.OrderBy(x => x.CategoryName);
+                    break;
+                case "isactive":
+                    queryWithCategory = isDescending ? queryWithCategory.OrderByDescending(x => x.Product.IsActive) : queryWithCategory.OrderBy(x => x.Product.IsActive);
+                    break;
+                case "defective":
+                    queryWithCategory = isDescending ? queryWithCategory.OrderByDescending(x => x.Product.Defective) : queryWithCategory.OrderBy(x => x.Product.Defective);
+                    break;
+                default:
+                    queryWithCategory = queryWithCategory.OrderBy(x => x.Product.Name);
+                    break;
+            }
+
             // projection to lightweight list DTO
-            var projected = qry
-                .OrderBy(p => p.Name)
-                .Select(p => new GetProductListItemDto
+            var projected = queryWithCategory
+                .Select(x => new GetProductListItemDto
                 {
-                    Id = p.Id,
-                    SKU = p.SKU,
-                    Name = p.Name,
-                    Price = p.Price,
-                    Defective = p.Defective,
-                    CategoryId = p.CategoryId,
-                    IsActive = p.IsActive
+                    Id = x.Product.Id,
+                    SKU = x.Product.SKU,
+                    Name = x.Product.Name,
+                    Price = x.Product.Price,
+                    Defective = x.Product.Defective,
+                    CategoryId = x.Product.CategoryId,
+                    IsActive = x.Product.IsActive
                 });
 
             return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
@@ -185,7 +219,7 @@ namespace Backend.Api.Api.Controllers
             await _db.SaveChangesAsync(ct);
             return true;
         }
-
+  
         // --- MAPPER ---
         private static GetProductDto Map(Product p) => new()
         {
