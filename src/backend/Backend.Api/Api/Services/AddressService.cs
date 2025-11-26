@@ -78,7 +78,6 @@ namespace Backend.Api.Api.Services
             {
                 var searchTerm = $"%{search.ToLower()}%";
                 query = query.Where(u =>
-                    EF.Functions.Like(u.Country.ToString().ToLower(), searchTerm) ||
                     EF.Functions.Like(u.City.ToLower(), searchTerm) ||
                     EF.Functions.Like(u.Street.ToLower(), searchTerm) ||
                     EF.Functions.Like(u.PostalCode.ToLower(), searchTerm));
@@ -95,7 +94,16 @@ namespace Backend.Api.Api.Services
                 _ => query.OrderBy(a => a.Id)
             };
 
-            var projectedQuery = query.Select(a => ToGetDto(a));
+            var projectedQuery = query.Select(a => new GetAddressDto
+            {
+                Id = a.Id,
+                Country = a.Country.ToString(),
+                City = a.City,
+                Street = a.Street,
+                Building = a.Building,
+                Premises = a.Premises,
+                PostalCode = a.PostalCode
+            });
 
             return await projectedQuery.ToPagedResultAsync(@params.PageNumber, @params.PageSize, ct);
         }

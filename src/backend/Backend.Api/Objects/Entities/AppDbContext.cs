@@ -42,16 +42,18 @@ namespace Backend.Api.Objects.Entities
             // address
             modelBuilder.Entity<Address>(b =>
             {
-                b.HasIndex(x => new { x.Country, x.City, x.PostalCode, x.Street, x.Building, x.Premises }).IsUnique();
-
-                b.Property(x => x.Country).HasMaxLength(64);
-                b.Property(x => x.City).HasMaxLength(64);
-                b.Property(x => x.PostalCode).HasMaxLength(16);
-                b.Property(x => x.Street).HasMaxLength(128);
-                b.Property(x => x.Building).HasMaxLength(16);
-                b.Property(x => x.Premises).HasMaxLength(16);
-            });
-
+                        b.HasIndex(x => new { x.Country, x.City, x.PostalCode, x.Street, x.Building, x.Premises }).IsUnique();
+                
+                        b.Property(x => x.Country)
+                            .HasConversion<string>()
+                            .HasMaxLength(64);
+                            
+                        b.Property(x => x.City).HasMaxLength(64);
+                        b.Property(x => x.PostalCode).HasMaxLength(16);
+                        b.Property(x => x.Street).HasMaxLength(128);
+                        b.Property(x => x.Building).HasMaxLength(16);
+                        b.Property(x => x.Premises).HasMaxLength(16);
+                    });
             // category
             modelBuilder.Entity<Category>(b =>
             {
