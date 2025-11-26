@@ -26,8 +26,21 @@ const initialAddress = {
 export default function UserForm({ mode = "create", user, address, roles = [], roleLimit, onSuccess }) {
     const [userForm, setUserForm] = useState(initialUser);
     const [addressForm, setAddressForm] = useState(initialAddress);
+    const [countries, setCountries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
+
+    useEffect(() => {
+        const fetchCountries = async () => {
+            try {
+                const response = await api.get("/Addresses/countries");
+                setCountries(response || []);
+            } catch (err) {
+                console.error("Failed to load countries.", err);
+            }
+        };
+        fetchCountries();
+    }, []);
 
     useEffect(() => {
         setUserForm((prev) => ({
@@ -205,14 +218,19 @@ export default function UserForm({ mode = "create", user, address, roles = [], r
 
             <h4 className="form-section-title">Address</h4>
             <div className="form-grid two-column">
-                <input
-                    type="text"
+                <select
                     name="country"
-                    placeholder="Country"
                     value={addressForm.country}
                     onChange={handleAddressChange}
                     required
-                />
+                >
+                    <option value="" disabled>Select a country</option>
+                    {countries.map((c) => (
+                        <option key={c} value={c}>
+                            {c}
+                        </option>
+                    ))}
+                </select>
                 <input
                     type="text"
                     name="city"
