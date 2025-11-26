@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Api.Services;
 using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
+using Backend.Api.Objects.Entities.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,7 +36,7 @@ namespace Backend.Api.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedResult<GetAddressDto>>> GetAll(
             [FromQuery] PaginationParams @params,
-            [FromQuery] string? country,
+            [FromQuery] Country? country,
             [FromQuery] string? city,
             [FromQuery] string? search,
             [FromQuery] string? orderBy,
@@ -61,6 +62,15 @@ namespace Backend.Api.Api.Controllers
         {
             var (exists, id) = await _service.AddressExistsAsync(dto, ct);
             return Ok(new { exists, id });
+        }
+
+        // --- GET ALL COUNTRY NAMES ---
+        [AllowAnonymous]
+        [HttpGet("countries")]
+        public ActionResult<IEnumerable<string>> GetCountries()
+        {
+            var countries = Enum.GetNames(typeof(Country));
+            return Ok(countries);
         }
     }
 }

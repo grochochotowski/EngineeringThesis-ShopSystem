@@ -14,6 +14,7 @@ export default function Addresses() {
     const [toast, setToast] = useState(null);
     const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
 
+    const [countries, setCountries] = useState([]);
     const [selectedRow, setSelectedRow] = useState(null);
     const [selectedAddressDetails, setSelectedAddressDetails] = useState(null);
     const lastSelectedId = useRef(null);
@@ -43,12 +44,25 @@ export default function Addresses() {
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
 
+    // === FETCH COUNTRIES ===
+    useEffect(() => {
+        const fetchCountries = async () => {
+            try {
+                const response = await api.get("/Addresses/countries");
+                setCountries(response || []);
+            } catch (err) {
+                console.error("Failed to load countries.", err);
+            }
+        };
+        fetchCountries();
+    }, []);
+
     // === FETCH ADDRESSES ===
     const fetchAddresses = useCallback(
         async (page = 1, reset = false) => {
             if (loadedPages.current.has(page) && !reset) return;
             loadedPages.current.add(page);
-
+-
             try {
                 setLoading(true);
                 const mappedSort = sortKeyMap[sortColumn] || undefined;
@@ -285,13 +299,18 @@ export default function Addresses() {
                 {showFilters && (
                     <div className="filters-panel" ref={filtersRef}>
                         <h4>Filters</h4>
-                        <input
-                            type="text"
+                        <select
                             name="country"
-                            placeholder="Filter by Country"
                             value={filters.country}
                             onChange={handleFilterChange}
-                        />
+                        >
+                            <option value="">All Countries</option>
+                            {countries.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}
+                                </option>
+                            ))}
+                        </select>
                         <input
                             type="text"
                             name="city"

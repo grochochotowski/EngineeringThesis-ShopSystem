@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
+using Backend.Api.Objects.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Api.Services
@@ -11,7 +12,7 @@ namespace Backend.Api.Api.Services
         Task<GetAddressDto?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<PagedResult<GetAddressDto>> GetAllAsync(
             PaginationParams @params,
-            string? country,
+            Country? country,
             string? city,
             string? search,
             string? orderBy,
@@ -57,7 +58,7 @@ namespace Backend.Api.Api.Services
         // --- GET ALL ADDRESSES (paginated) ---
         public async Task<PagedResult<GetAddressDto>> GetAllAsync(
             PaginationParams @params,
-            string? country,
+            Country? country,
             string? city,
             string? search,
             string? orderBy,
@@ -67,8 +68,8 @@ namespace Backend.Api.Api.Services
             var query = _db.Addresses.AsNoTracking();
 
             // Filtering
-            if (!string.IsNullOrWhiteSpace(country))
-                query = query.Where(a => a.Country.Contains(country));
+            if (country.HasValue)
+                query = query.Where(a => a.Country == country.Value);
             if (!string.IsNullOrWhiteSpace(city))
                 query = query.Where(a => a.City.Contains(city));
 
@@ -77,7 +78,7 @@ namespace Backend.Api.Api.Services
             {
                 var searchTerm = $"%{search.ToLower()}%";
                 query = query.Where(u =>
-                    EF.Functions.Like(u.Country.ToLower(), searchTerm) ||
+                    EF.Functions.Like(u.Country.ToString().ToLower(), searchTerm) ||
                     EF.Functions.Like(u.City.ToLower(), searchTerm) ||
                     EF.Functions.Like(u.Street.ToLower(), searchTerm) ||
                     EF.Functions.Like(u.PostalCode.ToLower(), searchTerm));
@@ -119,7 +120,6 @@ namespace Backend.Api.Api.Services
         // --- ADDRESS EXISTENCE CHECK ---
         public async Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default)
         {
-            var country = dto.Country.Trim().ToLower();
             var city = dto.City.Trim().ToLower();
             var street = dto.Street.Trim().ToLower();
             var building = dto.Building.Trim().ToLower();
@@ -128,7 +128,7 @@ namespace Backend.Api.Api.Services
 
             var hit = await _db.Addresses
                 .Where(a =>
-                    a.Country.ToLower() == country &&
+                    a.Country == dto.Country &&
                     a.City.ToLower() == city &&
                     a.Street.ToLower() == street &&
                     a.Building.ToLower() == building &&
@@ -143,7 +143,6 @@ namespace Backend.Api.Api.Services
         // --- GET OR CREATE ADDRESS ---
         public async Task<int> GetOrCreateAsync(CreateAddressDto dto, CancellationToken ct = default)
         {
-            var country = dto.Country.Trim().ToLower();
             var city = dto.City.Trim().ToLower();
             var street = dto.Street.Trim().ToLower();
             var building = dto.Building.Trim().ToLower();
@@ -152,7 +151,7 @@ namespace Backend.Api.Api.Services
 
             var existing = await _db.Addresses
                 .Where(a =>
-                    a.Country.ToLower() == country &&
+                    a.Country == dto.Country &&
                     a.City.ToLower() == city &&
                     a.Street.ToLower() == street &&
                     a.Building.ToLower() == building &&
@@ -183,7 +182,7 @@ namespace Backend.Api.Api.Services
         private static GetAddressDto ToGetDto(Address a) => new()
         {
             Id = a.Id,
-            Country = a.Country,
+            Country = a.Country.ToString(),
             City = a.City,
             Street = a.Street,
             Building = a.Building,

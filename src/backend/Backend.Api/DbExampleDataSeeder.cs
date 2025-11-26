@@ -1,4 +1,5 @@
 ﻿using Backend.Api.Objects.Entities;
+using Backend.Api.Objects.Entities.Enums;
 using Backend.Api.Objects.Entities.Models;
 using System.Security.Cryptography;
 using System.Text;
@@ -65,8 +66,8 @@ namespace Backend.Api.Infrastructure
         {
             if (_db.Warehouses.Any()) return;
 
-            var a1 = new Address { Country = "PL", City = "Warszawa", Street = "Prosta", Building = "1", PostalCode = "00-000" };
-            var a2 = new Address { Country = "PL", City = "Kraków", Street = "Długa", Building = "12", PostalCode = "31-001" };
+            var a1 = new Address { Country = Country.Poland, City = "Warszawa", Street = "Prosta", Building = "1", PostalCode = "00-000" };
+            var a2 = new Address { Country = Country.Poland, City = "Kraków", Street = "Długa", Building = "12", PostalCode = "31-001" };
             _db.Addresses.AddRange(a1, a2);
             _db.SaveChanges();
 
@@ -180,11 +181,11 @@ namespace Backend.Api.Infrastructure
 
             var addrs = new List<Address>
             {
-                new() { Country = "PL", City = "Gdańsk", Street = "Morska", Building = "5", PostalCode = "80-001" },
-                new() { Country = "PL", City = "Poznań", Street = "Rynkowa", Building = "10", PostalCode = "60-101" },
-                new() { Country = "PL", City = "Wrocław", Street = "Nowa", Building = "7", PostalCode = "50-001" },
-                new() { Country = "PL", City = "Warszawa", Street = "Handlowa", Building = "21", PostalCode = "00-201" },
-                new() { Country = "PL", City = "Kraków", Street = "Fabryczna", Building = "3", PostalCode = "31-101" },
+                new() { Country = Country.Poland, City = "Gdańsk", Street = "Morska", Building = "5", PostalCode = "80-001" },
+                new() { Country = Country.Poland, City = "Poznań", Street = "Rynkowa", Building = "10", PostalCode = "60-101" },
+                new() { Country = Country.Poland, City = "Wrocław", Street = "Nowa", Building = "7", PostalCode = "50-001" },
+                new() { Country = Country.Poland, City = "Warszawa", Street = "Handlowa", Building = "21", PostalCode = "00-201" },
+                new() { Country = Country.Poland, City = "Kraków", Street = "Fabryczna", Building = "3", PostalCode = "31-101" },
             };
             _db.Addresses.AddRange(addrs);
             _db.SaveChanges();
@@ -204,8 +205,8 @@ namespace Backend.Api.Infrastructure
         {
             if (_db.DeliveryCompanies.Any()) return;
 
-            var a1 = new Address { Country = "PL", City = "Łódź", Street = "Transportowa", Building = "9", PostalCode = "90-001" };
-            var a2 = new Address { Country = "PL", City = "Lublin", Street = "Kurierska", Building = "11", PostalCode = "20-101" };
+            var a1 = new Address { Country = Country.Poland, City = "Łódź", Street = "Transportowa", Building = "9", PostalCode = "90-001" };
+            var a2 = new Address { Country = Country.Poland, City = "Lublin", Street = "Kurierska", Building = "11", PostalCode = "20-101" };
             _db.Addresses.AddRange(a1, a2);
             _db.SaveChanges();
 
@@ -362,7 +363,7 @@ namespace Backend.Api.Infrastructure
                     Role = role,
                     Address = new Address
                     {
-                        Country = "PL",
+                        Country = Country.Poland,
                         City = "Warszawa",
                         Street = "User Street",
                         Building = _rand.Next(1, 20).ToString(),

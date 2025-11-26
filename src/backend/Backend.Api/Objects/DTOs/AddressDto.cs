@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Backend.Api.Objects.Entities.Enums;
 
 namespace Backend.Api.Objects.DTOs
 {
@@ -17,7 +18,7 @@ namespace Backend.Api.Objects.DTOs
     // --- CREATE ADDRESS ---
     public class CreateAddressDto
     {
-        [Required, MaxLength(64)]       public string Country           { get; set; } = default!;
+        [Required]                      public Country Country           { get; set; }
         [Required, MaxLength(64)]       public string City              { get; set; } = default!;
         [Required, MaxLength(128)]      public string Street            { get; set; } = default!;
         [Required, MaxLength(16)]       public string Building          { get; set; } = default!;
@@ -28,7 +29,7 @@ namespace Backend.Api.Objects.DTOs
     // --- UPDATE ADDRESS ---
     public class UpdateAddressDto
     {
-        [Required, MaxLength(64)]       public string Country           { get; set; } = default!;
+        [Required]                      public Country Country           { get; set; }
         [Required, MaxLength(64)]       public string City              { get; set; } = default!;
         [Required, MaxLength(128)]      public string Street            { get; set; } = default!;
         [Required, MaxLength(16)]       public string Building          { get; set; } = default!;
@@ -39,7 +40,7 @@ namespace Backend.Api.Objects.DTOs
     // --- CHECK ADDRESS EXISTANCE ---
     public class AddressExistenceDto    
     {
-        [Required, MaxLength(64)]       public string Country           { get; set; } = default!;
+        [Required]                      public Country Country           { get; set; }
         [Required, MaxLength(64)]       public string City              { get; set; } = default!;
         [Required, MaxLength(128)]      public string Street            { get; set; } = default!;
         [Required, MaxLength(16)]       public string Building          { get; set; } = default!;
