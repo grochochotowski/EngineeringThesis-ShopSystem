@@ -24,7 +24,7 @@ export default function Categories() {
     const [formMode, setFormMode] = useState("create");
 
     // --- Filters ---
-    const [filters, setFilters] = useState({ isActive: true });
+    const [filters, setFilters] = useState({ isActive: "true" });
     const [sortColumn, setSortColumn] = useState("name");
     const [sortDirection, setSortDirection] = useState("asc");
 
@@ -45,7 +45,7 @@ export default function Categories() {
                 params: {
                     PageNumber: page,
                     PageSize: 20,
-                    isActive: filters.isActive,
+                    ...(filters.isActive !== "" && { isActive: filters.isActive }),
                     orderBy: sortColumn,
                     sortDirection: sortDirection,
                 },
@@ -87,9 +87,53 @@ export default function Categories() {
         { key: "id", label: "ID", width: "10%" },
         { key: "name", label: "Name", width: "30%" },
         { key: "description", label: "Description", width: "50%" },
-        { key: "isActive", label: "Active", width: "10%", render: (r) => r.isActive ? "Yes" : "No" },
+        { key: "isActiveText", label: "Active", width: "10%" },
     ];
     
+    const rows = useMemo(() => {
+        return categories.map(c => ({
+            ...c,
+            isActiveText: c.isActive ? "Yes" : "No",
+        }));
+    }, [categories]);
+
+    const detailsConfig = {
+        fields: [
+            { label: "ID", key: "id" },
+            { label: "Name", key: "name" },
+            { label: "Description", key: "description" },
+            { label: "Status", key: "isActiveText" },
+        ],
+    };
+
+    useEffect(() => {
+        if (lastSelectedId.current && categories.length > 0) {
+            const reselect = categories.find(c => c.id === lastSelectedId.current);
+            if (reselect) {
+                setSelectedRow(reselect);
+            } else {
+                // If the item is no longer in the list (e.g., filtered out)
+                setSelectedRow(null);
+                lastSelectedId.current = null;
+            }
+        }
+    }, [categories]);
+
+    useEffect(() => {
+        if (!showFilters) return;
+
+        const handleClickOutside = (event) => {
+            if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+                setShowFilters(false);
+            }
+        };
+
+        document.addEventListener("click", handleClickOutside);
+        return () => {
+            document.removeEventListener("click", handleClickOutside);
+        };
+    }, [showFilters]);
+
     const handleSort = (column) => {
         if (sortColumn === column) {
             setSortDirection(prev => prev === "asc" ? "desc" : "asc");
@@ -99,9 +143,12 @@ export default function Categories() {
         }
     };
 
-    const handleFilterChange = (e) => {
+    const handleBooleanChange = (e) => {
         const { name, value } = e.target;
-        setFilters((prev) => ({ ...prev, [name]: value === "" ? null : value === "true" }));
+        setFilters((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
     };
 
     const handleRowSelect = (row) => {
@@ -114,7 +161,7 @@ export default function Categories() {
         setSelectedRow(null);
         setShowModal(true);
     };
-
+-
     const openEditModal = (row) => {
         setFormMode("edit");
         setSelectedRow(row);
@@ -151,11 +198,13 @@ export default function Categories() {
                 <BaseListPage
                     title="Categories"
                     columns={columns}
-                    data={categories}
+                    data={rows}
                     loading={loading}
                     error={error}
                     selectedRow={selectedRow}
                     onSelectRow={handleRowSelect}
+                    detailsData={selectedRow}
+                    detailsConfig={detailsConfig}
                     onAdd={openCreateModal}
                     onEdit={openEditModal}
                     onDelete={handleStatusToggle}
@@ -170,7 +219,7 @@ export default function Categories() {
                 {showFilters && (
                     <div className="filters-panel" ref={filtersRef}>
                         <h4>Filters</h4>
-                        <select name="isActive" value={filters.isActive ?? ""} onChange={handleFilterChange}>
+                        <select name="isActive" value={filters.isActive} onChange={handleBooleanChange}>
                             <option value="">All</option>
                             <option value="true">Active</option>
                             <option value="false">Inactive</option>
@@ -199,6 +248,7 @@ export default function Categories() {
                     title={actionableCategory.isActive ? "Deactivate Category" : "Activate Category"}
                     message={`Are you sure you want to ${actionableCategory.isActive ? "deactivate" : "activate"} "${actionableCategory.name}"?`}
                     confirmText={actionableCategory.isActive ? "Deactivate" : "Activate"}
+                    confirmButtonClass={actionableCategory.isActive ? "dialog-btn-confirm-negative" : "dialog-btn-confirm-positive"}
                     onConfirm={confirmStatusChange}
                     onCancel={() => setActionableCategory(null)}
                 />
