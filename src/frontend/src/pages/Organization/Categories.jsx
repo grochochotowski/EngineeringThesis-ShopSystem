@@ -98,11 +98,15 @@ export default function Categories() {
     }, [categories]);
 
     const detailsConfig = {
+        status: {
+            key: "isActive",
+            activeLabel: "Active",
+            inactiveLabel: "Inactive",
+        },
         fields: [
             { label: "ID", key: "id" },
             { label: "Name", key: "name" },
             { label: "Description", key: "description" },
-            { label: "Status", key: "isActiveText" },
         ],
     };
 
@@ -161,7 +165,7 @@ export default function Categories() {
         setSelectedRow(null);
         setShowModal(true);
     };
--
+
     const openEditModal = (row) => {
         setFormMode("edit");
         setSelectedRow(row);
