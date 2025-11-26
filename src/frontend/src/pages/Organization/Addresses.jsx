@@ -62,7 +62,7 @@ export default function Addresses() {
         async (page = 1, reset = false) => {
             if (loadedPages.current.has(page) && !reset) return;
             loadedPages.current.add(page);
--
+
             try {
                 setLoading(true);
                 const mappedSort = sortKeyMap[sortColumn] || undefined;
