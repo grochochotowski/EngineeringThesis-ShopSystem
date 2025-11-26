@@ -18,6 +18,7 @@ const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
+const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
 
 const Products = lazy(() => import("./pages/Storage/Products.jsx"));
 
@@ -39,6 +40,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="DeputyManager">
                     <Users />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/organization/addresses',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <Addresses />
                 </ProtectedRoute>
             </PrivateRoute>
         ),

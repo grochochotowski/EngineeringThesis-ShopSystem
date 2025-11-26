@@ -33,9 +33,16 @@ namespace Backend.Api.Api.Controllers
 
         // --- GET ALL ADDRESSES (paginated) ---
         [HttpGet]
-        public async Task<ActionResult<PagedResult<GetAddressDto>>> GetAll( [FromQuery] PaginationParams pagination, CancellationToken ct)
+        public async Task<ActionResult<PagedResult<GetAddressDto>>> GetAll(
+            [FromQuery] PaginationParams @params,
+            [FromQuery] string? country,
+            [FromQuery] string? city,
+            [FromQuery] string? search,
+            [FromQuery] string? orderBy,
+            [FromQuery] string? sortDirection,
+            CancellationToken ct)
         {
-            var result = await _service.GetAllAsync(pagination, ct);
+            var result = await _service.GetAllAsync(@params, country, city, search, orderBy, sortDirection, ct);
             return Ok(result);
         }
 

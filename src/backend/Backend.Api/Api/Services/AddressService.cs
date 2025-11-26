@@ -9,7 +9,14 @@ namespace Backend.Api.Api.Services
     {
         Task<GetAddressDto> CreateAsync(CreateAddressDto dto, CancellationToken ct = default);
         Task<GetAddressDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<PagedResult<GetAddressDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default);
+        Task<PagedResult<GetAddressDto>> GetAllAsync(
+            PaginationParams @params,
+            string? country,
+            string? city,
+            string? search,
+            string? orderBy,
+            string? sortDirection,
+            CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateAddressDto dto, CancellationToken ct = default);
         Task<(bool exists, int? id)> AddressExistsAsync(AddressExistenceDto dto, CancellationToken ct = default);
         Task<int> GetOrCreateAsync(CreateAddressDto dto, CancellationToken ct = default);
@@ -48,24 +55,48 @@ namespace Backend.Api.Api.Services
         }
 
         // --- GET ALL ADDRESSES (paginated) ---
-        public async Task<PagedResult<GetAddressDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default)
+        public async Task<PagedResult<GetAddressDto>> GetAllAsync(
+            PaginationParams @params,
+            string? country,
+            string? city,
+            string? search,
+            string? orderBy,
+            string? sortDirection,
+            CancellationToken ct = default)
         {
-            var query = _db.Addresses
-                .AsNoTracking()
-                .OrderBy(a => a.City)
-                .ThenBy(a => a.Street)
-                .Select(a => new GetAddressDto
-                {
-                    Id = a.Id,
-                    Country = a.Country,
-                    City = a.City,
-                    Street = a.Street,
-                    Building = a.Building,
-                    Premises = a.Premises,
-                    PostalCode = a.PostalCode
-                });
+            var query = _db.Addresses.AsNoTracking();
 
-            return await query.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
+            // Filtering
+            if (!string.IsNullOrWhiteSpace(country))
+                query = query.Where(a => a.Country.Contains(country));
+            if (!string.IsNullOrWhiteSpace(city))
+                query = query.Where(a => a.City.Contains(city));
+
+            // Full-text search
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchTerm = $"%{search.ToLower()}%";
+                query = query.Where(u =>
+                    EF.Functions.Like(u.Country.ToLower(), searchTerm) ||
+                    EF.Functions.Like(u.City.ToLower(), searchTerm) ||
+                    EF.Functions.Like(u.Street.ToLower(), searchTerm) ||
+                    EF.Functions.Like(u.PostalCode.ToLower(), searchTerm));
+            }
+
+            // Sorting
+            var isDescending = !string.IsNullOrWhiteSpace(sortDirection) && sortDirection.ToLower() == "desc";
+            query = orderBy?.ToLower() switch
+            {
+                "country" => isDescending ? query.OrderByDescending(a => a.Country) : query.OrderBy(a => a.Country),
+                "city" => isDescending ? query.OrderByDescending(a => a.City) : query.OrderBy(a => a.City),
+                "street" => isDescending ? query.OrderByDescending(a => a.Street) : query.OrderBy(a => a.Street),
+                "postalcode" => isDescending ? query.OrderByDescending(a => a.PostalCode) : query.OrderBy(a => a.PostalCode),
+                _ => query.OrderBy(a => a.Id)
+            };
+
+            var projectedQuery = query.Select(a => ToGetDto(a));
+
+            return await projectedQuery.ToPagedResultAsync(@params.PageNumber, @params.PageSize, ct);
         }
 
         // --- UPDATE ADDRESS ---

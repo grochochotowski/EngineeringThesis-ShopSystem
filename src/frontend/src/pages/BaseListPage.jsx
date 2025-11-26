@@ -117,6 +117,9 @@ export default function BaseListPage({
     disableAdd = false,
     disableEdit = false,
     disableDelete = false,
+    hideAddButton = false,
+    hideEditButton = false,
+    hideDeleteButton = false,
 }) {
     return (
         <div className="base-list-wrapper">
@@ -140,27 +143,31 @@ export default function BaseListPage({
 
                     {/* Actions */}
                     <div className="action-buttons">
-                        <button
-                            onClick={!disableAdd ? onAdd : undefined}
-                            className={`btn-action btn-add ${disableAdd ? "disabled" : ""}`}
-                            disabled={disableAdd}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 5v14M5 12h14"/>
-                            </svg>
-                            Add
-                        </button>
+                        {!hideAddButton && (
+                            <button
+                                onClick={!disableAdd ? onAdd : undefined}
+                                className={`btn-action btn-add ${disableAdd ? "disabled" : ""}`}
+                                disabled={disableAdd}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 5v14M5 12h14"/>
+                                </svg>
+                                Add
+                            </button>
+                        )}
 
-                        <button
-                            onClick={() => !disableEdit && selectedRow && onEdit?.(selectedRow)}
-                            className={`btn-action btn-edit ${(!selectedRow || disableEdit) ? "disabled" : ""}`}
-                            disabled={!selectedRow || disableEdit}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                                <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 20h9M16.5 3.5l4 4L7 21H3v-4L16.5 3.5z"/>
-                            </svg>
-                            Edit
-                        </button>
+                        {!hideEditButton && (
+                            <button
+                                onClick={() => !disableEdit && selectedRow && onEdit?.(selectedRow)}
+                                className={`btn-action btn-edit ${(!selectedRow || disableEdit) ? "disabled" : ""}`}
+                                disabled={!selectedRow || disableEdit}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 20h9M16.5 3.5l4 4L7 21H3v-4L16.5 3.5z"/>
+                                </svg>
+                                Edit
+                            </button>
+                        )}
 
                         {onChangePassword && (
                             <button
@@ -192,18 +199,20 @@ export default function BaseListPage({
                             </button>
                         )}
 
-                        <button
-                            onClick={() => !disableDelete && selectedRow && onDelete?.(selectedRow)}
-                            className={`btn-action ${deleteButtonClass} ${(!selectedRow || disableDelete) ? "disabled" : ""}`}
-                            disabled={!selectedRow || disableDelete}
-                        >
-                            {deleteButtonIcon || (
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M3 6h18M8 6V4h8v2m-1 0v14H9V6h6z"/>
-                                </svg>
-                            )}
-                            {deleteButtonLabel}
-                        </button>
+                        {!hideDeleteButton && (
+                            <button
+                                onClick={() => !disableDelete && selectedRow && onDelete?.(selectedRow)}
+                                className={`btn-action ${deleteButtonClass} ${(!selectedRow || disableDelete) ? "disabled" : ""}`}
+                                disabled={!selectedRow || disableDelete}
+                            >
+                                {deleteButtonIcon || (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M3 6h18M8 6V4h8v2m-1 0v14H9V6h6z"/>
+                                    </svg>
+                                )}
+                                {deleteButtonLabel}
+                            </button>
+                        )}
                     </div>
 
                     {/* === DETAILS PANEL === */}
