@@ -4,7 +4,7 @@ using Backend.Api.Objects.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Backend.Api.Controllers
+namespace Backend.Api.Api.Controllers
 {
     [Authorize]
     [ApiController]
@@ -40,9 +40,9 @@ namespace Backend.Api.Controllers
 
         // --- GET ALL CATEGORIES (paginated) ---
         [HttpGet]
-        public async Task<ActionResult<PagedResult<GetCategoryDto>>> GetAll([FromQuery] PaginationParams pagination, CancellationToken ct)
+        public async Task<ActionResult<PagedResult<GetCategoryDto>>> GetAll([FromQuery] PaginationParams pagination, [FromQuery] bool? isActive = null, CancellationToken ct = default)
         {
-            var list = await _service.GetAllAsync(pagination, ct);
+            var list = await _service.GetAllAsync(pagination, isActive, ct);
             return Ok(list);
         }
 
@@ -62,15 +62,27 @@ namespace Backend.Api.Controllers
             }
         }
 
-        // --- DELETE CATEGORY ---
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id, [FromQuery] bool force = false, CancellationToken ct = default)
+        // --- DEACTIVATE CATEGORY ---
+        [HttpPut("{id:int}/deactivate")]
+        public async Task<IActionResult> Deactivate(int id, CancellationToken ct = default)
         {
-            var (canDelete, message) = await _service.DeleteAsync(id, force, ct);
-            if (!canDelete && message is not null)
-                return Conflict(new { message });
+            try
+            {
+                var result = await _service.DeactivateAsync(id, ct);
+                return result ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
 
-            return NoContent();
+        // --- ACTIVATE CATEGORY ---
+        [HttpPut("{id:int}/activate")]
+        public async Task<IActionResult> Activate(int id, CancellationToken ct = default)
+        {
+            var result = await _service.ActivateAsync(id, ct);
+            return result ? NoContent() : NotFound();
         }
     }
 }

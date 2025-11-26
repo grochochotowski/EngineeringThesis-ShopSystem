@@ -9,9 +9,10 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetCategoryDto> CreateAsync(CreateCategoryDto dto, CancellationToken ct = default);
         Task<GetCategoryDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default);
+        Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateCategoryDto dto, CancellationToken ct = default);
-        Task<(bool canDelete, string? message)> DeleteAsync(int id, bool force = false, CancellationToken ct = default);
+        Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
+        Task<bool> ActivateAsync(int id, CancellationToken ct = default);
     }
     public class CategoryService : ICategoryService
     {
@@ -27,7 +28,8 @@ namespace Backend.Api.Api.Controllers
             var entity = new Category
             {
                 Name = dto.Name,
-                Description = dto.Description
+                Description = dto.Description,
+                IsActive = true
             };
 
             _db.Categories.Add(entity);
@@ -44,19 +46,26 @@ namespace Backend.Api.Api.Controllers
         }
 
         // --- GET ALL CATEGORIES (paginated) ---
-        public async Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, CancellationToken ct = default)
+        public async Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, CancellationToken ct = default)
         {
             var query = _db.Categories
                 .AsNoTracking()
-                .OrderBy(c => c.Name)
-                .Select(c => new GetCategoryDto
+                .OrderBy(c => c.Name);
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(c => c.IsActive == isActive.Value).OrderBy(c => c.Name);
+            }
+
+            var projectedQuery = query.Select(c => new GetCategoryDto
                 {
                     Id = c.Id,
                     Name = c.Name,
-                    Description = c.Description
+                    Description = c.Description,
+                    IsActive = c.IsActive
                 });
 
-            return await query.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
+            return await projectedQuery.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
         // --- UPDATE CATEGORY ---
@@ -78,33 +87,29 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
-        // --- DELETE CATEGORY (with product category handling) ---
-        public async Task<(bool canDelete, string? message)> DeleteAsync(int id, bool force = false, CancellationToken ct = default)
+        // --- DEACTIVATE CATEGORY ---
+        public async Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
         {
             var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id, ct);
-            if (category is null) return (false, "Category not found.");
+            if (category is null) return false;
 
-            // Check if any product uses this category
-            var productCount = await _db.Products.CountAsync(p => p.CategoryId == id, ct);
-            if (productCount > 0 && !force)
-            {
-                return (false, $"This category is used by {productCount} product(s). Set force=true to move them to Default category and delete this one.");
-            }
+            if (category.Name == "Default")
+                throw new InvalidOperationException("Cannot deactivate the 'Default' category.");
 
-            // If force is true, change products categories to "Default" 
-            if (productCount > 0 && force)
-            {
-                var defaultCategory = await _db.Categories.FirstOrDefaultAsync(c => c.Name == "Default", ct)
-                    ?? throw new InvalidOperationException("Default category not found.");
-
-                await _db.Products
-                    .Where(p => p.CategoryId == id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.CategoryId, defaultCategory.Id), ct);
-            }
-
-            _db.Categories.Remove(category);
+            category.IsActive = false;
             await _db.SaveChangesAsync(ct);
-            return (true, null);
+            return true;
+        }
+
+        // --- ACTIVATE CATEGORY ---
+        public async Task<bool> ActivateAsync(int id, CancellationToken ct = default)
+        {
+            var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id, ct);
+            if (category is null) return false;
+
+            category.IsActive = true;
+            await _db.SaveChangesAsync(ct);
+            return true;
         }
 
         // --- DTO MAPPING ---
@@ -112,7 +117,8 @@ namespace Backend.Api.Api.Controllers
         {
             Id = c.Id,
             Name = c.Name,
-            Description = c.Description
+            Description = c.Description,
+            IsActive = c.IsActive
         };
     }
 }

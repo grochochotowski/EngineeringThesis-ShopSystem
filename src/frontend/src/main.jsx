@@ -19,6 +19,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
 const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
+const Categories = lazy(() => import("./pages/Organization/Categories.jsx"));
 
 const Products = lazy(() => import("./pages/Storage/Products.jsx"));
 
@@ -51,6 +52,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
                     <Addresses />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/organization/categories',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <Categories />
                 </ProtectedRoute>
             </PrivateRoute>
         ),

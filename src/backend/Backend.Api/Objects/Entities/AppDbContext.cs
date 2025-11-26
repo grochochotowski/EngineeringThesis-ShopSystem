@@ -61,6 +61,7 @@ namespace Backend.Api.Objects.Entities
 
                 b.Property(x => x.Name).HasMaxLength(64);
                 b.Property(x => x.Description).HasMaxLength(256);
+                b.Property(x => x.IsActive).HasDefaultValue(true);
             });
 
             // client
