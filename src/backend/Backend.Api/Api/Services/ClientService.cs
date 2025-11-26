@@ -96,7 +96,7 @@ namespace Backend.Api.Api.Controllers
                     Address = c.Address != null ? new GetAddressDto
                     {
                         Id = c.Address.Id,
-                        Country = c.Address.Country,
+                        Country = c.Address.Country.ToString(),
                         City = c.Address.City,
                         Street = c.Address.Street,
                         Building = c.Address.Building,

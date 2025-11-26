@@ -1,4 +1,5 @@
 ﻿using Backend.Api.Objects.Entities;
+using Backend.Api.Objects.Entities.Enums;
 using Backend.Api.Objects.Entities.Models;
 using System.Security.Cryptography;
 using System.Text;
@@ -34,7 +35,7 @@ namespace Backend.Api.Infrastructure
             {
                 var addr = new Address
                 {
-                    Country = "PL",
+                    Country = Country.Poland,
                     City = "Warszawa",
                     Street = "Prosta",
                     Building = "1",
@@ -95,7 +96,7 @@ namespace Backend.Api.Infrastructure
                     Role = UserRole.Root,
                     Address = new Address
                     {
-                        Country = "PL",
+                        Country = Country.Poland,
                         City = "Warszawa",
                         Street = "Admin Street",
                         Building = "1",

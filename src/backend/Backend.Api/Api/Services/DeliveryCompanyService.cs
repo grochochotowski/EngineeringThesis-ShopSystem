@@ -103,7 +103,7 @@ namespace Backend.Api.Api.Controllers
                     Address = new GetAddressDto
                     {
                         Id = x.Address.Id,
-                        Country = x.Address.Country,
+                        Country = x.Address.Country.ToString(),
                         City = x.Address.City,
                         Street = x.Address.Street,
                         Building = x.Address.Building,
@@ -179,7 +179,7 @@ namespace Backend.Api.Api.Controllers
             Address = new GetAddressDto
             {
                 Id = a.Id,
-                Country = a.Country,
+                Country = a.Country.ToString(),
                 City = a.City,
                 Street = a.Street,
                 Building = a.Building,

@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Api.Services;
 using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
+using Backend.Api.Objects.Entities.Enums;
 using Backend.Api.Objects.Entities.Models;
 using Backend.Api.Objects.Entities.Models.Relations;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +39,7 @@ namespace Backend.Api.Api.Controllers
             if (dto.Address is null)
                 throw new ArgumentException("Address must be provided.");
 
-            var (exists, _) = await _addressService.AddressExistsAsync(new AddressExistenceDto
+            var result = await _addressService.AddressExistsAsync(new AddressExistenceDto
             {
                 Country = dto.Address.Country,
                 City = dto.Address.City,
@@ -47,6 +48,7 @@ namespace Backend.Api.Api.Controllers
                 Premises = dto.Address.Premises,
                 PostalCode = dto.Address.PostalCode
             }, ct);
+            var exists = result.exists;
 
             if (exists)
                 throw new InvalidOperationException("Provided address already exists.");
@@ -142,7 +144,7 @@ namespace Backend.Api.Api.Controllers
         }
 
         // --- GET PRODUCT BY ID FROM WAREHOUSE ---
-        public async Task<GetWarehouseProductItemDto> GetProductByIdAsync(int productId, int warehouseId, CancellationToken ct = default)
+        public async Task<GetWarehouseProductItemDto?> GetProductByIdAsync(int productId, int warehouseId, CancellationToken ct = default)
         {
             var item = await _db.WarehouseProducts
                 .Where(x => x.WarehouseId == warehouseId && x.ProductId == productId)
@@ -154,7 +156,7 @@ namespace Backend.Api.Api.Controllers
                 })
                 .FirstOrDefaultAsync(ct);
 
-            return item!;
+            return item;
         }
 
         // --- GET PRODUCTS FROM WAREHOUSE ---
