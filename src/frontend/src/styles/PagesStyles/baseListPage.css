@@ -50,6 +50,12 @@
     margin-bottom: 1rem;
 }
 
+/* Button group spacer for visual grouping */
+.button-group-spacer {
+    height: 12px;
+    margin: 8px 0;
+}
+
 .btn-filter {
     flex: 1;
     border: none;

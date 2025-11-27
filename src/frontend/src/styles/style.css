@@ -39,7 +39,7 @@
     --btn-success-bg: #10b981;
     --btn-success-hover: #059669;
     --btn-edit-bg: #f59e0b;
-    --btn-edit-hover: #eab308;
+    --btn-edit-hover: #ffc107;
 
     /* === Borders & radius === */
     --radius-sm: 6px;
@@ -196,6 +196,12 @@ textarea:focus {
     color: white;
 }
 
+.btn-action.btn-go-to:hover,
+.btn-action.btn-view-details:hover {
+    background-color: #007bff;
+    color: white;
+}
+
 .btn-action.disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -206,7 +212,21 @@ textarea:focus {
     color: white;
 }
 
+.btn-action.btn-primary {
+    background-color: var(--accent-main);
+    color: white;
+}
+.btn-action.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
 
+.btn-action.btn-danger {
+    background-color: var(--btn-danger-bg);
+    color: white;
+}
+.btn-action.btn-danger:hover {
+    background-color: var(--btn-danger-hover);
+}
 
 .btn-close {
     background: none;
