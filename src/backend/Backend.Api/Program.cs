@@ -77,8 +77,10 @@ namespace Backend.Api
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IClientService, ClientService>();
             builder.Services.AddScoped<IDeliveryCompaniesService, DeliveryCompaniesService>();
+            builder.Services.AddScoped<ILocationService, LocationService>();
             builder.Services.AddScoped<IParcelsService, ParcelsService>();
             builder.Services.AddScoped<IProductService, ProductService>();
+            builder.Services.AddScoped<IProductsInWarehouseService, ProductsInWarehouseService>();
             builder.Services.AddScoped<ISalesDocumentService, SalesDocumentService>();
             builder.Services.AddScoped<ISalesDocumentItemService, SalesDocumentItemService>();
             builder.Services.AddScoped<ISalesPaymentService, SalesPaymentService>();

@@ -329,6 +329,7 @@ namespace Backend.Api.Objects.Entities
                 b.Property(x => x.Col).HasMaxLength(4).IsRequired();
                 b.Property(x => x.Shelf).HasMaxLength(4).IsRequired();
                 b.Property(x => x.LocationCode).HasMaxLength(14).IsRequired();
+                b.Property(x => x.IsActive).HasDefaultValue(true);
 
                 b.ToTable(t =>
                 {

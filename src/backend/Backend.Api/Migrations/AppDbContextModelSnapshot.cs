@@ -209,6 +209,11 @@ namespace Backend.Api.Migrations
                         .HasMaxLength(4)
                         .HasColumnType("nvarchar(4)");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("LocationCode")
                         .IsRequired()
                         .HasMaxLength(14)

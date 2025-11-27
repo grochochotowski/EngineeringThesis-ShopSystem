@@ -12,6 +12,7 @@ namespace Backend.Api.Objects.Entities.Models
         public string Col { get; set; } = default!;
         public string Shelf { get; set; } = default!;
         public string LocationCode { get; set; } = default!;
+        public bool IsActive { get; set; } = true;
 
         // --- Collections (1:N) ---
         public virtual ICollection<ProductsInWarehouse> Products { get; set; } = new List<ProductsInWarehouse>();
