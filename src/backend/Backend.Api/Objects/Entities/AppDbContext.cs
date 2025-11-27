@@ -16,6 +16,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
         public DbSet<DeliveryCompany>   DeliveryCompanies   => Set<DeliveryCompany>();
+        public DbSet<Location>          Locations           => Set<Location>();
         public DbSet<Parcel>            Parcels             => Set<Parcel>();
         public DbSet<Product>           Products            => Set<Product>();
         public DbSet<RefreshToken>      RefreshTokens       => Set<RefreshToken>();
@@ -26,11 +27,10 @@ namespace Backend.Api.Objects.Entities
         public DbSet<TaxRate>           TaxRates            => Set<TaxRate>();
         public DbSet<User>              Users               => Set<User>();
         public DbSet<UserCredential>    UserCredentials     => Set<UserCredential>();
-        public DbSet<Warehouse>         Warehouses          => Set<Warehouse>();
 
         // --- Relation DbSets ---
-        public DbSet<WarehouseProduct>  WarehouseProducts   => Set<WarehouseProduct>();
-        public DbSet<ParcelProduct>     ParcelProducts      => Set<ParcelProduct>();
+        public DbSet<ProductsInWarehouse> ProductsInWarehouse => Set<ProductsInWarehouse>();
+        public DbSet<ParcelProduct>       ParcelProducts      => Set<ParcelProduct>();
 
 
 
@@ -320,38 +320,42 @@ namespace Backend.Api.Objects.Entities
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // warehouse
-            modelBuilder.Entity<Warehouse>(b =>
+            // location
+            modelBuilder.Entity<Location>(b =>
             {
-                b.HasIndex(x => x.Name).IsUnique();
+                b.HasIndex(x => x.LocationCode).IsUnique();
 
-                b.Property(x => x.Name).HasMaxLength(128);
+                b.Property(x => x.Zone).HasMaxLength(4).IsRequired();
+                b.Property(x => x.Col).HasMaxLength(4).IsRequired();
+                b.Property(x => x.Shelf).HasMaxLength(4).IsRequired();
+                b.Property(x => x.LocationCode).HasMaxLength(14).IsRequired();
 
-                b.HasOne(x => x.Address)
-                 .WithOne()
-                 .HasForeignKey<Warehouse>(x => x.AddressId)
-                 .OnDelete(DeleteBehavior.Restrict);
+                b.ToTable(t =>
+                {
+                    t.HasCheckConstraint("CK_Location_Zone_Length", "LEN([Zone]) <= 4");
+                    t.HasCheckConstraint("CK_Location_Col_Length", "LEN([Col]) <= 4");
+                    t.HasCheckConstraint("CK_Location_Shelf_Length", "LEN([Shelf]) <= 4");
+                });
             });
 
-
-            // warehouse-product
-            modelBuilder.Entity<WarehouseProduct>(b =>
+            // products-in-warehouse
+            modelBuilder.Entity<ProductsInWarehouse>(b =>
             {
-                b.HasKey(x => new { x.WarehouseId, x.ProductId });
-
-                b.HasOne(x => x.Warehouse)
-                 .WithMany(w => w.WarehouseProducts)
-                 .HasForeignKey(x => x.WarehouseId)
-                 .OnDelete(DeleteBehavior.Restrict);
+                b.HasKey(x => new { x.ProductId, x.LocationId });
 
                 b.HasOne(x => x.Product)
-                 .WithMany(p => p.WarehouseProducts)
+                 .WithMany(p => p.ProductsInWarehouse)
                  .HasForeignKey(x => x.ProductId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.Location)
+                 .WithMany(l => l.Products)
+                 .HasForeignKey(x => x.LocationId)
                  .OnDelete(DeleteBehavior.Restrict);
 
                 b.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_WarehouseProduct_Qty_NonNegative", "[Quantity] >= 0");
+                    t.HasCheckConstraint("CK_ProductsInWarehouse_Qty_NonNegative", "[Quantity] >= 0");
                 });
             });
 

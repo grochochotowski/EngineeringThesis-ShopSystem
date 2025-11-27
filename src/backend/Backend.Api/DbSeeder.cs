@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Enums;
 using Backend.Api.Objects.Entities.Models;
+using Backend.Api.Objects.Entities.Models.Relations;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -30,25 +31,18 @@ namespace Backend.Api.Infrastructure
                 _db.SaveChanges();
             }
 
-            // --- ADD EXAMPLE WAREHOUSES ---
-            if (!_db.Warehouses.Any())
+            // --- ADD EXAMPLE LOCATIONS ---
+            if (!_db.Locations.Any())
             {
-                var addr = new Address
+                var locations = new[]
                 {
-                    Country = Country.Poland,
-                    City = "Warszawa",
-                    Street = "Prosta",
-                    Building = "1",
-                    PostalCode = "00-000"
+                    new Location { Zone = "A001", Col = "B001", Shelf = "C001", LocationCode = "A001-B001-C001" },
+                    new Location { Zone = "A001", Col = "B001", Shelf = "C002", LocationCode = "A001-B001-C002" },
+                    new Location { Zone = "A001", Col = "B002", Shelf = "C001", LocationCode = "A001-B002-C001" },
+                    new Location { Zone = "A002", Col = "B001", Shelf = "C001", LocationCode = "A002-B001-C001" },
+                    new Location { Zone = "A002", Col = "B002", Shelf = "C001", LocationCode = "A002-B002-C001" }
                 };
-                _db.Addresses.Add(addr);
-                _db.SaveChanges();
-
-                _db.Warehouses.Add(new()
-                {
-                    Name = "Magazyn Główny",
-                    AddressId = addr.Id
-                });
+                _db.Locations.AddRange(locations);
                 _db.SaveChanges();
             }
 

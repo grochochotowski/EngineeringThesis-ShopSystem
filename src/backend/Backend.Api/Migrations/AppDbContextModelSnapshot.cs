@@ -196,6 +196,49 @@ namespace Backend.Api.Migrations
                     b.ToTable("DeliveryCompanies");
                 });
 
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Location", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Col")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.Property<string>("LocationCode")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .HasColumnType("nvarchar(14)");
+
+                    b.Property<string>("Shelf")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.Property<string>("Zone")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationCode")
+                        .IsUnique();
+
+                    b.ToTable("Locations", t =>
+                        {
+                            t.HasCheckConstraint("CK_Location_Col_Length", "LEN([Col]) <= 4");
+
+                            t.HasCheckConstraint("CK_Location_Shelf_Length", "LEN([Shelf]) <= 4");
+
+                            t.HasCheckConstraint("CK_Location_Zone_Length", "LEN([Zone]) <= 4");
+                        });
+                });
+
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Parcel", b =>
                 {
                     b.Property<int>("Id")
@@ -353,24 +396,24 @@ namespace Backend.Api.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.WarehouseProduct", b =>
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ProductsInWarehouse", b =>
                 {
-                    b.Property<int>("WarehouseId")
+                    b.Property<int>("ProductId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ProductId")
+                    b.Property<int>("LocationId")
                         .HasColumnType("int");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
-                    b.HasKey("WarehouseId", "ProductId");
+                    b.HasKey("ProductId", "LocationId");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("LocationId");
 
-                    b.ToTable("WarehouseProducts", t =>
+                    b.ToTable("ProductsInWarehouse", t =>
                         {
-                            t.HasCheckConstraint("CK_WarehouseProduct_Qty_NonNegative", "[Quantity] >= 0");
+                            t.HasCheckConstraint("CK_ProductsInWarehouse_Qty_NonNegative", "[Quantity] >= 0");
                         });
                 });
 
@@ -682,33 +725,6 @@ namespace Backend.Api.Migrations
                     b.ToTable("UserCredentials");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Warehouse", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AddressId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AddressId")
-                        .IsUnique();
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("Warehouses");
-                });
-
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Client", b =>
                 {
                     b.HasOne("Backend.Api.Objects.Entities.Models.Address", "Address")
@@ -790,23 +806,23 @@ namespace Backend.Api.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.WarehouseProduct", b =>
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ProductsInWarehouse", b =>
                 {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "Location")
+                        .WithMany("Products")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
-                        .WithMany("WarehouseProducts")
+                        .WithMany("ProductsInWarehouse")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Warehouse", "Warehouse")
-                        .WithMany("WarehouseProducts")
-                        .HasForeignKey("WarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Navigation("Location");
 
                     b.Navigation("Product");
-
-                    b.Navigation("Warehouse");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocument", b =>
@@ -906,15 +922,9 @@ namespace Backend.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Warehouse", b =>
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Location", b =>
                 {
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "Address")
-                        .WithOne()
-                        .HasForeignKey("Backend.Api.Objects.Entities.Models.Warehouse", "AddressId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Address");
+                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Parcel", b =>
@@ -926,7 +936,7 @@ namespace Backend.Api.Migrations
                 {
                     b.Navigation("ParcelProducts");
 
-                    b.Navigation("WarehouseProducts");
+                    b.Navigation("ProductsInWarehouse");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocument", b =>
@@ -947,11 +957,6 @@ namespace Backend.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("RefreshTokens");
-                });
-
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Warehouse", b =>
-                {
-                    b.Navigation("WarehouseProducts");
                 });
 #pragma warning restore 612, 618
         }

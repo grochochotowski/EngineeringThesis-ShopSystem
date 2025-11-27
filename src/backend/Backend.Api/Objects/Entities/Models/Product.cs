@@ -26,7 +26,7 @@ namespace Backend.Api.Objects.Entities.Models
         public virtual TaxRate TaxRate      { get; set; } = default!;
 
         // --- Collections (N:N, 1:N) ---
-        public virtual ICollection<WarehouseProduct> WarehouseProducts  { get; set; } = new List<WarehouseProduct>();
-        public virtual ICollection<ParcelProduct> ParcelProducts        { get; set; } = new List<ParcelProduct>();
+        public virtual ICollection<ProductsInWarehouse> ProductsInWarehouse { get; set; } = new List<ProductsInWarehouse>();
+        public virtual ICollection<ParcelProduct> ParcelProducts            { get; set; } = new List<ParcelProduct>();
     }
 }

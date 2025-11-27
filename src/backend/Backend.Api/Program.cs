@@ -85,7 +85,6 @@ namespace Backend.Api
             builder.Services.AddScoped<IShipmentService, ShipmentService>();
             builder.Services.AddScoped<ITaxRateService, TaxRateService>();
             builder.Services.AddScoped<IUsersService, UserService>();
-            builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
             // --- JWT AUTHENTICATION ---
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>

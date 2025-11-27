@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Enums;
 using Backend.Api.Objects.Entities.Models;
+using Backend.Api.Objects.Entities.Models.Relations;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -22,7 +23,7 @@ namespace Backend.Api.Infrastructure
 
             SeedCategories();
             SeedTaxRates();
-            SeedWarehouses();
+            SeedLocations();
             SeedProducts();
             SeedClients();
             SeedDeliveryCompanies();
@@ -61,20 +62,34 @@ namespace Backend.Api.Infrastructure
             _db.SaveChanges();
         }
 
-        // --- WAREHOUSES ---
-        private void SeedWarehouses()
+        // --- LOCATIONS ---
+        private void SeedLocations()
         {
-            if (_db.Warehouses.Any()) return;
+            if (_db.Locations.Any()) return;
 
-            var a1 = new Address { Country = Country.Poland, City = "Warszawa", Street = "Prosta", Building = "1", PostalCode = "00-000" };
-            var a2 = new Address { Country = Country.Poland, City = "Kraków", Street = "Długa", Building = "12", PostalCode = "31-001" };
-            _db.Addresses.AddRange(a1, a2);
-            _db.SaveChanges();
+            var zones = new[] { "A001", "A002", "A003", "B001", "B002" };
+            var columns = new[] { "C001", "C002", "C003", "C004" };
+            var shelves = new[] { "S001", "S002", "S003", "S004", "S005" };
 
-            _db.Warehouses.AddRange(
-                new() { Name = "Main Warehouse", AddressId = a1.Id },
-                new() { Name = "Backup Warehouse", AddressId = a2.Id }
-            );
+            var locations = new List<Location>();
+            foreach (var zone in zones)
+            {
+                foreach (var col in columns)
+                {
+                    foreach (var shelf in shelves)
+                    {
+                        locations.Add(new Location
+                        {
+                            Zone = zone,
+                            Col = col,
+                            Shelf = shelf,
+                            LocationCode = $"{zone}-{col}-{shelf}"
+                        });
+                    }
+                }
+            }
+
+            _db.Locations.AddRange(locations);
             _db.SaveChanges();
         }
 
@@ -85,7 +100,7 @@ namespace Backend.Api.Infrastructure
 
             var categories = _db.Categories.ToDictionary(c => c.Name, c => c.Id);
             var taxIds = _db.TaxRates.Select(x => x.Id).ToList();
-            var warehouseIds = _db.Warehouses.Select(x => x.Id).ToList();
+            var locationIds = _db.Locations.Select(x => x.Id).ToList();
 
             var products = new List<(string Cat, string Name, string Desc, decimal Price)>
             {
@@ -157,13 +172,17 @@ namespace Backend.Api.Infrastructure
                 _db.Products.Add(product);
                 _db.SaveChanges();
 
-                // assign products to both warehouses with some random stock
-                foreach (var wid in warehouseIds)
+                // assign products to random locations with random quantities
+                // each product will be stored in 1-3 random locations
+                var numLocations = _rand.Next(1, 4);
+                var selectedLocations = locationIds.OrderBy(x => _rand.Next()).Take(numLocations);
+
+                foreach (var locId in selectedLocations)
                 {
-                    _db.WarehouseProducts.Add(new()
+                    _db.ProductsInWarehouse.Add(new()
                     {
-                        WarehouseId = wid,
                         ProductId = product.Id,
+                        LocationId = locId,
                         Quantity = _rand.Next(10, 200)
                     });
                 }
