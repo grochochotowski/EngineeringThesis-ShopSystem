@@ -20,8 +20,10 @@ const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
 const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
 const Categories = lazy(() => import("./pages/Organization/Categories.jsx"));
+const OrganizationProducts = lazy(() => import("./pages/Organization/Products.jsx"));
 
-const Products = lazy(() => import("./pages/Storage/Products.jsx"));
+const WarehouseProducts = lazy(() => import("./pages/Storage/Products.jsx"));
+const Warehouses = lazy(() => import("./pages/Storage/Warehouses.jsx"));
 
 const ClientTypes = lazy(() => import("./pages/Dictionaries/ClientTypes.jsx"));
 const PaymentOptions = lazy(() => import("./pages/Dictionaries/PaymentOptions.jsx"));
@@ -76,11 +78,33 @@ const router = createBrowserRouter([
         errorElement: <NotFound />,
     },
     {
+        path: '/organization/products',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <OrganizationProducts />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
         path: '/storage/products',
         element: (
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
-                    <Products />
+                    <WarehouseProducts />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/storage/warehouses',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <Warehouses />
                 </ProtectedRoute>
             </PrivateRoute>
         ),

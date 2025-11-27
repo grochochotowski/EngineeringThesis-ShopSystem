@@ -21,8 +21,8 @@ export default function Header({ user, onLogout }) {
         {
             title: "Storage",
             items: [
+                { name: "Warehouse Products", path: "/storage/products" },
                 { name: "Warehouses", path: "/storage/warehouses" },
-                { name: "Products", path: "/storage/products" },
             ],
         },
         {
@@ -35,6 +35,7 @@ export default function Header({ user, onLogout }) {
         {
             title: "Organization",
             items: [
+                { name: "Products", path: "/organization/products" },
                 { name: "Users", path: "/organization/users" },
                 { name: "Addresses", path: "/organization/addresses" },
                 { name: "Categories", path: "/organization/categories" },
