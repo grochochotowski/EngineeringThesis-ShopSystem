@@ -62,6 +62,32 @@ namespace Backend.Api.Api.Controllers
             }
         }
 
+        // --- TRANSFER PRODUCT BETWEEN LOCATIONS ---
+        [HttpPost("transfer")]
+        public async Task<IActionResult> TransferProduct([FromBody] TransferProductDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
+            try
+            {
+                await _service.TransferProductAsync(dto.ProductId, dto.FromLocationId, dto.ToLocationId, dto.Quantity, ct);
+                return Ok(new { message = "Product transferred between locations successfully." });
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         // --- SEARCH PRODUCT ---
         [HttpGet("search-product")]
         public async Task<ActionResult<PagedResult<ProductSearchResultDto>>> SearchProduct(

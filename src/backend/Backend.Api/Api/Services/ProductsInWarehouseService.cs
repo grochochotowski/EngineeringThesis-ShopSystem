@@ -10,6 +10,7 @@ namespace Backend.Api.Api.Services
     {
         Task<bool> AddProductToLocationAsync(int productId, int locationId, int quantity, CancellationToken ct = default);
         Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, CancellationToken ct = default);
+        Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, CancellationToken ct = default);
         Task<PagedResult<ProductSearchResultDto>> SearchProductAsync(string? searchTerm, PaginationParams pagination, CancellationToken ct = default);
         Task<PagedResult<ProductLocationRowDto>> SearchProductLocationRowsAsync(
             string? searchTerm,
@@ -100,6 +101,70 @@ namespace Backend.Api.Api.Services
                 // Decrease quantity
                 entry.Quantity -= quantityToRemove;
                 _db.ProductsInWarehouse.Update(entry);
+            }
+
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // --- TRANSFER PRODUCT BETWEEN LOCATIONS ---
+        public async Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, CancellationToken ct = default)
+        {
+            // Validate product exists
+            if (!await _db.Products.AnyAsync(p => p.Id == productId, ct))
+                throw new ArgumentException($"Product with ID {productId} not found.");
+
+            // Validate locations exist
+            if (!await _db.Locations.AnyAsync(l => l.Id == fromLocationId, ct))
+                throw new ArgumentException($"From location with ID {fromLocationId} not found.");
+
+            if (!await _db.Locations.AnyAsync(l => l.Id == toLocationId, ct))
+                throw new ArgumentException($"To location with ID {toLocationId} not found.");
+
+            // Ensure locations are different
+            if (fromLocationId == toLocationId)
+                throw new InvalidOperationException("Source and destination locations must be different.");
+
+            // Get product at source location
+            var fromEntry = await _db.ProductsInWarehouse
+                .FirstOrDefaultAsync(pw => pw.ProductId == productId && pw.LocationId == fromLocationId, ct);
+
+            if (fromEntry == null)
+                throw new ArgumentException($"Product {productId} not found at location {fromLocationId}.");
+
+            if (quantity > fromEntry.Quantity)
+                throw new InvalidOperationException($"Cannot transfer {quantity} items. Only {fromEntry.Quantity} available at source location.");
+
+            // Get or create product at destination location
+            var toEntry = await _db.ProductsInWarehouse
+                .FirstOrDefaultAsync(pw => pw.ProductId == productId && pw.LocationId == toLocationId, ct);
+
+            // Remove from source
+            if (quantity == fromEntry.Quantity)
+            {
+                _db.ProductsInWarehouse.Remove(fromEntry);
+            }
+            else
+            {
+                fromEntry.Quantity -= quantity;
+                _db.ProductsInWarehouse.Update(fromEntry);
+            }
+
+            // Add to destination
+            if (toEntry != null)
+            {
+                toEntry.Quantity += quantity;
+                _db.ProductsInWarehouse.Update(toEntry);
+            }
+            else
+            {
+                var newEntry = new ProductsInWarehouse
+                {
+                    ProductId = productId,
+                    LocationId = toLocationId,
+                    Quantity = quantity
+                };
+                _db.ProductsInWarehouse.Add(newEntry);
             }
 
             await _db.SaveChangesAsync(ct);

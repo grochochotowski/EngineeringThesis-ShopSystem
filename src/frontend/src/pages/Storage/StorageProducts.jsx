@@ -21,9 +21,11 @@ export default function StorageProducts() {
     const [toast, setToast] = useState(null);
 
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedProductIdToRestore, setSelectedProductIdToRestore] = useState(null);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const [showTransferModal, setShowTransferModal] = useState(false);
     const [showQuickLocationModal, setShowQuickLocationModal] = useState(false);
 
     const [categories, setCategories] = useState(new Map());
@@ -43,6 +45,13 @@ export default function StorageProducts() {
     // Remove Product modal state
     const [removeForm, setRemoveForm] = useState({
         locationId: "",
+        quantity: 1,
+    });
+
+    // Transfer Product modal state
+    const [transferForm, setTransferForm] = useState({
+        fromLocationId: "",
+        toLocationId: "",
         quantity: 1,
     });
 
@@ -116,6 +125,27 @@ export default function StorageProducts() {
             if (items?.length) {
                 setProducts(items);
                 setHasMore(page < (totalPages || 1));
+
+                // Restore selected product after fetch if needed
+                if (selectedProductIdToRestore) {
+                    const productToReselect = items.find(p => p.productId === selectedProductIdToRestore);
+                    if (productToReselect) {
+                        const row = {
+                            id: productToReselect.productId,
+                            productId: productToReselect.productId,
+                            productName: productToReselect.productName,
+                            productPrice: `$${productToReselect.productPrice.toFixed(2)}`,
+                            quantity: productToReselect.totalQuantity,
+                            locationCount: productToReselect.locations?.length || 0,
+                            categoryName: productToReselect.categoryName,
+                            rawData: productToReselect,
+                        };
+                        setSelectedProduct(row);
+                        // If Details Modal is open, it will automatically show updated data
+                        // because it uses selectedProduct.rawData which is now fresh
+                    }
+                    setSelectedProductIdToRestore(null);
+                }
             } else {
                 setProducts([]);
                 setHasMore(false);
@@ -205,7 +235,7 @@ export default function StorageProducts() {
         { key: "productName", label: "Product Name", width: "30%", sortable: true },
         { key: "productPrice", label: "Price", width: "13%", sortable: true },
         { key: "quantity", label: "Total Quantity", width: "15%", sortable: true },
-        { key: "locationCount", label: "Locations No.", width: "12%", sortable: true },
+        { key: "locationCount", label: "No. of Locations", width: "12%", sortable: true },
         { key: "categoryName", label: "Category", width: "30%", sortable: true },
     ];
 
@@ -402,8 +432,42 @@ export default function StorageProducts() {
             });
             setToast({ message: "Product removed from warehouse successfully!", type: "success" });
             setShowRemoveModal(false);
+
+            // Fetch fresh product data immediately after removal
+            try {
+                const freshProductData = await api.get("/products-in-warehouse/search-products-with-locations", {
+                    params: {
+                        searchTerm: selectedProduct.rawData.productSKU,
+                        PageNumber: 1,
+                        PageSize: 1,
+                    },
+                });
+
+                // Update selectedProduct with fresh data if product still exists
+                if (freshProductData.items?.length > 0) {
+                    const updatedProduct = freshProductData.items[0];
+                    const updatedRow = {
+                        id: updatedProduct.productId,
+                        productId: updatedProduct.productId,
+                        productName: updatedProduct.productName,
+                        productPrice: `$${updatedProduct.productPrice.toFixed(2)}`,
+                        quantity: updatedProduct.totalQuantity,
+                        locationCount: updatedProduct.locations?.length || 0,
+                        categoryName: updatedProduct.categoryName,
+                        rawData: updatedProduct,
+                    };
+                    setSelectedProduct(updatedRow);
+                    setSelectedProductIdToRestore(selectedProduct.productId);
+                } else {
+                    // Product was completely removed from warehouse
+                    setSelectedProduct(null);
+                }
+            } catch {
+                // If fetch fails, just clear selection
+                setSelectedProduct(null);
+            }
+
             immediateFetchProducts();
-            setSelectedProduct(null);
         } catch (err) {
             console.error(err);
             setToast({ message: err.response?.data?.message || "Failed to remove product.", type: "error" });
@@ -414,6 +478,80 @@ export default function StorageProducts() {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSubmitRemove();
+        }
+    };
+
+    // Transfer Product handlers
+    const handleOpenTransferModal = () => {
+        if (!selectedProduct) return;
+        setTransferForm({ fromLocationId: "", toLocationId: "", quantity: 1 });
+        setShowTransferModal(true);
+    };
+
+    const handleTransferFormChange = (e) => {
+        const { name, value } = e.target;
+        setTransferForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmitTransfer = async (e) => {
+        if (e) e.preventDefault();
+        if (!transferForm.fromLocationId || !transferForm.toLocationId || !transferForm.quantity) {
+            setToast({ message: "Please fill all required fields.", type: "error" });
+            return;
+        }
+        if (transferForm.fromLocationId === transferForm.toLocationId) {
+            setToast({ message: "Source and destination locations must be different.", type: "error" });
+            return;
+        }
+        try {
+            await api.post("/products-in-warehouse/transfer", {
+                productId: selectedProduct.productId,
+                fromLocationId: parseInt(transferForm.fromLocationId),
+                toLocationId: parseInt(transferForm.toLocationId),
+                quantity: parseInt(transferForm.quantity),
+            });
+            setToast({ message: "Product transferred successfully!", type: "success" });
+            setShowTransferModal(false);
+
+            // Fetch fresh product data immediately after transfer
+            const freshProductData = await api.get("/products-in-warehouse/search-products-with-locations", {
+                params: {
+                    searchTerm: selectedProduct.rawData.productSKU,
+                    PageNumber: 1,
+                    PageSize: 1,
+                },
+            });
+
+            // Update selectedProduct with fresh data if found
+            if (freshProductData.items?.length > 0) {
+                const updatedProduct = freshProductData.items[0];
+                const updatedRow = {
+                    id: updatedProduct.productId,
+                    productId: updatedProduct.productId,
+                    productName: updatedProduct.productName,
+                    productPrice: `$${updatedProduct.productPrice.toFixed(2)}`,
+                    quantity: updatedProduct.totalQuantity,
+                    locationCount: updatedProduct.locations?.length || 0,
+                    categoryName: updatedProduct.categoryName,
+                    rawData: updatedProduct,
+                };
+                setSelectedProduct(updatedRow);
+            }
+
+            // Store productId to reselect after fetch completes
+            setSelectedProductIdToRestore(selectedProduct.productId);
+
+            immediateFetchProducts();
+        } catch (err) {
+            console.error(err);
+            setToast({ message: err.response?.data?.message || "Failed to transfer product.", type: "error" });
+        }
+    };
+
+    const handleTransferModalKeyPress = (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmitTransfer();
         }
     };
 
@@ -562,6 +700,17 @@ export default function StorageProducts() {
                                         <path fill="none" stroke="currentColor" strokeWidth="2" d="M5 12h14"/>
                                     </svg>
                                     Remove Product
+                                </button>
+
+                                <button
+                                    onClick={handleOpenTransferModal}
+                                    className={`btn-action btn-edit ${!selectedProduct ? "disabled" : ""}`}
+                                    disabled={!selectedProduct}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M7 16H5a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v2M15 12l3-3m0 0l-3-3m3 3l-6 6"/>
+                                    </svg>
+                                    Move product
                                 </button>
 
                                 <div className="button-group-spacer"></div>
@@ -917,6 +1066,86 @@ export default function StorageProducts() {
                             </button>
                             <button type="submit" className="btn-action btn-danger">
                                 Remove
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {/* Transfer Product Modal */}
+            {showTransferModal && selectedProduct && (
+                <Modal
+                    title={`${selectedProduct.rawData.productSKU} - ${selectedProduct.rawData.productName}`}
+                    onClose={() => setShowTransferModal(false)}
+                >
+                    <form onSubmit={handleSubmitTransfer} onKeyPress={handleTransferModalKeyPress}>
+                        <div className="form-grid">
+                            <label>
+                                Move From
+                                <select
+                                    name="fromLocationId"
+                                    value={transferForm.fromLocationId}
+                                    onChange={handleTransferFormChange}
+                                    required
+                                    className="location-select"
+                                >
+                                    <option value="">Select a location</option>
+                                    {getProductLocations().map((loc) => (
+                                        <option key={loc.locationId} value={loc.locationId}>
+                                            {loc.locationCode} (Qty: {loc.quantity})
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label>
+                                Move To
+                                <select
+                                    name="toLocationId"
+                                    value={transferForm.toLocationId}
+                                    onChange={handleTransferFormChange}
+                                    required
+                                    className="location-select"
+                                >
+                                    <option value="">Select a location</option>
+                                    {allLocations
+                                        .filter((l) => l.isActive && parseInt(l.id) !== parseInt(transferForm.fromLocationId || -1))
+                                        .map((l) => {
+                                            const productLocation = getProductLocations().find(pl => pl.locationId === l.id);
+                                            return (
+                                                <option key={l.id} value={l.id}>
+                                                    {l.locationCode}{productLocation ? ` (Qty: ${productLocation.quantity})` : ""}
+                                                </option>
+                                            );
+                                        })}
+                                </select>
+                            </label>
+
+                            <label>
+                                Quantity to Move
+                                <input
+                                    type="number"
+                                    name="quantity"
+                                    value={transferForm.quantity}
+                                    onChange={handleTransferFormChange}
+                                    min="1"
+                                    max={transferForm.fromLocationId ? getMaxQuantityForLocation(parseInt(transferForm.fromLocationId)) : 1}
+                                    required
+                                />
+                                {transferForm.fromLocationId && (
+                                    <small style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                                        Max: {getMaxQuantityForLocation(parseInt(transferForm.fromLocationId))}
+                                    </small>
+                                )}
+                            </label>
+                        </div>
+
+                        <div className="modal-actions">
+                            <button type="button" className="btn-action" onClick={() => setShowTransferModal(false)}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn-action btn-primary">
+                                Move
                             </button>
                         </div>
                     </form>

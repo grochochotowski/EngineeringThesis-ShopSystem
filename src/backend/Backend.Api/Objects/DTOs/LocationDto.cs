@@ -66,6 +66,22 @@ namespace Backend.Api.Objects.DTOs
         public int Quantity { get; set; }
     }
 
+    // --- TRANSFER PRODUCT BETWEEN LOCATIONS ---
+    public class TransferProductDto
+    {
+        [Required]
+        public int ProductId { get; set; }
+
+        [Required]
+        public int FromLocationId { get; set; }
+
+        [Required]
+        public int ToLocationId { get; set; }
+
+        [Required, Range(1, int.MaxValue)]
+        public int Quantity { get; set; }
+    }
+
     // --- PRODUCT LOCATION INFO (for search results) ---
     public class ProductLocationInfoDto
     {
