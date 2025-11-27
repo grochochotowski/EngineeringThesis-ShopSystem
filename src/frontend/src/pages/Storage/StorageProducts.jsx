@@ -7,7 +7,7 @@ import Modal from "../../components/Modal";
 import MessageBox from "../../components/MessageBox";
 import "../../styles/PagesStyles/baseListPage.css";
 
-export default function WarehouseProducts() {
+export default function StorageProducts() {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [pageNumber, setPageNumber] = useState(1);
@@ -205,7 +205,7 @@ export default function WarehouseProducts() {
         { key: "productName", label: "Product Name", width: "30%", sortable: true },
         { key: "productPrice", label: "Price", width: "13%", sortable: true },
         { key: "quantity", label: "Total Quantity", width: "15%", sortable: true },
-        { key: "locations", label: "Locations", width: "12%", sortable: true },
+        { key: "locationCount", label: "Locations No.", width: "12%", sortable: true },
         { key: "categoryName", label: "Category", width: "30%", sortable: true },
     ];
 
@@ -215,7 +215,7 @@ export default function WarehouseProducts() {
         productName: product.productName,
         productPrice: `$${product.productPrice.toFixed(2)}`,
         quantity: product.totalQuantity,
-        locations: product.locations?.length || 0,
+        locationCount: product.locations?.length || 0,
         categoryName: product.categoryName,
         rawData: product,
     }));

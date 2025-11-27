@@ -458,6 +458,9 @@ namespace Backend.Api.Api.Services
                     "quantity" => isDescending
                         ? groupedProducts.OrderByDescending(p => p.TotalQuantity).ToList()
                         : groupedProducts.OrderBy(p => p.TotalQuantity).ToList(),
+                    "locationcount" or "locations" => isDescending
+                        ? groupedProducts.OrderByDescending(p => p.Locations.Count).ToList()
+                        : groupedProducts.OrderBy(p => p.Locations.Count).ToList(),
                     "categoryname" or "category" => isDescending
                         ? groupedProducts.OrderByDescending(p => p.ProductInfo.CategoryName).ToList()
                         : groupedProducts.OrderBy(p => p.ProductInfo.CategoryName).ToList(),

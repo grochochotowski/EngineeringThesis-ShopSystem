@@ -22,7 +22,7 @@ const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
 const Categories = lazy(() => import("./pages/Organization/Categories.jsx"));
 const OrganizationProducts = lazy(() => import("./pages/Organization/Products.jsx"));
 
-const WarehouseProducts = lazy(() => import("./pages/Storage/Products.jsx"));
+const StorageProducts = lazy(() => import("./pages/Storage/StorageProducts.jsx"));
 const Warehouses = lazy(() => import("./pages/Storage/Warehouses.jsx"));
 
 const ClientTypes = lazy(() => import("./pages/Dictionaries/ClientTypes.jsx"));
@@ -93,7 +93,7 @@ const router = createBrowserRouter([
         element: (
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
-                    <WarehouseProducts />
+                    <StorageProducts />
                 </ProtectedRoute>
             </PrivateRoute>
         ),
