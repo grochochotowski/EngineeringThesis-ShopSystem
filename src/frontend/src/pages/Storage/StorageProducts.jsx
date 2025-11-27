@@ -79,7 +79,7 @@ export default function StorageProducts() {
     const filtersRef = useRef(null);
 
     // Fetch products from API (aggregated by product)
-    const fetchProducts = async (
+    const fetchProducts = useCallback(async (
         page,
         currentFilters,
         currentSearchQuery,
@@ -157,7 +157,7 @@ export default function StorageProducts() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedProductIdToRestore]);
 
     // Fetch initial data (categories, active products, locations)
     useEffect(() => {
@@ -193,14 +193,14 @@ export default function StorageProducts() {
         }, 1000);
 
         return () => clearTimeout(delay);
-    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection]);
+    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection, fetchProducts]);
 
     const immediateFetchProducts = useCallback(() => {
         if (!initialDataLoaded) return;
         setProducts([]);
         setPageNumber(1);
         fetchProducts(1, filters, searchQuery, sortColumn, sortDirection);
-    }, [sortColumn, sortDirection, filters, searchQuery, initialDataLoaded]);
+    }, [sortColumn, sortDirection, filters, searchQuery, initialDataLoaded, fetchProducts]);
 
     // Trigger fetch for filters/search
     useEffect(() => {
@@ -228,7 +228,7 @@ export default function StorageProducts() {
         if (pageNumber > 1) {
             fetchProducts(pageNumber, filters, searchQuery, sortColumn, sortDirection);
         }
-    }, [pageNumber]);
+    }, [pageNumber, fetchProducts, filters, searchQuery, sortColumn, sortDirection]);
 
     // Columns for table
     const columns = [
