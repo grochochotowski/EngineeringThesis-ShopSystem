@@ -14,6 +14,7 @@ namespace Backend.Api.Api.Services
         Task<bool> DeactivateLocationAsync(int id, CancellationToken ct = default);
         Task<bool> ActivateLocationAsync(int id, CancellationToken ct = default);
         Task<bool> DeleteLocationAsync(int id, CancellationToken ct = default);
+        Task<bool> LocationExistsAsync(string zone, string col, string shelf, CancellationToken ct = default);
     }
 
     public class LocationService : ILocationService
@@ -175,6 +176,13 @@ namespace Backend.Api.Api.Services
             _db.Locations.Remove(location);
             await _db.SaveChangesAsync(ct);
             return true;
+        }
+
+        // --- CHECK IF LOCATION EXISTS ---
+        public async Task<bool> LocationExistsAsync(string zone, string col, string shelf, CancellationToken ct = default)
+        {
+            var locationCode = $"{zone}-{col}-{shelf}".ToUpper();
+            return await _db.Locations.AnyAsync(l => l.LocationCode == locationCode, ct);
         }
 
         // --- HELPER: Map Location to GetLocationDto ---

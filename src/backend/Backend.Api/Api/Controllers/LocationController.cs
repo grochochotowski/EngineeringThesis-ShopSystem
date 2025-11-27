@@ -108,5 +108,20 @@ namespace Backend.Api.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // --- CHECK IF LOCATION EXISTS ---
+        [HttpGet("exists")]
+        public async Task<ActionResult<bool>> CheckExists(
+            [FromQuery] string zone,
+            [FromQuery] string col,
+            [FromQuery] string shelf,
+            CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(zone) || string.IsNullOrWhiteSpace(col) || string.IsNullOrWhiteSpace(shelf))
+                return BadRequest(new { message = "Zone, Col, and Shelf are required." });
+
+            var exists = await _service.LocationExistsAsync(zone, col, shelf, ct);
+            return Ok(exists);
+        }
     }
 }

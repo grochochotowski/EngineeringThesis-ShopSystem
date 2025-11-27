@@ -75,6 +75,54 @@ namespace Backend.Api.Api.Controllers
             return Ok(result);
         }
 
+        // --- SEARCH PRODUCT-LOCATION ROWS (WITH FILTERS) ---
+        [HttpGet("search-product-rows")]
+        public async Task<ActionResult<PagedResult<ProductLocationRowDto>>> SearchProductRows(
+            [FromQuery] string? searchTerm,
+            [FromQuery] int? categoryId,
+            [FromQuery] decimal? minPrice,
+            [FromQuery] decimal? maxPrice,
+            [FromQuery] int? minQuantity,
+            [FromQuery] int? maxQuantity,
+            [FromQuery] string? orderBy,
+            [FromQuery] string? sortDirection,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 50,
+            CancellationToken ct = default)
+        {
+            var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
+            var result = await _service.SearchProductLocationRowsAsync(
+                searchTerm, categoryId, minPrice, maxPrice, minQuantity, maxQuantity,
+                orderBy, sortDirection, pagination, ct);
+            return Ok(result);
+        }
+
+        // --- SEARCH PRODUCTS WITH LOCATIONS (AGGREGATED) ---
+        /// <summary>
+        /// Returns unique products with aggregated quantities and location breakdowns.
+        /// Each product appears once with total quantity across all locations.
+        /// </summary>
+        [HttpGet("search-products-with-locations")]
+        public async Task<ActionResult<PagedResult<ProductWithLocationsDto>>> SearchProductsWithLocations(
+            [FromQuery] string? searchTerm,
+            [FromQuery] int? categoryId,
+            [FromQuery] decimal? minPrice,
+            [FromQuery] decimal? maxPrice,
+            [FromQuery] int? minQuantity,
+            [FromQuery] int? maxQuantity,
+            [FromQuery] string? orderBy,
+            [FromQuery] string? sortDirection,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 50,
+            CancellationToken ct = default)
+        {
+            var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
+            var result = await _service.SearchProductsWithLocationsAsync(
+                searchTerm, categoryId, minPrice, maxPrice, minQuantity, maxQuantity,
+                orderBy, sortDirection, pagination, ct);
+            return Ok(result);
+        }
+
         // --- SEARCH BY LOCATION ---
         [HttpGet("search-location")]
         public async Task<ActionResult<PagedResult<LocationProductsResultDto>>> SearchByLocation(

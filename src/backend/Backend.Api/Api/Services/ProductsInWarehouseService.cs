@@ -11,6 +11,28 @@ namespace Backend.Api.Api.Services
         Task<bool> AddProductToLocationAsync(int productId, int locationId, int quantity, CancellationToken ct = default);
         Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, CancellationToken ct = default);
         Task<PagedResult<ProductSearchResultDto>> SearchProductAsync(string? searchTerm, PaginationParams pagination, CancellationToken ct = default);
+        Task<PagedResult<ProductLocationRowDto>> SearchProductLocationRowsAsync(
+            string? searchTerm,
+            int? categoryId,
+            decimal? minPrice,
+            decimal? maxPrice,
+            int? minQuantity,
+            int? maxQuantity,
+            string? orderBy,
+            string? sortDirection,
+            PaginationParams pagination,
+            CancellationToken ct = default);
+        Task<PagedResult<ProductWithLocationsDto>> SearchProductsWithLocationsAsync(
+            string? searchTerm,
+            int? categoryId,
+            decimal? minPrice,
+            decimal? maxPrice,
+            int? minQuantity,
+            int? maxQuantity,
+            string? orderBy,
+            string? sortDirection,
+            PaginationParams pagination,
+            CancellationToken ct = default);
         Task<PagedResult<LocationProductsResultDto>> SearchByLocationAsync(string locationCodePart, PaginationParams pagination, CancellationToken ct = default);
     }
 
@@ -139,6 +161,113 @@ namespace Backend.Api.Api.Services
             };
         }
 
+        // --- SEARCH PRODUCT-LOCATION ROWS (FLATTENED) ---
+        public async Task<PagedResult<ProductLocationRowDto>> SearchProductLocationRowsAsync(
+            string? searchTerm,
+            int? categoryId,
+            decimal? minPrice,
+            decimal? maxPrice,
+            int? minQuantity,
+            int? maxQuantity,
+            string? orderBy,
+            string? sortDirection,
+            PaginationParams pagination,
+            CancellationToken ct = default)
+        {
+            var query = _db.ProductsInWarehouse
+                .AsNoTracking()
+                .Include(pw => pw.Product)
+                .ThenInclude(p => p.Category)
+                .Include(pw => pw.Location)
+                .Where(pw => pw.Product.IsActive) // Only show active products
+                .AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.Trim().ToLower();
+                query = query.Where(pw =>
+                    pw.Product.Name.ToLower().Contains(term) ||
+                    pw.Product.SKU.ToLower().Contains(term) ||
+                    pw.Product.Description.ToLower().Contains(term));
+            }
+
+            // Apply category filter
+            if (categoryId.HasValue)
+            {
+                query = query.Where(pw => pw.Product.CategoryId == categoryId.Value);
+            }
+
+            // Apply price filters
+            if (minPrice.HasValue)
+            {
+                query = query.Where(pw => pw.Product.Price >= minPrice.Value);
+            }
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(pw => pw.Product.Price <= maxPrice.Value);
+            }
+
+            // Apply quantity filters
+            if (minQuantity.HasValue)
+            {
+                query = query.Where(pw => pw.Quantity >= minQuantity.Value);
+            }
+            if (maxQuantity.HasValue)
+            {
+                query = query.Where(pw => pw.Quantity <= maxQuantity.Value);
+            }
+
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(orderBy))
+            {
+                var isDescending = sortDirection?.ToLower() == "desc";
+                query = orderBy.ToLower() switch
+                {
+                    "name" => isDescending ? query.OrderByDescending(pw => pw.Product.Name) : query.OrderBy(pw => pw.Product.Name),
+                    "price" => isDescending ? query.OrderByDescending(pw => pw.Product.Price) : query.OrderBy(pw => pw.Product.Price),
+                    "quantity" => isDescending ? query.OrderByDescending(pw => pw.Quantity) : query.OrderBy(pw => pw.Quantity),
+                    "locationcode" => isDescending ? query.OrderByDescending(pw => pw.Location.LocationCode) : query.OrderBy(pw => pw.Location.LocationCode),
+                    "category" => isDescending ? query.OrderByDescending(pw => pw.Product.Category.Name) : query.OrderBy(pw => pw.Product.Category.Name),
+                    _ => query.OrderBy(pw => pw.Product.Name) // Default sort
+                };
+            }
+            else
+            {
+                query = query.OrderBy(pw => pw.Product.Name); // Default sort
+            }
+
+            // Get total count before pagination
+            var totalCount = await query.CountAsync(ct);
+
+            // Apply pagination
+            var items = await query
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
+                .Select(pw => new ProductLocationRowDto
+                {
+                    ProductId = pw.ProductId,
+                    ProductName = pw.Product.Name,
+                    ProductSKU = pw.Product.SKU,
+                    ProductPrice = pw.Product.Price,
+                    ProductDescription = pw.Product.Description,
+                    CategoryId = pw.Product.CategoryId,
+                    CategoryName = pw.Product.Category.Name,
+                    LocationId = pw.LocationId,
+                    LocationCode = pw.Location.LocationCode,
+                    Quantity = pw.Quantity
+                })
+                .ToListAsync(ct);
+
+            return new PagedResult<ProductLocationRowDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pagination.PageNumber,
+                PageSize = pagination.PageSize
+            };
+        }
+
         // --- SEARCH BY LOCATION ---
         public async Task<PagedResult<LocationProductsResultDto>> SearchByLocationAsync(string locationCodePart, PaginationParams pagination, CancellationToken ct = default)
         {
@@ -210,6 +339,160 @@ namespace Backend.Api.Api.Services
             }).ToList();
 
             return new PagedResult<LocationProductsResultDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pagination.PageNumber,
+                PageSize = pagination.PageSize
+            };
+        }
+
+        // --- SEARCH PRODUCTS WITH LOCATIONS (AGGREGATED) ---
+        public async Task<PagedResult<ProductWithLocationsDto>> SearchProductsWithLocationsAsync(
+            string? searchTerm,
+            int? categoryId,
+            decimal? minPrice,
+            decimal? maxPrice,
+            int? minQuantity,
+            int? maxQuantity,
+            string? orderBy,
+            string? sortDirection,
+            PaginationParams pagination,
+            CancellationToken ct = default)
+        {
+            // Start by getting all product-location relationships that match our filters
+            var query = _db.ProductsInWarehouse
+                .AsNoTracking()
+                .Include(pw => pw.Product)
+                .ThenInclude(p => p.Category)
+                .Include(pw => pw.Location)
+                .Where(pw => pw.Product.IsActive)
+                .AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.Trim().ToLower();
+                query = query.Where(pw =>
+                    pw.Product.Name.ToLower().Contains(term) ||
+                    pw.Product.SKU.ToLower().Contains(term) ||
+                    pw.Product.Description.ToLower().Contains(term));
+            }
+
+            // Apply category filter
+            if (categoryId.HasValue)
+            {
+                query = query.Where(pw => pw.Product.CategoryId == categoryId.Value);
+            }
+
+            // Apply price filters
+            if (minPrice.HasValue)
+            {
+                query = query.Where(pw => pw.Product.Price >= minPrice.Value);
+            }
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(pw => pw.Product.Price <= maxPrice.Value);
+            }
+
+            // Apply quantity filters (on individual location quantities for filtering purposes)
+            if (minQuantity.HasValue)
+            {
+                query = query.Where(pw => pw.Quantity >= minQuantity.Value);
+            }
+            if (maxQuantity.HasValue)
+            {
+                query = query.Where(pw => pw.Quantity <= maxQuantity.Value);
+            }
+
+            // Get all matching product-location records
+            var allMatches = await query.ToListAsync(ct);
+
+            // Group by product to aggregate locations
+            var groupedProducts = allMatches
+                .GroupBy(pw => new
+                {
+                    pw.ProductId,
+                    pw.Product.Name,
+                    pw.Product.SKU,
+                    pw.Product.Price,
+                    pw.Product.Description,
+                    pw.Product.CategoryId,
+                    CategoryName = pw.Product.Category.Name
+                })
+                .Select(g => new
+                {
+                    ProductInfo = g.Key,
+                    TotalQuantity = g.Sum(pw => pw.Quantity),
+                    Locations = g.Select(pw => new ProductLocationBreakdownDto
+                    {
+                        LocationId = pw.LocationId,
+                        LocationCode = pw.Location.LocationCode,
+                        Quantity = pw.Quantity
+                    }).ToList()
+                })
+                .ToList();
+
+            // Apply quantity filters on total quantity if specified
+            if (minQuantity.HasValue)
+            {
+                groupedProducts = groupedProducts.Where(p => p.TotalQuantity >= minQuantity.Value).ToList();
+            }
+            if (maxQuantity.HasValue)
+            {
+                groupedProducts = groupedProducts.Where(p => p.TotalQuantity <= maxQuantity.Value).ToList();
+            }
+
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(orderBy))
+            {
+                var isDescending = sortDirection?.ToLower() == "desc";
+                groupedProducts = orderBy.ToLower() switch
+                {
+                    "productname" or "name" => isDescending
+                        ? groupedProducts.OrderByDescending(p => p.ProductInfo.Name).ToList()
+                        : groupedProducts.OrderBy(p => p.ProductInfo.Name).ToList(),
+                    "productprice" or "price" => isDescending
+                        ? groupedProducts.OrderByDescending(p => p.ProductInfo.Price).ToList()
+                        : groupedProducts.OrderBy(p => p.ProductInfo.Price).ToList(),
+                    "quantity" => isDescending
+                        ? groupedProducts.OrderByDescending(p => p.TotalQuantity).ToList()
+                        : groupedProducts.OrderBy(p => p.TotalQuantity).ToList(),
+                    "categoryname" or "category" => isDescending
+                        ? groupedProducts.OrderByDescending(p => p.ProductInfo.CategoryName).ToList()
+                        : groupedProducts.OrderBy(p => p.ProductInfo.CategoryName).ToList(),
+                    _ => groupedProducts.OrderBy(p => p.ProductInfo.Name).ToList()
+                };
+            }
+            else
+            {
+                groupedProducts = groupedProducts.OrderBy(p => p.ProductInfo.Name).ToList();
+            }
+
+            // Get total count of unique products
+            var totalCount = groupedProducts.Count;
+
+            // Apply pagination on unique products
+            var pagedProducts = groupedProducts
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
+                .ToList();
+
+            // Map to DTOs
+            var items = pagedProducts.Select(p => new ProductWithLocationsDto
+            {
+                ProductId = p.ProductInfo.ProductId,
+                ProductName = p.ProductInfo.Name,
+                ProductSKU = p.ProductInfo.SKU,
+                ProductPrice = p.ProductInfo.Price,
+                ProductDescription = p.ProductInfo.Description,
+                CategoryId = p.ProductInfo.CategoryId,
+                CategoryName = p.ProductInfo.CategoryName,
+                TotalQuantity = p.TotalQuantity,
+                Locations = p.Locations
+            }).ToList();
+
+            return new PagedResult<ProductWithLocationsDto>
             {
                 Items = items,
                 TotalCount = totalCount,

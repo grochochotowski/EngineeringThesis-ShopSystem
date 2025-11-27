@@ -106,4 +106,41 @@ namespace Backend.Api.Objects.DTOs
         public int ProductCount { get; set; }
         public List<LocationProductItemDto> Products { get; set; } = new();
     }
+
+    // --- PRODUCT-LOCATION ROW (FLATTENED) ---
+    public class ProductLocationRowDto
+    {
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = default!;
+        public string ProductSKU { get; set; } = default!;
+        public decimal ProductPrice { get; set; }
+        public string ProductDescription { get; set; } = default!;
+        public int CategoryId { get; set; }
+        public string CategoryName { get; set; } = default!;
+        public int LocationId { get; set; }
+        public string LocationCode { get; set; } = default!;
+        public int Quantity { get; set; }
+    }
+
+    // --- PRODUCT LOCATION BREAKDOWN (for aggregated view) ---
+    public class ProductLocationBreakdownDto
+    {
+        public int LocationId { get; set; }
+        public string LocationCode { get; set; } = default!;
+        public int Quantity { get; set; }
+    }
+
+    // --- PRODUCT WITH LOCATIONS (AGGREGATED) ---
+    public class ProductWithLocationsDto
+    {
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = default!;
+        public string ProductSKU { get; set; } = default!;
+        public decimal ProductPrice { get; set; }
+        public string ProductDescription { get; set; } = default!;
+        public int CategoryId { get; set; }
+        public string CategoryName { get; set; } = default!;
+        public int TotalQuantity { get; set; }
+        public List<ProductLocationBreakdownDto> Locations { get; set; } = new();
+    }
 }

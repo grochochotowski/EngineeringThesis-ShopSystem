@@ -54,4 +54,12 @@ namespace Backend.Api.Objects.DTOs
         [Required]                              public int CategoryId               { get; set; }
         [Required]                              public int TaxRateId                { get; set; }
     }
+
+    // --- ACTIVE PRODUCT (for dropdown selection) ---
+    public class ActiveProductDto
+    {
+                                                public int ProductId                { get; set; }
+                                                public string SKU                   { get; set; } = default!;
+                                                public string Name                  { get; set; } = default!;
+    }
 }

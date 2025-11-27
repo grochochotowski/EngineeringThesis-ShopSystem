@@ -58,6 +58,14 @@ namespace Backend.Api.Controllers
             return Ok(result);
         }
 
+        // --- GET ACTIVE PRODUCTS ---
+        [HttpGet("active")]
+        public async Task<ActionResult<List<ActiveProductDto>>> GetActiveProducts(CancellationToken ct)
+        {
+            var products = await _service.GetActiveProductsAsync(ct);
+            return Ok(products);
+        }
+
         // --- UPDATE PRODUCT ---
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateProductDto dto, CancellationToken ct)

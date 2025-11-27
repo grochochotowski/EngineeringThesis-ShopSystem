@@ -24,6 +24,7 @@ namespace Backend.Api.Api.Controllers
         Task<bool> UpdateAsync(int id, UpdateProductDto dto, CancellationToken ct = default);
         Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
         Task<bool> RestoreAsync(int id, CancellationToken ct = default);
+        Task<List<ActiveProductDto>> GetActiveProductsAsync(CancellationToken ct = default);
     }
     public class ProductService : IProductService
     {
@@ -221,7 +222,25 @@ namespace Backend.Api.Api.Controllers
             await _db.SaveChangesAsync(ct);
             return true;
         }
-  
+
+        // --- GET ACTIVE PRODUCTS ---
+        public async Task<List<ActiveProductDto>> GetActiveProductsAsync(CancellationToken ct = default)
+        {
+            var products = await _db.Products
+                .AsNoTracking()
+                .Where(p => p.IsActive)
+                .OrderBy(p => p.Name)
+                .Select(p => new ActiveProductDto
+                {
+                    ProductId = p.Id,
+                    SKU = p.SKU,
+                    Name = p.Name
+                })
+                .ToListAsync(ct);
+
+            return products;
+        }
+
         // --- MAPPER ---
         private static GetProductDto Map(Product p) => new()
         {
