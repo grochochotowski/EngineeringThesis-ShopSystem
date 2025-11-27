@@ -327,8 +327,24 @@ export default function StorageProducts() {
 
     // Add Product handlers
     const handleOpenAddModal = () => {
-        setAddForm({ productId: "", locationId: "", quantity: 1 });
-        setProductSearchTerm("");
+        // Pre-fill product if one is selected from the list
+        if (selectedProduct?.rawData) {
+            const product = activeProducts.find(p => p.productId === selectedProduct.productId);
+            if (product) {
+                setAddForm({
+                    productId: product.productId,
+                    locationId: "",
+                    quantity: 1
+                });
+                setProductSearchTerm(`${product.sku} - ${product.name}`);
+            } else {
+                setAddForm({ productId: "", locationId: "", quantity: 1 });
+                setProductSearchTerm("");
+            }
+        } else {
+            setAddForm({ productId: "", locationId: "", quantity: 1 });
+            setProductSearchTerm("");
+        }
         setFilteredProducts([]);
         setShowProductDropdown(false);
         setShowAddModal(true);
