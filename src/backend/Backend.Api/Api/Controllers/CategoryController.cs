@@ -40,9 +40,9 @@ namespace Backend.Api.Api.Controllers
 
         // --- GET ALL CATEGORIES (paginated) ---
         [HttpGet]
-        public async Task<ActionResult<PagedResult<GetCategoryDto>>> GetAll([FromQuery] PaginationParams pagination, [FromQuery] bool? isActive = null, CancellationToken ct = default)
+        public async Task<ActionResult<PagedResult<GetCategoryDto>>> GetAll([FromQuery] PaginationParams pagination, [FromQuery] bool? isActive = null, [FromQuery] string? orderBy = null, [FromQuery] string? sortDirection = null, CancellationToken ct = default)
         {
-            var list = await _service.GetAllAsync(pagination, isActive, ct);
+            var list = await _service.GetAllAsync(pagination, isActive, orderBy, sortDirection, ct);
             return Ok(list);
         }
 

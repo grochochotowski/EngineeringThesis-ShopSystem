@@ -50,7 +50,6 @@ export default function Users() {
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [toast, setToast] = useState(null);
-    const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
 
     const [selectedRow, setSelectedRow] = useState(null);
     const [selectedUserDetails, setSelectedUserDetails] = useState(null);
@@ -82,7 +81,7 @@ export default function Users() {
         lastName: "lastName",
         email: "email",
         role: "role",
-        isActiveLabel: "isActive",
+        isActive: "isActive",
     };
 
     // --- Search ---
@@ -91,7 +90,6 @@ export default function Users() {
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
     const filtersRef = useRef(null);
-    const typingTimeout = useRef(null);
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
     const canManageUsers = isManagerOrAbove(currentUser?.role);
@@ -102,7 +100,11 @@ export default function Users() {
     const fetchUsers = useCallback(
         async (page = 1, reset = false) => {
             if (loadedPages.current.has(page) && !reset) return;
-            loadedPages.current.add(page);
+            if(reset) {
+                setUsers([]);
+                setPageNumber(1);
+                loadedPages.current.clear();
+            }
 
             try {
                 setLoading(true);
@@ -138,23 +140,18 @@ export default function Users() {
         [filters, searchQuery, sortColumn, sortDirection]
     );
 
-    // === Initial load ===
+    // === Initial load and immediate fetches (filters, sorting) ===
     useEffect(() => {
         fetchUsers(1, true);
-    }, [fetchUsers]);
+    }, [filters, sortColumn, sortDirection]);
 
-    // === Auto refresh when filters/search change ===
+    // === Effect for debounced search ===
     useEffect(() => {
-        const delay = setTimeout(() => {
-            setUsers([]);
-            loadedPages.current.clear();
-            setPageNumber(1);
+        const handler = setTimeout(() => {
             fetchUsers(1, true);
-            setIsDelayedRefresh(false);
-        }, isDelayedRefresh ? 500 : 0);
-
-        return () => clearTimeout(delay);
-    }, [filters, searchQuery, isDelayedRefresh, fetchUsers]);
+        }, 500); // 500ms debounce for search
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
 
     // === Infinite scroll ===
     useEffect(() => {
@@ -165,7 +162,9 @@ export default function Users() {
             }
         });
         if (observerRef.current) observer.observe(observerRef.current);
-        return () => observer.disconnect();
+        return () => {
+            if(observerRef.current) observer.disconnect();
+        };
     }, [loading, hasMore]);
 
     // === Load next page ===
@@ -176,12 +175,12 @@ export default function Users() {
     // === Columns ===
     const columns = [
         { key: "id", label: "ID", width: "8%", sortable: false },
-        { key: "firstName", label: "First Name", width: "16%" },
-        { key: "lastName", label: "Last Name", width: "16%" },
-        { key: "email", label: "Email", width: "22%" },
+        { key: "firstName", label: "First Name", width: "16%", sortable: true },
+        { key: "lastName", label: "Last Name", width: "16%", sortable: true },
+        { key: "email", label: "Email", width: "22%", sortable: true },
         { key: "phoneNumber", label: "Phone", width: "14%", sortable: false },
-        { key: "role", label: "Role", width: "14%" },
-        { key: "isActiveLabel", label: "Active", width: "10%" },
+        { key: "role", label: "Role", width: "14%", sortable: true },
+        { key: "isActive", label: "Active", width: "10%", sortable: true }, // Changed key to isActive and added sortable
     ];
 
     const toRow = useCallback((u) => {
@@ -193,8 +192,8 @@ export default function Users() {
             email: u.email,
             phoneNumber: u.phoneNumber || "—",
             role: u.role || "—",
-            isActiveLabel: active ? "Yes" : "No",
-            _isActive: active,
+            isActive: active ? "Yes" : "No", // Set for table display
+            _isActive: active, // Store boolean for logic
             addressId: u.addressId,
         };
     }, []);
@@ -204,48 +203,35 @@ export default function Users() {
     // === Search change with debounce ===
     const handleSearchChange = (value) => {
         setSearchQuery(value);
-        setIsDelayedRefresh(true);
-
-        if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => {
-            setUsers([]);
-            loadedPages.current.clear();
-            setPageNumber(1);
-            fetchUsers(1, true);
-            setIsDelayedRefresh(false);
-        }, 500);
+        setSelectedRow(null);
+        setSelectedUserDetails(null);
     };
 
     const handleSort = (column) => {
-        if (!sortKeyMap[column]) return;
-        setIsDelayedRefresh(false);
+        if (!sortKeyMap[column]) return; // Only sort sortable columns
 
-        if (sortColumn === column) {
+        if (sortColumn === column) { // If clicking the currently sorted column
             if (sortDirection === "asc") {
-                setSortDirection("desc");
-            } else if (sortDirection === "desc") {
+                setSortDirection("desc"); // 1st click -> asc, 2nd click -> desc
+            } else {
+                // 3rd click -> remove sort
                 setSortColumn(null);
                 setSortDirection(null);
-            } else {
-                setSortColumn(column);
-                setSortDirection("asc");
             }
-        } else {
+        } else { // If clicking a new column
             setSortColumn(column);
-            setSortDirection("asc");
+            setSortDirection("asc"); // New column -> sort asc
         }
     };
 
     // === Filter handlers ===
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
-        setIsDelayedRefresh(false);
         setFilters((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleBooleanChange = (e) => {
         const { name, value } = e.target;
-        setIsDelayedRefresh(false);
         setFilters((prev) => ({
             ...prev,
             [name]: value === "" ? "" : value === "true",

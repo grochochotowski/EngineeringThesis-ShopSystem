@@ -33,14 +33,13 @@ export default function Categories() {
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
 
-    // === FETCH CATEGORIES ===
     const fetchCategories = useCallback(async (page = 1, reset = false) => {
-        if(reset) {
+        setLoading(true);
+        if (reset) {
             setPageNumber(1);
             setCategories([]);
         }
         try {
-            setLoading(true);
             const { items = [], totalPages = 1 } = await api.get("/Categories", {
                 params: {
                     PageNumber: page,
@@ -50,20 +49,20 @@ export default function Categories() {
                     sortDirection: sortDirection,
                 },
             });
-
-            setCategories(prev => page === 1 ? items : [...prev, ...items]);
+            setCategories(prev => reset ? items : [...prev, ...items.filter(i => !prev.some(p => p.id === i.id))]);
             setHasMore(page < totalPages);
         } catch (err) {
-            console.error(err);
             setError("Failed to load categories.");
+            console.error(err);
         } finally {
             setLoading(false);
         }
     }, [filters, sortColumn, sortDirection]);
 
+    // Effect for initial load and subsequent filtering/sorting
     useEffect(() => {
         fetchCategories(1, true);
-    }, [fetchCategories]);
+    }, [filters, sortColumn, sortDirection]);
 
     // === Infinite scroll ===
     useEffect(() => {
@@ -74,7 +73,9 @@ export default function Categories() {
             }
         });
         if (observerRef.current) observer.observe(observerRef.current);
-        return () => observer.disconnect();
+        return () => {
+            if(observerRef.current) observer.disconnect();
+        }
     }, [loading, hasMore]);
 
     useEffect(() => {
@@ -84,16 +85,17 @@ export default function Categories() {
     }, [pageNumber]);
 
     const columns = [
-        { key: "id", label: "ID", width: "10%" },
-        { key: "name", label: "Name", width: "30%" },
+        { key: "id", label: "ID", width: "10%", sortable: false },
+        { key: "name", label: "Name", width: "30%", sortable: true },
         { key: "description", label: "Description", width: "50%" },
-        { key: "isActiveText", label: "Active", width: "10%" },
+        { key: "isActive", label: "Active", width: "10%", sortable: true },
     ];
     
     const rows = useMemo(() => {
         return categories.map(c => ({
             ...c,
-            isActiveText: c.isActive ? "Yes" : "No",
+            _isActive: c.isActive, // Keep original boolean for logic
+            isActive: c.isActive ? "Yes" : "No", // For table display
         }));
     }, [categories]);
 
@@ -139,11 +141,21 @@ export default function Categories() {
     }, [showFilters]);
 
     const handleSort = (column) => {
-        if (sortColumn === column) {
-            setSortDirection(prev => prev === "asc" ? "desc" : "asc");
-        } else {
+        // Find the column definition to check if it's sortable
+        const colDef = columns.find(c => c.key === column);
+        if (!colDef || colDef.sortable === false) return; // Only sort sortable columns
+
+        if (sortColumn === column) { // If clicking the currently sorted column
+            if (sortDirection === "asc") {
+                setSortDirection("desc"); // 1st click -> asc, 2nd click -> desc
+            } else {
+                // 3rd click -> remove sort
+                setSortColumn(null);
+                setSortDirection(null);
+            }
+        } else { // If clicking a new column
             setSortColumn(column);
-            setSortDirection("asc");
+            setSortDirection("asc"); // New column -> sort asc
         }
     };
 
@@ -239,9 +251,10 @@ export default function Categories() {
                     <CategoryForm
                         mode={formMode}
                         category={formMode === "edit" ? selectedRow : null}
-                        onSuccess={() => {
+                        onSuccess={async (categoryId) => {
                             setShowModal(false);
-                            fetchCategories(1, true);
+                            lastSelectedId.current = categoryId;
+                            await fetchCategories(1, true);
                         }}
                     />
                 </Modal>

@@ -167,12 +167,12 @@ export default function Products() {
 
     // Columns for table
     const columns = [
-        { key: "sku", label: "SKU", width: "20%" },
-        { key: "name", label: "Name", width: "30%" },
-        { key: "price", label: "Price", width: "15%" },
-        { key: "defective", label: "Defective", width: "15%" },
-        { key: "category", label: "Category", width: "10%" },
-        { key: "isactive", label: "Active", width: "10%" },
+        { key: "sku", label: "SKU", width: "20%", sortable: true },
+        { key: "name", label: "Name", width: "30%", sortable: true },
+        { key: "price", label: "Price", width: "15%", sortable: true },
+        { key: "defective", label: "Defective", width: "15%", sortable: true },
+        { key: "category", label: "Category", width: "10%", sortable: true },
+        { key: "isactive", label: "Active", width: "10%", sortable: true },
     ];
 
     const rows = products.map((p) => ({
@@ -281,20 +281,21 @@ export default function Products() {
                     ],
                 };
     const handleSort = (column) => {
-        setIsDelayedRefresh(false);
-        if (sortColumn === column) {
+        // Find the column definition to check if it's sortable
+        const colDef = columns.find(c => c.key === column);
+        if (!colDef || colDef.sortable === false) return; // Only sort sortable columns
+
+        if (sortColumn === column) { // If clicking the currently sorted column
             if (sortDirection === "asc") {
-                setSortDirection("desc");
-            } else if (sortDirection === "desc") {
+                setSortDirection("desc"); // 1st click -> asc, 2nd click -> desc
+            } else {
+                // 3rd click -> remove sort
                 setSortColumn(null);
                 setSortDirection(null);
-            } else {
-                setSortColumn(column);
-                setSortDirection("asc");
             }
-        } else {
+        } else { // If clicking a new column
             setSortColumn(column);
-            setSortDirection("asc");
+            setSortDirection("asc"); // New column -> sort asc
         }
     };
 

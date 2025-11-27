@@ -34,11 +34,12 @@ export default function CategoryForm({ mode = "create", category, onSuccess }) {
 
         try {
             if (mode === "create") {
-                await api.post("/Categories", form);
+                const response = await api.post("/Categories", form);
+                onSuccess?.(response.id);
             } else {
                 await api.put(`/Categories/${category.id}`, form);
+                onSuccess?.(category.id);
             }
-            onSuccess?.();
         } catch (err) {
             console.error(err);
             setToast({

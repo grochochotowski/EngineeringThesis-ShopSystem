@@ -91,7 +91,7 @@ namespace Backend.Api.Api.Services
                 "city" => isDescending ? query.OrderByDescending(a => a.City) : query.OrderBy(a => a.City),
                 "street" => isDescending ? query.OrderByDescending(a => a.Street) : query.OrderBy(a => a.Street),
                 "postalcode" => isDescending ? query.OrderByDescending(a => a.PostalCode) : query.OrderBy(a => a.PostalCode),
-                _ => query.OrderBy(a => a.Id)
+                _ => isDescending ? query.OrderByDescending(a => a.City) : query.OrderBy(a => a.City) // Default sort if no orderBy is provided or recognized
             };
 
             var projectedQuery = query.Select(a => new GetAddressDto

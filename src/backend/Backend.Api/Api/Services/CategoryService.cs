@@ -9,7 +9,7 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetCategoryDto> CreateAsync(CreateCategoryDto dto, CancellationToken ct = default);
         Task<GetCategoryDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, CancellationToken ct = default);
+        Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateCategoryDto dto, CancellationToken ct = default);
         Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
         Task<bool> ActivateAsync(int id, CancellationToken ct = default);
@@ -46,16 +46,25 @@ namespace Backend.Api.Api.Controllers
         }
 
         // --- GET ALL CATEGORIES (paginated) ---
-        public async Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, CancellationToken ct = default)
+        public async Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default)
         {
-            var query = _db.Categories
-                .AsNoTracking()
-                .OrderBy(c => c.Name);
+            var query = _db.Categories.AsNoTracking();
 
             if (isActive.HasValue)
             {
-                query = query.Where(c => c.IsActive == isActive.Value).OrderBy(c => c.Name);
+                query = query.Where(c => c.IsActive == isActive.Value);
             }
+
+            // Sorting
+            var isDescending = sortDirection?.ToLower() == "desc";
+
+            query = orderBy?.ToLower() switch
+            {
+                "name" => isDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
+                "description" => isDescending ? query.OrderByDescending(c => c.Description) : query.OrderBy(c => c.Description),
+                "isactive" => isDescending ? query.OrderByDescending(c => c.IsActive) : query.OrderBy(c => c.IsActive),
+                _ => isDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name) // Default sort if no orderBy is provided or recognized
+            };
 
             var projectedQuery = query.Select(c => new GetCategoryDto
                 {

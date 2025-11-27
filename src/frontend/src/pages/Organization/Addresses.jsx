@@ -12,7 +12,6 @@ export default function Addresses() {
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [toast, setToast] = useState(null);
-    const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
 
     const [countries, setCountries] = useState([]);
     const [selectedRow, setSelectedRow] = useState(null);
@@ -97,23 +96,20 @@ export default function Addresses() {
         [filters, searchQuery, sortColumn, sortDirection]
     );
 
-    // === Initial load ===
+    // === Initial load and immediate fetches (filters, sorting) ===
     useEffect(() => {
         fetchAddresses(1, true);
-    }, [fetchAddresses]);
+    }, [filters, sortColumn, sortDirection, fetchAddresses]);
 
-    // === Auto refresh when filters/search change ===
+    // === Effect for debounced search ===
     useEffect(() => {
-        const delay = setTimeout(() => {
-            setAddresses([]);
-            loadedPages.current.clear();
-            setPageNumber(1);
-            fetchAddresses(1, true);
-            setIsDelayedRefresh(false);
-        }, isDelayedRefresh ? 500 : 0);
-
-        return () => clearTimeout(delay);
-    }, [filters, searchQuery, isDelayedRefresh, fetchAddresses]);
+        if (searchQuery !== undefined) { // undefined to not trigger on initial render if searchQuery is initially ""
+            const handler = setTimeout(() => {
+                fetchAddresses(1, true);
+            }, 500); // 500ms debounce for search
+            return () => clearTimeout(handler);
+        }
+    }, [searchQuery, fetchAddresses]);
 
     // === Infinite scroll ===
     useEffect(() => {
@@ -135,12 +131,12 @@ export default function Addresses() {
     // === Columns ===
     const columns = [
         { key: "id", label: "ID", width: "8%", sortable: false },
-        { key: "country", label: "Country", width: "15%" },
-        { key: "city", label: "City", width: "15%" },
-        { key: "street", label: "Street", width: "25%" },
+        { key: "country", label: "Country", width: "15%", sortable: true },
+        { key: "city", label: "City", width: "15%", sortable: true },
+        { key: "street", label: "Street", width: "25%", sortable: true },
         { key: "building", label: "Building", width: "12%", sortable: false },
         { key: "premises", label: "Premises", width: "10%", sortable: false },
-        { key: "postalCode", label: "Postal Code", width: "15%" },
+        { key: "postalCode", label: "Postal Code", width: "15%", sortable: true },
     ];
 
     const toRow = useCallback((a) => {
@@ -160,21 +156,12 @@ export default function Addresses() {
     // === Search change with debounce ===
     const handleSearchChange = (value) => {
         setSearchQuery(value);
-        setIsDelayedRefresh(true);
-
-        if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => {
-            setAddresses([]);
-            loadedPages.current.clear();
-            setPageNumber(1);
-            fetchAddresses(1, true);
-            setIsDelayedRefresh(false);
-        }, 500);
+        setSelectedRow(null);
+        setSelectedAddressDetails(null);
     };
 
     const handleSort = (column) => {
         if (!sortKeyMap[column]) return;
-        setIsDelayedRefresh(false);
 
         if (sortColumn === column) {
             if (sortDirection === "asc") {
@@ -195,7 +182,6 @@ export default function Addresses() {
     // === Filter handlers ===
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
-        setIsDelayedRefresh(false);
         setFilters((prev) => ({ ...prev, [name]: value }));
     };
 
