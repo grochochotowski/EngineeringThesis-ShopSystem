@@ -42,6 +42,14 @@ const initialAddress = {
     postalCode: "",
 };
 
+const sortKeyMap = {
+        firstName: "firstName",
+        lastName: "lastName",
+        email: "email",
+        role: "role",
+        isActiveLabel: "isActive",
+    };
+
 export default function Users() {
     const [users, setUsers] = useState([]);
     const [pageNumber, setPageNumber] = useState(1);
@@ -67,6 +75,7 @@ export default function Users() {
         confirmNewPassword: "",
     });
     const [loginForm, setLoginForm] = useState({ newLogin: "" });
+    const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
 
     // --- Filters ---
     const [filters, setFilters] = useState({
@@ -75,14 +84,6 @@ export default function Users() {
     });
     const [sortColumn, setSortColumn] = useState("lastName");
     const [sortDirection, setSortDirection] = useState("asc");
-
-    const sortKeyMap = {
-        firstName: "firstName",
-        lastName: "lastName",
-        email: "email",
-        role: "role",
-        isActive: "isActive",
-    };
 
     // --- Search ---
     const [searchQuery, setSearchQuery] = useState("");
@@ -100,11 +101,7 @@ export default function Users() {
     const fetchUsers = useCallback(
         async (page = 1, reset = false) => {
             if (loadedPages.current.has(page) && !reset) return;
-            if(reset) {
-                setUsers([]);
-                setPageNumber(1);
-                loadedPages.current.clear();
-            }
+            loadedPages.current.add(page);
 
             try {
                 setLoading(true);
@@ -140,18 +137,23 @@ export default function Users() {
         [filters, searchQuery, sortColumn, sortDirection]
     );
 
-    // === Initial load and immediate fetches (filters, sorting) ===
+    // === Initial load ===
     useEffect(() => {
         fetchUsers(1, true);
-    }, [filters, sortColumn, sortDirection]);
+    }, [fetchUsers]);
 
-    // === Effect for debounced search ===
+    // === Auto refresh when filters/search change ===
     useEffect(() => {
-        const handler = setTimeout(() => {
+        const delay = setTimeout(() => {
+            setUsers([]);
+            loadedPages.current.clear();
+            setPageNumber(1);
             fetchUsers(1, true);
-        }, 500); // 500ms debounce for search
-        return () => clearTimeout(handler);
-    }, [searchQuery]);
+            setIsDelayedRefresh(false);
+        }, isDelayedRefresh ? 500 : 0);
+
+        return () => clearTimeout(delay);
+    }, [filters, searchQuery, isDelayedRefresh, fetchUsers]);
 
     // === Infinite scroll ===
     useEffect(() => {
@@ -162,9 +164,7 @@ export default function Users() {
             }
         });
         if (observerRef.current) observer.observe(observerRef.current);
-        return () => {
-            if(observerRef.current) observer.disconnect();
-        };
+        return () => observer.disconnect();
     }, [loading, hasMore]);
 
     // === Load next page ===
@@ -175,12 +175,12 @@ export default function Users() {
     // === Columns ===
     const columns = [
         { key: "id", label: "ID", width: "8%", sortable: false },
-        { key: "firstName", label: "First Name", width: "16%", sortable: true },
-        { key: "lastName", label: "Last Name", width: "16%", sortable: true },
-        { key: "email", label: "Email", width: "22%", sortable: true },
+        { key: "firstName", label: "First Name", width: "16%" },
+        { key: "lastName", label: "Last Name", width: "16%" },
+        { key: "email", label: "Email", width: "22%" },
         { key: "phoneNumber", label: "Phone", width: "14%", sortable: false },
-        { key: "role", label: "Role", width: "14%", sortable: true },
-        { key: "isActive", label: "Active", width: "10%", sortable: true }, // Changed key to isActive and added sortable
+        { key: "role", label: "Role", width: "14%" },
+        { key: "isActiveLabel", label: "Active", width: "10%" },
     ];
 
     const toRow = useCallback((u) => {
@@ -192,8 +192,8 @@ export default function Users() {
             email: u.email,
             phoneNumber: u.phoneNumber || "—",
             role: u.role || "—",
-            isActive: active ? "Yes" : "No", // Set for table display
-            _isActive: active, // Store boolean for logic
+            isActiveLabel: active ? "Yes" : "No",
+            _isActive: active,
             addressId: u.addressId,
         };
     }, []);
@@ -208,19 +208,21 @@ export default function Users() {
     };
 
     const handleSort = (column) => {
-        if (!sortKeyMap[column]) return; // Only sort sortable columns
+        if (!sortKeyMap[column]) return;
 
-        if (sortColumn === column) { // If clicking the currently sorted column
+        if (sortColumn === column) {
             if (sortDirection === "asc") {
-                setSortDirection("desc"); // 1st click -> asc, 2nd click -> desc
-            } else {
-                // 3rd click -> remove sort
+                setSortDirection("desc");
+            } else if (sortDirection === "desc") {
                 setSortColumn(null);
                 setSortDirection(null);
+            } else {
+                setSortColumn(column);
+                setSortDirection("asc");
             }
-        } else { // If clicking a new column
+        } else {
             setSortColumn(column);
-            setSortDirection("asc"); // New column -> sort asc
+            setSortDirection("asc");
         }
     };
 
@@ -510,7 +512,7 @@ export default function Users() {
         }
         if (selectedRow?.id === target.id && selectedUserDetails) return;
         handleRowSelect(toRow(target));
-    }, [users, selectedRow, selectedUserDetails, handleRowSelect]);
+    }, [users, selectedRow, selectedUserDetails, handleRowSelect, toRow]);
 
     const handleSubmitPassword = async (e) => {
         e.preventDefault();

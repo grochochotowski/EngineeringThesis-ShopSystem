@@ -26,12 +26,12 @@ export default function Addresses() {
     const [sortColumn, setSortColumn] = useState("city");
     const [sortDirection, setSortDirection] = useState("asc");
 
-    const sortKeyMap = {
+    const sortKeyMap = useMemo(() => ({
         country: "country",
         city: "city",
         street: "street",
         postalCode: "postalCode",
-    };
+    }), []);
 
     // --- Search ---
     const [searchQuery, setSearchQuery] = useState("");
@@ -39,7 +39,6 @@ export default function Addresses() {
     const observerRef = useRef(null);
     const loadedPages = useRef(new Set());
     const filtersRef = useRef(null);
-    const typingTimeout = useRef(null);
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
 
@@ -93,7 +92,7 @@ export default function Addresses() {
                 setLoading(false);
             }
         },
-        [filters, searchQuery, sortColumn, sortDirection]
+        [filters, searchQuery, sortColumn, sortDirection, sortKeyMap]
     );
 
     // === Initial load and immediate fetches (filters, sorting) ===
@@ -247,7 +246,7 @@ export default function Addresses() {
         }
         if (selectedRow?.id === target.id && selectedAddressDetails) return;
         handleRowSelect(toRow(target));
-    }, [addresses, selectedRow, selectedAddressDetails, handleRowSelect]);
+    }, [addresses, selectedRow, selectedAddressDetails, handleRowSelect, toRow]);
 
     // === Render ===
     return (
