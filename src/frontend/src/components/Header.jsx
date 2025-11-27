@@ -44,12 +44,12 @@ export default function Header({ user, onLogout }) {
         {
             title: "Dictionaries",
             items: [
-                { name: "Client types", path: "/dictionaries/client-types" },
-                { name: "Payment options", path: "/dictionaries/payment-options" },
-                { name: "Sales document types", path: "/dictionaries/sales-document-types" },
-                { name: "Shipment status", path: "/dictionaries/shipment-status" },
-                { name: "Shipment types", path: "/dictionaries/shipment-types" },
-                { name: "User roles", path: "/dictionaries/user-roles" },
+                { name: "Client Types", path: "/dictionaries/client-types" },
+                { name: "Payment Options", path: "/dictionaries/payment-options" },
+                { name: "Sales Document Types", path: "/dictionaries/sales-document-types" },
+                { name: "Shipment Statuses", path: "/dictionaries/shipment-statuses" },
+                { name: "Shipment Types", path: "/dictionaries/shipment-types" },
+                { name: "User Roles", path: "/dictionaries/user-roles" },
             ],
         },
         {

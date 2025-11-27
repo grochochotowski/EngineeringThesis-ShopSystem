@@ -23,6 +23,13 @@ const Categories = lazy(() => import("./pages/Organization/Categories.jsx"));
 
 const Products = lazy(() => import("./pages/Storage/Products.jsx"));
 
+const ClientTypes = lazy(() => import("./pages/Dictionaries/ClientTypes.jsx"));
+const PaymentOptions = lazy(() => import("./pages/Dictionaries/PaymentOptions.jsx"));
+const SalesDocumentTypes = lazy(() => import("./pages/Dictionaries/SalesDocumentTypes.jsx"));
+const ShipmentStatuses = lazy(() => import("./pages/Dictionaries/ShipmentStatuses.jsx"));
+const ShipmentTypes = lazy(() => import("./pages/Dictionaries/ShipmentTypes.jsx"));
+const UserRoles = lazy(() => import("./pages/Dictionaries/UserRoles.jsx"));
+
 // Protected route wrapper
 const PrivateRoute = ({ children }) => {
     const { state } = useContext(GlobalStateContext);
@@ -74,6 +81,73 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
                     <Products />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+
+    {
+        path: '/dictionaries/client-types',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <ClientTypes />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/dictionaries/payment-options',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <PaymentOptions />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/dictionaries/sales-document-types',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <SalesDocumentTypes />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/dictionaries/shipment-statuses',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <ShipmentStatuses />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/dictionaries/shipment-types',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <ShipmentTypes />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/dictionaries/user-roles',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <UserRoles />
                 </ProtectedRoute>
             </PrivateRoute>
         ),
