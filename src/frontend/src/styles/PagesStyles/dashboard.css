@@ -55,7 +55,7 @@
 
 .option-card {
     font-size: 64px;
-    color: var(--accent-dark);
+    color: var(--accent-main);
 }
 
 .option-card svg {
