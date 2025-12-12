@@ -22,7 +22,7 @@ export default function Header({ user, onLogout }) {
             title: "Storage",
             items: [
                 { name: "Warehouse Products", path: "/storage/products" },
-                { name: "Warehouses", path: "/storage/warehouses" },
+                { name: "Warehouse", path: "/storage/warehouses" },
             ],
         },
         {
