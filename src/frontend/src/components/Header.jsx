@@ -39,7 +39,6 @@ export default function Header({ user, onLogout }) {
                 { name: "Users", path: "/organization/users" },
                 { name: "Addresses", path: "/organization/addresses" },
                 { name: "Categories", path: "/organization/categories" },
-                { name: "Delivery companies", path: "/organization/companies" },
             ],
         },
         {
