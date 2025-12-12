@@ -93,17 +93,22 @@ export default function Categories() {
         { key: "isActive", label: "Active", width: "10%", sortable: true },
     ];
     
-    const rows = useMemo(() => {
-        return categories.map(c => ({
+    const toRow = useCallback((c) => {
+        const active = typeof c.isActive === "boolean" ? c.isActive : Boolean(c.isActive);
+        return {
             ...c,
-            _isActive: c.isActive, // Keep original boolean for logic
-            isActive: c.isActive ? "Yes" : "No", // For table display
-        }));
-    }, [categories]);
+            _isActive: active,
+            isActive: active ? "Yes" : "No",
+        };
+    }, []);
+
+    const rows = useMemo(() => {
+        return categories.map(toRow);
+    }, [categories, toRow]);
 
     const detailsConfig = {
         status: {
-            key: "isActive",
+            key: "_isActive",
             activeLabel: "Active",
             inactiveLabel: "Inactive",
         },
@@ -114,18 +119,7 @@ export default function Categories() {
         ],
     };
 
-    useEffect(() => {
-        if (lastSelectedId.current && categories.length > 0) {
-            const reselect = categories.find(c => c.id === lastSelectedId.current);
-            if (reselect) {
-                setSelectedRow(reselect);
-            } else {
-                // If the item is no longer in the list (e.g., filtered out)
-                setSelectedRow(null);
-                lastSelectedId.current = null;
-            }
-        }
-    }, [categories]);
+
 
     useEffect(() => {
         if (!showFilters) return;
@@ -193,14 +187,31 @@ export default function Categories() {
 
     const confirmStatusChange = async () => {
         if (!actionableCategory) return;
+    
         const { id, _isActive } = actionableCategory;
         const endpoint = _isActive ? `/Categories/${id}/deactivate` : `/Categories/${id}/activate`;
-        
+    
         try {
             setLoading(true);
             await api.put(endpoint);
             setToast({ message: `Category ${_isActive ? "deactivated" : "activated"} successfully.`, type: "success" });
-            fetchCategories(1, true); // Refresh list
+    
+            const newActiveState = !_isActive;
+    
+            // Update the categories list
+            const updatedCategories = categories.map(c =>
+                c.id === id ? { ...c, isActive: newActiveState } : c
+            );
+            setCategories(updatedCategories);
+    
+            // If the selected row is the one we just changed, update it
+            if (selectedRow && selectedRow.id === id) {
+                const updatedCategory = updatedCategories.find(c => c.id === id);
+                if (updatedCategory) {
+                    setSelectedRow(toRow(updatedCategory));
+                }
+            }
+    
         } catch (err) {
             setToast({ message: err.response?.data?.message || "Failed to update status.", type: "error" });
         } finally {
@@ -274,7 +285,7 @@ export default function Categories() {
             )}
 
             {toast && (
-                <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} />
+                <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} className="centered" />
             )}
         </div>
     );
