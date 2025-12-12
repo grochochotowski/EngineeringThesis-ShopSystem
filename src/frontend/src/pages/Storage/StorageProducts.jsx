@@ -67,6 +67,7 @@ export default function StorageProducts() {
         minPrice: "",
         maxPrice: "",
         categoryId: "",
+        locationId: "",
         minQuantity: "",
         maxQuantity: "",
         stockStatus: "",
@@ -98,6 +99,7 @@ export default function StorageProducts() {
 
             if (currentSearchQuery) params.searchTerm = currentSearchQuery;
             if (currentFilters.categoryId) params.categoryId = currentFilters.categoryId;
+            if (currentFilters.locationId) params.locationId = currentFilters.locationId;
             if (currentFilters.minPrice) params.minPrice = currentFilters.minPrice;
             if (currentFilters.maxPrice) params.maxPrice = currentFilters.maxPrice;
 
@@ -848,6 +850,17 @@ export default function StorageProducts() {
                                     {name}
                                 </option>
                             ))}
+                        </select>
+
+                        <select name="locationId" value={filters.locationId} onChange={handleInputChange}>
+                            <option value="">All Locations</option>
+                            {allLocations
+                                .filter((l) => l.isActive)
+                                .map((l) => (
+                                    <option key={l.id} value={l.id}>
+                                        {l.locationCode}
+                                    </option>
+                                ))}
                         </select>
 
                         <select name="stockStatus" value={filters.stockStatus} onChange={handleInputChange}>

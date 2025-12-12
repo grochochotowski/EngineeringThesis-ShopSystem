@@ -133,6 +133,7 @@ namespace Backend.Api.Api.Controllers
         public async Task<ActionResult<PagedResult<ProductWithLocationsDto>>> SearchProductsWithLocations(
             [FromQuery] string? searchTerm,
             [FromQuery] int? categoryId,
+            [FromQuery] int? locationId,
             [FromQuery] decimal? minPrice,
             [FromQuery] decimal? maxPrice,
             [FromQuery] int? minQuantity,
@@ -145,7 +146,7 @@ namespace Backend.Api.Api.Controllers
         {
             var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
             var result = await _service.SearchProductsWithLocationsAsync(
-                searchTerm, categoryId, minPrice, maxPrice, minQuantity, maxQuantity,
+                searchTerm, categoryId, locationId, minPrice, maxPrice, minQuantity, maxQuantity,
                 orderBy, sortDirection, pagination, ct);
             return Ok(result);
         }

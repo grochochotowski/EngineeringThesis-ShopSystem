@@ -27,6 +27,7 @@ namespace Backend.Api.Api.Services
         Task<PagedResult<ProductWithLocationsDto>> SearchProductsWithLocationsAsync(
             string? searchTerm,
             int? categoryId,
+            int? locationId,
             decimal? minPrice,
             decimal? maxPrice,
             int? minQuantity,
@@ -256,7 +257,8 @@ namespace Backend.Api.Api.Services
                 query = query.Where(pw =>
                     pw.Product.Name.ToLower().Contains(term) ||
                     pw.Product.SKU.ToLower().Contains(term) ||
-                    pw.Product.Description.ToLower().Contains(term));
+                    pw.Product.Description.ToLower().Contains(term) ||
+                    pw.Location.LocationCode.ToLower().Contains(term));
             }
 
             // Apply category filter
@@ -424,6 +426,7 @@ namespace Backend.Api.Api.Services
         public async Task<PagedResult<ProductWithLocationsDto>> SearchProductsWithLocationsAsync(
             string? searchTerm,
             int? categoryId,
+            int? locationId,
             decimal? minPrice,
             decimal? maxPrice,
             int? minQuantity,
@@ -449,13 +452,20 @@ namespace Backend.Api.Api.Services
                 query = query.Where(pw =>
                     pw.Product.Name.ToLower().Contains(term) ||
                     pw.Product.SKU.ToLower().Contains(term) ||
-                    pw.Product.Description.ToLower().Contains(term));
+                    pw.Product.Description.ToLower().Contains(term) ||
+                    pw.Location.LocationCode.ToLower().Contains(term));
             }
 
             // Apply category filter
             if (categoryId.HasValue)
             {
                 query = query.Where(pw => pw.Product.CategoryId == categoryId.Value);
+            }
+
+            // Apply location filter
+            if (locationId.HasValue)
+            {
+                query = query.Where(pw => pw.LocationId == locationId.Value);
             }
 
             // Apply price filters
