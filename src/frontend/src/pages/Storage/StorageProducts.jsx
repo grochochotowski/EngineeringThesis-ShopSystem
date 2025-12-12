@@ -1005,11 +1005,14 @@ export default function StorageProducts() {
                                         <option value="">Select a location</option>
                                         {allLocations
                                             .filter((l) => l.isActive)
-                                            .map((l) => (
-                                                <option key={l.id} value={l.id}>
-                                                    {l.locationCode}
-                                                </option>
-                                            ))}
+                                            .map((l) => {
+                                                const existingLocation = selectedProduct?.rawData?.locations?.find(pl => pl.locationId === l.id);
+                                                return (
+                                                    <option key={l.id} value={l.id}>
+                                                        {l.locationCode}{existingLocation ? ` (Qty: ${existingLocation.quantity})` : ""}
+                                                    </option>
+                                                );
+                                            })}
                                     </select>
                                     <button
                                         type="button"

@@ -42,6 +42,7 @@ export default function Warehouses() {
     const [productSearchTerm, setProductSearchTerm] = useState("");
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [showProductDropdown, setShowProductDropdown] = useState(false);
+    const [selectedProductLocations, setSelectedProductLocations] = useState([]);
 
     // Remove Product modal state
     const [removeForm, setRemoveForm] = useState({
@@ -53,6 +54,7 @@ export default function Warehouses() {
         toLocationId: "",
         quantity: 1,
     });
+    const [transferProductLocations, setTransferProductLocations] = useState([]);
 
     // Quick location creation state
     const [quickLocationForm, setQuickLocationForm] = useState({
@@ -415,7 +417,7 @@ export default function Warehouses() {
     };
 
     // Add Product handlers
-    const handleOpenAddModal = () => {
+    const handleOpenAddModal = async () => {
         // Pre-fill product if one is selected from the list
         if (selectedItem?.rawData) {
             const product = activeProducts.find(p => p.productId === selectedItem.productId);
@@ -426,13 +428,36 @@ export default function Warehouses() {
                     quantity: 1
                 });
                 setProductSearchTerm(`${product.sku} - ${product.name}`);
+
+                // Fetch location data for pre-filled product
+                try {
+                    const response = await api.get("/products-in-warehouse/search-products-with-locations", {
+                        params: {
+                            searchTerm: product.sku,
+                            pageNumber: 1,
+                            pageSize: 1,
+                        }
+                    });
+
+                    const productData = response.items?.find(p => p.productId === product.productId);
+                    if (productData && productData.locations) {
+                        setSelectedProductLocations(productData.locations);
+                    } else {
+                        setSelectedProductLocations([]);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch product locations", err);
+                    setSelectedProductLocations([]);
+                }
             } else {
                 setAddForm({ productId: "", locationId: "", quantity: 1 });
                 setProductSearchTerm("");
+                setSelectedProductLocations([]);
             }
         } else {
             setAddForm({ productId: "", locationId: "", quantity: 1 });
             setProductSearchTerm("");
+            setSelectedProductLocations([]);
         }
         setFilteredProducts([]);
         setShowProductDropdown(false);
@@ -456,11 +481,32 @@ export default function Warehouses() {
         setShowProductDropdown(true);
     };
 
-    const handleProductSelect = (productId) => {
+    const handleProductSelect = async (productId) => {
         setAddForm((prev) => ({ ...prev, productId }));
         const selectedProduct = activeProducts.find(p => p.productId === productId);
         if (selectedProduct) {
             setProductSearchTerm(`${selectedProduct.sku} - ${selectedProduct.name}`);
+
+            // Fetch location data for this product
+            try {
+                const response = await api.get("/products-in-warehouse/search-products-with-locations", {
+                    params: {
+                        searchTerm: selectedProduct.sku,
+                        pageNumber: 1,
+                        pageSize: 1,
+                    }
+                });
+
+                const productData = response.items?.find(p => p.productId === productId);
+                if (productData && productData.locations) {
+                    setSelectedProductLocations(productData.locations);
+                } else {
+                    setSelectedProductLocations([]);
+                }
+            } catch (err) {
+                console.error("Failed to fetch product locations", err);
+                setSelectedProductLocations([]);
+            }
         }
         setShowProductDropdown(false);
         setFilteredProducts([]);
@@ -553,8 +599,30 @@ export default function Warehouses() {
     };
 
     // Transfer Product handlers
-    const handleOpenTransferModal = () => {
+    const handleOpenTransferModal = async () => {
         if (!selectedItem) return;
+
+        // Fetch all locations for this product
+        try {
+            const response = await api.get("/products-in-warehouse/search-products-with-locations", {
+                params: {
+                    searchTerm: selectedItem.rawData.productSKU,
+                    pageNumber: 1,
+                    pageSize: 1000,
+                }
+            });
+
+            const productData = response.items?.find(p => p.productId === selectedItem.productId);
+            if (productData && productData.locations) {
+                setTransferProductLocations(productData.locations);
+            } else {
+                setTransferProductLocations([]);
+            }
+        } catch (err) {
+            console.error("Failed to fetch product locations for transfer", err);
+            setTransferProductLocations([]);
+        }
+
         setTransferForm({ toLocationId: "", quantity: 1 });
         setShowTransferModal(true);
     };
@@ -1023,11 +1091,14 @@ export default function Warehouses() {
                                         <option value="">Select a location</option>
                                         {allLocations
                                             .filter((l) => l.isActive)
-                                            .map((l) => (
-                                                <option key={l.id} value={l.id}>
-                                                    {l.locationCode}
-                                                </option>
-                                            ))}
+                                            .map((l) => {
+                                                const existingLocation = selectedProductLocations.find(pl => pl.locationId === l.id);
+                                                return (
+                                                    <option key={l.id} value={l.id}>
+                                                        {l.locationCode}{existingLocation ? ` (Qty: ${existingLocation.quantity})` : ""}
+                                                    </option>
+                                                );
+                                            })}
                                     </select>
                                     <button
                                         type="button"
@@ -1123,7 +1194,10 @@ export default function Warehouses() {
             {showTransferModal && selectedItem && (
                 <Modal
                     title={`${selectedItem.rawData.productSKU} - ${selectedItem.rawData.productName}`}
-                    onClose={() => setShowTransferModal(false)}
+                    onClose={() => {
+                        setShowTransferModal(false);
+                        setTransferProductLocations([]);
+                    }}
                 >
                     <form onSubmit={handleSubmitTransfer} onKeyPress={handleTransferModalKeyPress}>
                         <div className="form-grid">
@@ -1149,11 +1223,14 @@ export default function Warehouses() {
                                     <option value="">Select a location</option>
                                     {allLocations
                                         .filter((l) => l.isActive && l.id !== selectedItem.locationId)
-                                        .map((l) => (
-                                            <option key={l.id} value={l.id}>
-                                                {l.locationCode}
-                                            </option>
-                                        ))}
+                                        .map((l) => {
+                                            const existingLocation = transferProductLocations.find(pl => pl.locationId === l.id);
+                                            return (
+                                                <option key={l.id} value={l.id}>
+                                                    {l.locationCode}{existingLocation ? ` (Qty: ${existingLocation.quantity})` : ""}
+                                                </option>
+                                            );
+                                        })}
                                 </select>
                             </label>
 
@@ -1175,7 +1252,10 @@ export default function Warehouses() {
                         </div>
 
                         <div className="modal-actions">
-                            <button type="button" className="btn-action" onClick={() => setShowTransferModal(false)}>
+                            <button type="button" className="btn-action" onClick={() => {
+                                setShowTransferModal(false);
+                                setTransferProductLocations([]);
+                            }}>
                                 Cancel
                             </button>
                             <button type="submit" className="btn-action btn-primary">
