@@ -15,6 +15,7 @@ namespace Backend.Api.Api.Services
         Task<PagedResult<ProductLocationRowDto>> SearchProductLocationRowsAsync(
             string? searchTerm,
             int? categoryId,
+            int? locationId,
             decimal? minPrice,
             decimal? maxPrice,
             int? minQuantity,
@@ -230,6 +231,7 @@ namespace Backend.Api.Api.Services
         public async Task<PagedResult<ProductLocationRowDto>> SearchProductLocationRowsAsync(
             string? searchTerm,
             int? categoryId,
+            int? locationId,
             decimal? minPrice,
             decimal? maxPrice,
             int? minQuantity,
@@ -263,6 +265,12 @@ namespace Backend.Api.Api.Services
                 query = query.Where(pw => pw.Product.CategoryId == categoryId.Value);
             }
 
+            // Apply location filter
+            if (locationId.HasValue)
+            {
+                query = query.Where(pw => pw.LocationId == locationId.Value);
+            }
+
             // Apply price filters
             if (minPrice.HasValue)
             {
@@ -289,11 +297,11 @@ namespace Backend.Api.Api.Services
                 var isDescending = sortDirection?.ToLower() == "desc";
                 query = orderBy.ToLower() switch
                 {
-                    "name" => isDescending ? query.OrderByDescending(pw => pw.Product.Name) : query.OrderBy(pw => pw.Product.Name),
-                    "price" => isDescending ? query.OrderByDescending(pw => pw.Product.Price) : query.OrderBy(pw => pw.Product.Price),
+                    "productname" or "name" => isDescending ? query.OrderByDescending(pw => pw.Product.Name) : query.OrderBy(pw => pw.Product.Name),
+                    "productprice" or "price" => isDescending ? query.OrderByDescending(pw => pw.Product.Price) : query.OrderBy(pw => pw.Product.Price),
                     "quantity" => isDescending ? query.OrderByDescending(pw => pw.Quantity) : query.OrderBy(pw => pw.Quantity),
                     "locationcode" => isDescending ? query.OrderByDescending(pw => pw.Location.LocationCode) : query.OrderBy(pw => pw.Location.LocationCode),
-                    "category" => isDescending ? query.OrderByDescending(pw => pw.Product.Category.Name) : query.OrderBy(pw => pw.Product.Category.Name),
+                    "categoryname" or "category" => isDescending ? query.OrderByDescending(pw => pw.Product.Category.Name) : query.OrderBy(pw => pw.Product.Category.Name),
                     _ => query.OrderBy(pw => pw.Product.Name) // Default sort
                 };
             }
