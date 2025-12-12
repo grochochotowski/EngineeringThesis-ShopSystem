@@ -43,21 +43,29 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 1rem;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .option-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-5px);
     box-shadow: var(--shadow-md);
 }
 
-.option-card .icon {
-    width: 32px;
-    height: 32px;
-    background: var(--accent-main);
-    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-    margin-bottom: 0.5rem;
+.option-card {
+    font-size: 64px;
+    color: var(--accent-dark);
+}
+
+.option-card svg {
+    width: auto;
+    height: auto; /* Ensure height also scales proportionally */
+}
+
+.option-card p {
+    font-size: 1.2rem;
+    color: var(--text-dark);
 }
 
 /* === SUMMARY CARD === */

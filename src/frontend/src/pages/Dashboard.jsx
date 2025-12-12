@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/PagesStyles/dashboard.css";
+import { FaShoppingCart, FaWarehouse, FaTruckLoading, FaTruckMoving, FaCalendarAlt, FaCashRegister, FaBoxes, FaFileImport, FaFileExport, FaClipboardList } from 'react-icons/fa';
 
 import Fallback from "../components/Fallback";
 import Header from "../components/Header";
@@ -19,6 +20,14 @@ export default function Dashboard() {
         navigate("/");
     }
 
+    const quickActions = [
+        { name: "POS", icon: <FaCashRegister />, path: "/pos" },
+        { name: "Warehouse Products", icon: <FaBoxes />, path: "/storage/products" },
+        { name: "Incoming Shipments", icon: <FaFileImport />, path: "/deliveries/shipments/incoming" },
+        { name: "Leaving Shipments", icon: <FaFileExport />, path: "/deliveries/shipments/leaving" },
+        { name: "Events", icon: <FaClipboardList />, path: "/events" },
+    ];
+
     // === If user data is not loaded yet ===
     if (!user) return <Fallback text="Loading dashboard..." />;
 
@@ -30,12 +39,12 @@ export default function Dashboard() {
             <main>
                 <section>
                     <div className="quick-options">
-                        {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="option-card">
-                            <div className="icon" />
-                            <p>Option name</p>
-                        </div>
-                    ))}
+                        {quickActions.map((action, index) => (
+                            <div key={index} className="option-card" onClick={() => navigate(action.path)}>
+                                {action.icon}
+                                <p>{action.name}</p>
+                            </div>
+                        ))}
                     </div>
                     <div className="summary-card">
                         <div className="summary-text">
