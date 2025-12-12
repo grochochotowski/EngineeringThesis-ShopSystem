@@ -1,6 +1,8 @@
 .message-box {
     position: fixed;
     bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     width: fit-content;
     max-width: 480px;
     min-width: 260px;
@@ -13,7 +15,7 @@
 
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
-    
+
     opacity: 0;
     transition: var(--transition-fast);
     z-index: 99999;
@@ -21,13 +23,6 @@
 
     background: var(--bg-card);
     color: var(--text-dark);
-}
-
-.message-box.centered {
-    left: 50%;
-    transform: translateX(-50%);
-    right: auto;
-    margin-left: 0;
 }
 
 /* === Animations === */

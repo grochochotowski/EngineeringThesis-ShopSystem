@@ -16,6 +16,7 @@ const Login = lazy(() => import('./pages/Login'))
 const NotFound = lazy(() => import('./pages/ErrorPages/NotFound.jsx'))
 const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
+const POS = lazy(() => import('./pages/POS.jsx'));
 
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
 const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
@@ -43,6 +44,18 @@ const router = createBrowserRouter([
     { path: '/', element: <Login />, errorElement: <NotFound /> },
 
     { path: '/dashboard', element:  <PrivateRoute><Dashboard /></PrivateRoute>, errorElement: <NotFound /> },
+
+    {
+        path: '/pos',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <POS />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
 
     {
         path: '/organization/users',

@@ -64,27 +64,36 @@ export default function Categories() {
     // Effect for initial load and subsequent filtering/sorting
     useEffect(() => {
         fetchCategories(1, true);
-    }, [filters, sortColumn, sortDirection]);
+    }, [filters, sortColumn, sortDirection, fetchCategories]);
 
     // === Infinite scroll ===
     useEffect(() => {
         if (loading || !hasMore) return;
+
+        const node = observerRef.current; // Capture the current ref value
+
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
                 setPageNumber((prev) => prev + 1);
             }
         });
-        if (observerRef.current) observer.observe(observerRef.current);
-        return () => {
-            if(observerRef.current) observer.disconnect();
+
+        if (node) {
+            observer.observe(node);
         }
+
+        return () => {
+            if (node) {
+                observer.unobserve(node); // Use the captured value
+            }
+        };
     }, [loading, hasMore]);
 
     useEffect(() => {
         if (pageNumber > 1) {
             fetchCategories(pageNumber);
         }
-    }, [pageNumber]);
+    }, [pageNumber, fetchCategories]);
 
     const columns = [
         { key: "id", label: "ID", width: "10%", sortable: false },
@@ -187,31 +196,33 @@ export default function Categories() {
 
     const confirmStatusChange = async () => {
         if (!actionableCategory) return;
-    
+
         const { id, _isActive } = actionableCategory;
         const endpoint = _isActive ? `/Categories/${id}/deactivate` : `/Categories/${id}/activate`;
-    
+
         try {
             setLoading(true);
             await api.put(endpoint);
             setToast({ message: `Category ${_isActive ? "deactivated" : "activated"} successfully.`, type: "success" });
-    
+
             const newActiveState = !_isActive;
-    
-            // Update the categories list
-            const updatedCategories = categories.map(c =>
-                c.id === id ? { ...c, isActive: newActiveState } : c
+
+            // Update the categories list with the new active state
+            setCategories(prev =>
+                prev.map(c =>
+                    c.id === id ? { ...c, isActive: newActiveState } : c
+                )
             );
-            setCategories(updatedCategories);
-    
+
             // If the selected row is the one we just changed, update it
             if (selectedRow && selectedRow.id === id) {
-                const updatedCategory = updatedCategories.find(c => c.id === id);
-                if (updatedCategory) {
-                    setSelectedRow(toRow(updatedCategory));
-                }
+                setSelectedRow(prev => ({
+                    ...prev,
+                    _isActive: newActiveState,
+                    isActive: newActiveState ? "Yes" : "No"
+                }));
             }
-    
+
         } catch (err) {
             setToast({ message: err.response?.data?.message || "Failed to update status.", type: "error" });
         } finally {
