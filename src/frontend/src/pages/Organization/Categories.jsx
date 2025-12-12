@@ -40,7 +40,7 @@ export default function Categories() {
             setCategories([]);
         }
         try {
-            const { items = [], totalPages = 1 } = await api.get("/Categories", {
+            const response = await api.get("/Categories", {
                 params: {
                     PageNumber: page,
                     PageSize: 20,
@@ -49,6 +49,8 @@ export default function Categories() {
                     sortDirection: sortDirection,
                 },
             });
+            const items = response.items || [];
+            const totalPages = response.totalPages || 1;
             setCategories(prev => reset ? items : [...prev, ...items.filter(i => !prev.some(p => p.id === i.id))]);
             setHasMore(page < totalPages);
         } catch (err) {
@@ -191,13 +193,13 @@ export default function Categories() {
 
     const confirmStatusChange = async () => {
         if (!actionableCategory) return;
-        const { id, isActive } = actionableCategory;
-        const endpoint = isActive ? `/Categories/${id}/deactivate` : `/Categories/${id}/activate`;
+        const { id, _isActive } = actionableCategory;
+        const endpoint = _isActive ? `/Categories/${id}/deactivate` : `/Categories/${id}/activate`;
         
         try {
             setLoading(true);
             await api.put(endpoint);
-            setToast({ message: `Category ${isActive ? "deactivated" : "activated"} successfully.`, type: "success" });
+            setToast({ message: `Category ${_isActive ? "deactivated" : "activated"} successfully.`, type: "success" });
             fetchCategories(1, true); // Refresh list
         } catch (err) {
             setToast({ message: err.response?.data?.message || "Failed to update status.", type: "error" });
@@ -228,8 +230,8 @@ export default function Categories() {
                     onSort={handleSort}
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
-                    deleteButtonLabel={selectedRow?.isActive ? "Deactivate" : "Activate"}
-                    deleteButtonClass={selectedRow?.isActive ? "btn-confirm-negative" : "btn-confirm-positive"}
+                    deleteButtonLabel={selectedRow?._isActive ? "Deactivate" : "Activate"}
+                    deleteButtonClass={selectedRow?._isActive ? "btn-confirm-negative" : "btn-confirm-positive"}
                 />
 
                 {showFilters && (
@@ -262,10 +264,10 @@ export default function Categories() {
 
             {actionableCategory && (
                 <ConfirmDialog
-                    title={actionableCategory.isActive ? "Deactivate Category" : "Activate Category"}
-                    message={`Are you sure you want to ${actionableCategory.isActive ? "deactivate" : "activate"} "${actionableCategory.name}"?`}
-                    confirmText={actionableCategory.isActive ? "Deactivate" : "Activate"}
-                    confirmButtonClass={actionableCategory.isActive ? "dialog-btn-confirm-negative" : "dialog-btn-confirm-positive"}
+                    title={actionableCategory._isActive ? "Deactivate Category" : "Activate Category"}
+                    message={`Are you sure you want to ${actionableCategory._isActive ? "deactivate" : "activate"} "${actionableCategory.name}"?`}
+                    confirmText={actionableCategory._isActive ? "Deactivate" : "Activate"}
+                    confirmButtonClass={actionableCategory._isActive ? "dialog-btn-confirm-negative" : "dialog-btn-confirm-positive"}
                     onConfirm={confirmStatusChange}
                     onCancel={() => setActionableCategory(null)}
                 />
