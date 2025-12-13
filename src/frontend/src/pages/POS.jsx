@@ -66,9 +66,9 @@ export default function POS() {
   useEffect(() => {
     const fetchTaxRates = async () => {
       try {
-        const { items } = await api.get('/TaxRates', { params: { PageSize: 100 } });
+        const items = await api.get('/TaxRate');
         const taxMap = new Map();
-        items?.forEach(tax => taxMap.set(tax.id, tax));
+        items.forEach(tax => taxMap.set(tax.id, tax));
         setTaxRates(taxMap);
       } catch (error) {
         console.error('Failed to load tax rates:', error);
@@ -94,7 +94,7 @@ export default function POS() {
         const { items } = await api.get('/Products', {
           params: {
             q: productSearchQuery,
-            PageSize: 10,
+            PageSize: 20,
             isActive: true
           }
         });
@@ -168,7 +168,11 @@ export default function POS() {
   // Calculate total paid and remaining balance
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const remainingBalance = parseFloat(totals.totalGross) - totalPaid;
-  const isFullyPaid = remainingBalance <= 0; // Allow overpayment
+
+  // Two separate flags for different purposes:
+  const hasPayments = payments.length > 0; // Has any payment been made?
+  const isFullyPaid = scannedProducts.length > 0 && remainingBalance <= 0; // Is transaction fully paid?
+
   const change = totalPaid > parseFloat(totals.totalGross) ? totalPaid - parseFloat(totals.totalGross) : 0;
 
   // Update payment amount when totals change
@@ -258,11 +262,9 @@ export default function POS() {
 
   // Remove payment handler
   const handleRemovePayment = (method) => {
-    if (window.confirm(`Remove payment with ${method}?`)) {
-      setPayments(prev => prev.filter(p => p.method !== method));
-      setPaymentMethod(null);
-      setToast({ type: 'success', message: `${method} payment removed` });
-    }
+    setPayments(prev => prev.filter(p => p.method !== method));
+    setPaymentMethod(null);
+    setToast({ type: 'success', message: `${method} payment removed` });
   };
 
   // Payment Step 1: Record a payment
@@ -506,6 +508,8 @@ export default function POS() {
                 value={productSearchQuery}
                 onChange={(e) => setProductSearchQuery(e.target.value)}
                 onFocus={() => productSearchResults.length > 0 && setShowProductDropdown(true)}
+                disabled={hasPayments}
+                className="pos-product-search"
               />
               {showProductDropdown && productSearchResults.length > 0 && (
                 <div className="pos-product-dropdown">
@@ -554,7 +558,7 @@ export default function POS() {
               <div className="pos-list-header">
                 <h3>Scanned Products</h3>
               </div>
-              <div className="pos-products-table-wrapper">
+              <div className={`pos-products-table-wrapper ${hasPayments ? 'disabled' : ''}`}>
                 {scannedProducts.length === 0 ? (
                   <div className="pos-empty-message">No products scanned</div>
                 ) : (
@@ -578,7 +582,7 @@ export default function POS() {
                           <tr
                             key={product.id}
                             className={selectedProduct?.id === product.id ? 'selected' : ''}
-                            onClick={() => handleProductRowClick(product)}
+                            onClick={() => !hasPayments && handleProductRowClick(product)}
                           >
                             <td>{product.name}</td>
                             <td>{product.quantity}</td>
@@ -661,7 +665,6 @@ export default function POS() {
             {/* Payment tracking rows (Sale mode only) */}
             {activeMode === 'Sale' && payments.length > 0 && (
               <>
-                <div className="pos-totals-divider"></div>
                 {payments.map((payment, index) => (
                   <div
                     key={index}
@@ -673,13 +676,19 @@ export default function POS() {
                     <span>${payment.amount.toFixed(2)}</span>
                   </div>
                 ))}
-                <div className="pos-totals-divider"></div>
               </>
             )}
 
-            <div className="pos-totals-row total">
+            <div className="pos-totals-row pos-total-row">
               <span>Total:</span>
-              <span>${activeMode === 'Sale' ? totals.totalGross : returnTotals.totalGross}</span>
+              <span>
+                ${activeMode === 'Sale' ? totals.totalGross : returnTotals.totalGross}
+                {activeMode === 'Sale' && payments.length > 0 && (
+                  <span className={`remaining-amount ${remainingBalance <= 0 ? 'paid' : 'unpaid'}`}>
+                    {' '}(Remaining: {remainingBalance < 0 ? '-' : ''}${Math.abs(remainingBalance).toFixed(2)})
+                  </span>
+                )}
+              </span>
             </div>
 
             {/* Change display (Sale mode only, when overpaid) */}
@@ -687,16 +696,6 @@ export default function POS() {
               <div className="pos-totals-row change-row">
                 <span>Change:</span>
                 <span>${change.toFixed(2)}</span>
-              </div>
-            )}
-
-            {/* Amount left to pay (Sale mode only) */}
-            {activeMode === 'Sale' && payments.length > 0 && (
-              <div className="pos-totals-row amount-left">
-                <span>Amount left to pay:</span>
-                <span className={remainingBalance <= 0 ? "paid" : "unpaid"}>
-                  {Math.abs(remainingBalance).toFixed(2)}/{totals.totalGross}
-                </span>
               </div>
             )}
           </div>
@@ -730,9 +729,9 @@ export default function POS() {
           {/* Sale Mode Options */}
           {activeMode === 'Sale' && (
             <div className="pos-options">
-              {/* Document Type */}
-              <div className="pos-option-section">
-                <h4>Document Type</h4>
+              {/* Section 1: Document */}
+              <div className="pos-section">
+                <h4>Document</h4>
                 <div className="pos-radio-group">
                   <label className={documentType === 'Receipt' ? 'active' : ''}>
                     <input
@@ -741,6 +740,7 @@ export default function POS() {
                       value="Receipt"
                       checked={documentType === 'Receipt'}
                       onChange={(e) => setDocumentType(e.target.value)}
+                      disabled={hasPayments}
                     />
                     Receipt
                   </label>
@@ -751,19 +751,15 @@ export default function POS() {
                       value="Invoice"
                       checked={documentType === 'Invoice'}
                       onChange={(e) => setDocumentType(e.target.value)}
+                      disabled={hasPayments}
                     />
                     Invoice
                   </label>
                 </div>
-              </div>
-
-              {/* Client Selection */}
-              <div className="pos-option-section">
-                <h4>Client</h4>
                 <button
                   className="pos-option-button"
                   onClick={handleOpenClientModal}
-                  disabled={documentType === 'Receipt'}
+                  disabled={documentType === 'Receipt' || hasPayments}
                 >
                   {selectedClient ? selectedClient.name : 'Select Client'}
                 </button>
@@ -774,22 +770,37 @@ export default function POS() {
                 )}
               </div>
 
-              {/* Price Modification */}
-              <div className="pos-option-section">
-                <h4>Price Modification</h4>
+              <div className="pos-section-divider"></div>
+
+              {/* Section 2: Adjust */}
+              <div className="pos-section">
+                <h4>Adjust</h4>
                 <button
-                  className="pos-option-button"
+                  className="btn-action btn-view-details"
                   onClick={handleChangePrice}
-                  disabled={!selectedProduct || userRole < 4}
+                  disabled={!selectedProduct || userRole < 4 || hasPayments}
                   title={userRole < 4 ? 'Requires Deputy Manager or higher' : ''}
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
                   Change Price
                 </button>
               </div>
 
-              {/* Payment Method */}
-              <div className="pos-option-section">
+              <div className="pos-section-divider"></div>
+
+              {/* Section 3: Payment */}
+              <div className="pos-section">
                 <h4>Payment</h4>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="pos-amount-input"
+                />
                 <div className="pos-radio-group">
                   <label className={paymentMethod === 'Card' ? 'active' : ''}>
                     <input
@@ -822,23 +833,6 @@ export default function POS() {
                     Gift Card
                   </label>
                 </div>
-              </div>
-
-              {/* Amount Received Input */}
-              <div className="pos-option-section">
-                <h4>Amount Received</h4>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="pos-amount-input"
-                />
-              </div>
-
-              {/* Pay and Finish Transaction Buttons */}
-              <div className="pos-action-section">
                 <div className="pos-payment-buttons">
                   <button
                     className="pos-pay-button"
@@ -1040,16 +1034,10 @@ export default function POS() {
             </label>
             <div className="pos-modal-actions">
               <button
-                className="pos-button-secondary"
-                onClick={() => setShowPriceChangeModal(false)}
-              >
-                Cancel
-              </button>
-              <button
                 className="pos-button-primary"
                 onClick={handlePriceChangeConfirm}
               >
-                Confirm
+                Save
               </button>
             </div>
           </div>
