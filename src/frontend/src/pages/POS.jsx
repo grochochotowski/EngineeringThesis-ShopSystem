@@ -67,8 +67,16 @@ export default function POS() {
     const fetchTaxRates = async () => {
       try {
         const items = await api.get('/TaxRate');
+
         const taxMap = new Map();
-        items.forEach(tax => taxMap.set(tax.id, tax));
+        items.forEach(tax => {
+          // Try both casing styles
+          const taxId = tax.id || tax.Id;
+          const taxRateValue = tax.rate || tax.Rate;
+          const taxCode = tax.code || tax.Code;
+
+          taxMap.set(taxId, { ...tax, id: taxId, rate: taxRateValue, code: taxCode });
+        });
         setTaxRates(taxMap);
       } catch (error) {
         console.error('Failed to load tax rates:', error);
@@ -127,15 +135,22 @@ export default function POS() {
       };
       setScannedProducts(updated);
     } else {
-      // Add new product
+      // Add new product (European pricing: price includes tax)
+      const grossPrice = product.price;
+      const taxRate = taxRates.get(product.taxRateId)?.rate || 0;
+      const netPrice = grossPrice / (1 + taxRate);
+      const taxAmount = grossPrice - netPrice;
+
       setScannedProducts([...scannedProducts, {
         id: product.id,
         sku: product.sku,
         name: product.name,
-        unitPrice: product.price,
+        unitPriceGross: grossPrice,
+        unitPriceNet: netPrice,
+        unitTaxAmount: taxAmount,
         quantity: 1,
         taxRateId: product.taxRateId,
-        taxRate: taxRates.get(product.taxRateId)?.rate || 0,
+        taxRate: taxRate,
         taxCode: taxRates.get(product.taxRateId)?.code || ''
       }]);
     }
@@ -144,22 +159,28 @@ export default function POS() {
     setShowProductDropdown(false);
   }, [scannedProducts, taxRates]);
 
-  // Calculate totals
+  // Calculate totals (European pricing: tax included in price)
   const calculateTotals = useCallback((products) => {
-    let subtotal = 0;
+    let totalNet = 0;
     let totalTax = 0;
+    let totalGross = 0;
 
     products.forEach(product => {
-      const lineNet = product.unitPrice * product.quantity;
-      const lineTax = lineNet * product.taxRate;
-      subtotal += lineNet;
-      totalTax += lineTax;
+      const qty = product.quantity;
+      const grossPrice = product.unitPriceGross * qty;
+      const taxRate = product.taxRate;
+      const netPrice = grossPrice / (1 + taxRate);
+      const taxAmount = grossPrice - netPrice;
+
+      totalNet += netPrice;
+      totalTax += taxAmount;
+      totalGross += grossPrice;
     });
 
     return {
-      subtotal: subtotal.toFixed(2),
+      totalNet: totalNet.toFixed(2),
       totalTax: totalTax.toFixed(2),
-      totalGross: (subtotal + totalTax).toFixed(2)
+      totalGross: totalGross.toFixed(2)
     };
   }, []);
 
@@ -187,6 +208,20 @@ export default function POS() {
     setSelectedProduct(product);
   };
 
+  // Handle quantity change
+  const handleQuantityChange = (index, newQuantity) => {
+    if (newQuantity < 1) return;
+
+    setScannedProducts(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        quantity: newQuantity
+      };
+      return updated;
+    });
+  };
+
   // Change price (Deputy Manager or higher)
   const handleChangePrice = () => {
     if (!selectedProduct) {
@@ -199,7 +234,7 @@ export default function POS() {
       return;
     }
 
-    setNewPrice(selectedProduct.unitPrice.toString());
+    setNewPrice(selectedProduct.unitPriceGross.toString());
     setShowPriceChangeModal(true);
   };
 
@@ -210,11 +245,29 @@ export default function POS() {
       return;
     }
 
-    const updated = scannedProducts.map(p =>
-      p.id === selectedProduct.id ? { ...p, unitPrice: price } : p
-    );
+    // Recalculate net price and tax amount with new gross price
+    const updated = scannedProducts.map(p => {
+      if (p.id === selectedProduct.id) {
+        const grossPrice = price;
+        const taxRate = p.taxRate;
+        const netPrice = grossPrice / (1 + taxRate);
+        const taxAmount = grossPrice - netPrice;
+        return {
+          ...p,
+          unitPriceGross: grossPrice,
+          unitPriceNet: netPrice,
+          unitTaxAmount: taxAmount
+        };
+      }
+      return p;
+    });
     setScannedProducts(updated);
-    setSelectedProduct({ ...selectedProduct, unitPrice: price });
+    setSelectedProduct({
+      ...selectedProduct,
+      unitPriceGross: price,
+      unitPriceNet: price / (1 + selectedProduct.taxRate),
+      unitTaxAmount: price - (price / (1 + selectedProduct.taxRate))
+    });
     setShowPriceChangeModal(false);
     setToast({ type: 'success', message: 'Price updated successfully' });
   };
@@ -325,7 +378,7 @@ export default function POS() {
         productName: p.name,
         productSKU: p.sku,
         quantity: p.quantity,
-        unitPriceNet: p.unitPrice,
+        unitPriceNet: p.unitPriceNet,
         taxRateId: p.taxRateId
       })),
       payments: allPayments.map(payment => ({
@@ -464,23 +517,27 @@ export default function POS() {
   };
 
   const calculateReturnTotals = () => {
-    let subtotal = 0;
+    let totalNet = 0;
     let totalTax = 0;
+    let totalGross = 0;
 
     returnItems.forEach(item => {
       if (item.returnQuantity > 0) {
         const lineNet = item.unitPriceNet * item.returnQuantity;
         const taxRate = taxRates.get(item.taxRateId)?.rate || 0;
-        const lineTax = lineNet * taxRate;
-        subtotal += lineNet;
+        const lineGross = lineNet * (1 + taxRate);
+        const lineTax = lineGross - lineNet;
+
+        totalNet += lineNet;
         totalTax += lineTax;
+        totalGross += lineGross;
       }
     });
 
     return {
-      subtotal: subtotal.toFixed(2),
+      totalNet: totalNet.toFixed(2),
       totalTax: totalTax.toFixed(2),
-      totalGross: (subtotal + totalTax).toFixed(2)
+      totalGross: totalGross.toFixed(2)
     };
   };
 
@@ -565,18 +622,16 @@ export default function POS() {
                   <table className="pos-products-table">
                     <thead>
                       <tr>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Tax</th>
-                        <th>Total</th>
+                        <th style={{ width: "35%" }}>Product</th>
+                        <th style={{ width: "10%", textAlign: "center" }}>Qty</th>
+                        <th style={{ width: "15%", textAlign: "right" }}>Price</th>
+                        <th style={{ width: "20%", textAlign: "right" }}>Tax</th>
+                        <th style={{ width: "20%", textAlign: "right" }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {scannedProducts.map(product => {
-                        const lineNet = product.unitPrice * product.quantity;
-                        const lineTax = lineNet * product.taxRate;
-                        const lineGross = lineNet + lineTax;
+                      {scannedProducts.map((product, index) => {
+                        const lineGross = product.unitPriceGross * product.quantity;
 
                         return (
                           <tr
@@ -584,11 +639,36 @@ export default function POS() {
                             className={selectedProduct?.id === product.id ? 'selected' : ''}
                             onClick={() => !hasPayments && handleProductRowClick(product)}
                           >
+                            {/* Product Name */}
                             <td>{product.name}</td>
-                            <td>{product.quantity}</td>
-                            <td>${product.unitPrice.toFixed(2)}</td>
-                            <td>{(product.taxRate * 100).toFixed(0)}%</td>
-                            <td>${lineGross.toFixed(2)}</td>
+
+                            {/* Editable Quantity */}
+                            <td style={{ textAlign: "center" }}>
+                              <input
+                                type="number"
+                                min="1"
+                                value={product.quantity}
+                                onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={hasPayments}
+                                style={{ width: "60px", textAlign: "center" }}
+                              />
+                            </td>
+
+                            {/* Net Price (without tax) */}
+                            <td style={{ textAlign: "right" }}>
+                              ${product.unitPriceNet.toFixed(2)}
+                            </td>
+
+                            {/* Tax (percentage and amount) */}
+                            <td style={{ textAlign: "right" }}>
+                              {(product.taxRate * 100).toFixed(0)}% - ${product.unitTaxAmount.toFixed(2)}
+                            </td>
+
+                            {/* Total (gross price × quantity) */}
+                            <td style={{ textAlign: "right" }}>
+                              ${lineGross.toFixed(2)}
+                            </td>
                           </tr>
                         );
                       })}
@@ -654,10 +734,6 @@ export default function POS() {
           {/* Totals Section */}
           <div className="pos-totals">
             <div className="pos-totals-row">
-              <span>Subtotal:</span>
-              <span>${activeMode === 'Sale' ? totals.subtotal : returnTotals.subtotal}</span>
-            </div>
-            <div className="pos-totals-row">
               <span>Total Tax:</span>
               <span>${activeMode === 'Sale' ? totals.totalTax : returnTotals.totalTax}</span>
             </div>
@@ -679,6 +755,7 @@ export default function POS() {
               </>
             )}
 
+            <div className="pos-totals-divider"></div>
             <div className="pos-totals-row pos-total-row">
               <span>Total:</span>
               <span>
@@ -1020,7 +1097,7 @@ export default function POS() {
         >
           <div className="pos-price-change">
             <p>Product: {selectedProduct?.name}</p>
-            <p>Current Price: ${selectedProduct?.unitPrice.toFixed(2)}</p>
+            <p>Current Price: ${selectedProduct?.unitPriceGross.toFixed(2)}</p>
             <label>
               New Price:
               <input

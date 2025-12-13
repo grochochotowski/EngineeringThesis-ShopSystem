@@ -223,6 +223,12 @@
   color: var(--text-dark);
 }
 
+.pos-totals-divider {
+  height: 1px;
+  background: var(--border-muted);
+  margin: 0.5rem 0;
+}
+
 .pos-totals-row.pos-payment-row {
   font-size: 0.95rem;
   color: var(--text-muted);
@@ -475,7 +481,7 @@
 .pos-amount-input {
   width: 100%;
   padding: 0.75rem;
-  padding-right: 1rem;
+  padding-right: 2rem;
   border: var(--border-muted);
   border-radius: var(--radius-md);
   font-size: 1.1rem;

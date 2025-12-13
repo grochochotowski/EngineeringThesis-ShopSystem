@@ -26,6 +26,7 @@ namespace Backend.Api.Objects.DTOs
                                                 public decimal Price                { get; set; }
                                                 public bool Defective               { get; set; }
                                                 public int CategoryId               { get; set; }
+                                                public int TaxRateId                { get; set; }
                                                 public bool IsActive                { get; set; }
     }
 

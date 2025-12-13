@@ -155,6 +155,7 @@ namespace Backend.Api.Api.Controllers
                     Price = x.Product.Price,
                     Defective = x.Product.Defective,
                     CategoryId = x.Product.CategoryId,
+                    TaxRateId = x.Product.TaxRateId,
                     IsActive = x.Product.IsActive
                 });
 
