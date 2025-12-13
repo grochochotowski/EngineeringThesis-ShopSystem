@@ -46,12 +46,20 @@ namespace Backend.Api.Api.Controllers
             return NoContent();
         }
 
-        // --- SET ACTIVE STATUS ---
-        [HttpPatch("{id:int}/active")]
-        public async Task<IActionResult> SetActive(int id, [FromQuery] bool isActive, CancellationToken ct)
+        // --- DEACTIVATE TAX RATE ---
+        [HttpPut("{id:int}/deactivate")]
+        public async Task<IActionResult> Deactivate(int id, CancellationToken ct)
         {
-            await _service.SetActiveAsync(id, isActive, ct);
-            return NoContent();
+            var result = await _service.DeactivateAsync(id, ct);
+            return result ? NoContent() : NotFound();
+        }
+
+        // --- ACTIVATE TAX RATE ---
+        [HttpPut("{id:int}/activate")]
+        public async Task<IActionResult> Activate(int id, CancellationToken ct)
+        {
+            var result = await _service.ActivateAsync(id, ct);
+            return result ? NoContent() : NotFound();
         }
     }
 }

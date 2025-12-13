@@ -12,7 +12,8 @@ namespace Backend.Api.Api.Services
         Task<int> CreateAsync(CreateTaxRateDto dto, CancellationToken ct = default);
         Task UpdateAsync(int id, UpdateTaxRateDto dto, CancellationToken ct = default);
 
-        Task SetActiveAsync(int id, bool isActive, CancellationToken ct = default);
+        Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
+        Task<bool> ActivateAsync(int id, CancellationToken ct = default);
     }
 
     public class TaxRateService : ITaxRateService
@@ -102,14 +103,26 @@ namespace Backend.Api.Api.Services
             await _db.SaveChangesAsync(ct);
         }
 
-        // --- SET ACTIVE STATUS ---
-        public async Task SetActiveAsync(int id, bool isActive, CancellationToken ct = default)
+        // --- DEACTIVATE TAX RATE ---
+        public async Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
         {
             var e = await _db.TaxRates.FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (e is null) throw new KeyNotFoundException($"TaxRate {id} not found.");
+            if (e is null) return false;
 
-            e.IsActive = isActive;
+            e.IsActive = false;
             await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // --- ACTIVATE TAX RATE ---
+        public async Task<bool> ActivateAsync(int id, CancellationToken ct = default)
+        {
+            var e = await _db.TaxRates.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (e is null) return false;
+
+            e.IsActive = true;
+            await _db.SaveChangesAsync(ct);
+            return true;
         }
 
         // --- HELPERS ---
