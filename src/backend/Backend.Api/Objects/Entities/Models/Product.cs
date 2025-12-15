@@ -27,6 +27,6 @@ namespace Backend.Api.Objects.Entities.Models
 
         // --- Collections (N:N, 1:N) ---
         public virtual ICollection<ProductsInWarehouse> ProductsInWarehouse { get; set; } = new List<ProductsInWarehouse>();
-        public virtual ICollection<ParcelProduct> ParcelProducts            { get; set; } = new List<ParcelProduct>();
+        public virtual ICollection<ShipmentProduct> ShipmentProducts        { get; set; } = new List<ShipmentProduct>();
     }
 }

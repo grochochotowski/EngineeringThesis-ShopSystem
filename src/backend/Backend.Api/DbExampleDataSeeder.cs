@@ -26,7 +26,6 @@ namespace Backend.Api.Infrastructure
             SeedLocations();
             SeedProducts();
             SeedClients();
-            SeedDeliveryCompanies();
             SeedShipments();
             SeedSalesDocuments();
             SeedUsers();
@@ -219,65 +218,61 @@ namespace Backend.Api.Infrastructure
             _db.SaveChanges();
         }
 
-        // --- DELIVERY COMPANIES ---
-        private void SeedDeliveryCompanies()
-        {
-            if (_db.DeliveryCompanies.Any()) return;
-
-            var a1 = new Address { Country = Country.Poland, City = "Łódź", Street = "Transportowa", Building = "9", PostalCode = "90-001" };
-            var a2 = new Address { Country = Country.Poland, City = "Lublin", Street = "Kurierska", Building = "11", PostalCode = "20-101" };
-            _db.Addresses.AddRange(a1, a2);
-            _db.SaveChanges();
-
-            _db.DeliveryCompanies.AddRange(
-                new() { Name = "DPD", Email = "info@dpd.pl", PhoneNumber = "222222333", AddressId = a1.Id },
-                new() { Name = "InPost", Email = "contact@inpost.pl", PhoneNumber = "333444555", AddressId = a2.Id }
-            );
-            _db.SaveChanges();
-        }
-
-        // --- SHIPMENTS + PARCELS ---
+        // --- SHIPMENTS ---
         private void SeedShipments()
         {
             if (_db.Shipments.Any()) return;
 
-            var companyIds = _db.DeliveryCompanies.Select(x => x.Id).ToList();
             var addresses = _db.Addresses.ToList();
             var products = _db.Products.Take(5).ToList();
 
             for (int i = 0; i < 3; i++)
             {
-                // create shipment - with random addresses and delivery company
+                var senderAddr = addresses[_rand.Next(addresses.Count)];
+                var receiverAddr = addresses[_rand.Next(addresses.Count)];
+
+                // create shipment with dimensions directly on shipment
+                // Status: 1=InPreparation, 2=ReadyToCollect, 3=Collected, 4=InTransit, 5=Delivered
+                var status = (ShipmentStatus)_rand.Next(1, 6);
                 var shipment = new Shipment
                 {
                     Type = ShipmentType.Outgoing,
-                    Status = (ShipmentStatus)_rand.Next(1, 6),
-                    SendDate = DateTimeOffset.UtcNow.AddDays(-_rand.Next(1, 10)),
-                    DeliveryCompanyId = companyIds[_rand.Next(companyIds.Count)],
-                    AddressSenderId = addresses[_rand.Next(addresses.Count)].Id,
-                    AddressReceiverId = addresses[_rand.Next(addresses.Count)].Id
+                    Status = status,
+                    // Set dates based on status (Collected+ needs SendDate, Delivered needs DeliveryDate)
+                    SendDate = status >= ShipmentStatus.Collected ? DateTimeOffset.UtcNow.AddDays(-_rand.Next(1, 10)) : null,
+                    DeliveryDate = status == ShipmentStatus.Delivered ? DateTimeOffset.UtcNow.AddDays(-_rand.Next(0, 5)) : null,
+
+                    // Parcel fields (dimensions)
+                    Description = $"Package #{i + 1} containing electronic goods",
+                    Weight = (decimal)(_rand.NextDouble() * 5 + 0.5),
+                    Length = 20 + _rand.Next(30),
+                    Width = 15 + _rand.Next(20),
+                    Height = 10 + _rand.Next(10),
+
+                    // Sender information
+                    SenderName = "Company Warehouse",
+                    SenderTaxId = "PL1234567890",
+                    SenderAddressId = senderAddr.Id,
+                    SenderDetails = "Main distribution center",
+
+                    // Receiver information
+                    ReceiverName = i % 2 == 0 ? "Jan Kowalski" : "Anna Nowak",
+                    ReceiverTaxId = null,
+                    ReceiverAddressId = receiverAddr.Id,
+                    ReceiverDetails = "Please call before delivery"
                 };
                 _db.Shipments.Add(shipment);
                 _db.SaveChanges();
 
-                // create parcel with random dimensions
-                var parcel = new Parcel
+                // assign some products directly to the shipment via ShipmentProduct
+                foreach (var p in products.Take(_rand.Next(2, 5)))
                 {
-                    Description = $"Parcel for shipment {shipment.Id}",
-                    Weight = (decimal)_rand.NextDouble() * 5 + 0.5m,
-                    Length = 20 + _rand.Next(30),
-                    Width = 15 + _rand.Next(20),
-                    Height = 10 + _rand.Next(10),
-                    ShipmentId = shipment.Id
-                };
-                _db.Parcels.Add(parcel);
-                _db.SaveChanges();
-
-                // assign some products to the parcel
-                _db.Entry(parcel).Reload();
-                foreach (var p in products)
-                {
-                    _db.ParcelProducts.Add(new() { ParcelId = parcel.Id, ProductId = p.Id, Quantity = _rand.Next(1, 5) });
+                    _db.ShipmentProducts.Add(new ShipmentProduct
+                    {
+                        ShipmentId = shipment.Id,
+                        ProductId = p.Id,
+                        Quantity = _rand.Next(1, 5)
+                    });
                 }
                 _db.SaveChanges();
             }

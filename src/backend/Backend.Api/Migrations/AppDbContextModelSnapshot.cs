@@ -148,54 +148,6 @@ namespace Backend.Api.Migrations
                     b.ToTable("Clients");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.DeliveryCompany", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AddressId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AddressId")
-                        .IsUnique();
-
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.HasIndex("PhoneNumber")
-                        .IsUnique();
-
-                    b.ToTable("DeliveryCompanies");
-                });
-
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Location", b =>
                 {
                     b.Property<int>("Id")
@@ -241,50 +193,6 @@ namespace Backend.Api.Migrations
                             t.HasCheckConstraint("CK_Location_Shelf_Length", "LEN([Shelf]) <= 4");
 
                             t.HasCheckConstraint("CK_Location_Zone_Length", "LEN([Zone]) <= 4");
-                        });
-                });
-
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Parcel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<decimal>("Height")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<decimal>("Length")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<int?>("ShipmentId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Weight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<decimal>("Width")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShipmentId");
-
-                    b.ToTable("Parcels", t =>
-                        {
-                            t.HasCheckConstraint("CK_Parcel_Dims_Positive", "[Length] > 0 AND [Width] > 0 AND [Height] > 0");
-
-                            t.HasCheckConstraint("CK_Parcel_Weight_Positive", "[Weight] > 0");
                         });
                 });
 
@@ -380,27 +288,6 @@ namespace Backend.Api.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ParcelProduct", b =>
-                {
-                    b.Property<int>("ParcelId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.HasKey("ParcelId", "ProductId");
-
-                    b.HasIndex("ProductId");
-
-                    b.ToTable("ParcelProducts", t =>
-                        {
-                            t.HasCheckConstraint("CK_ParcelProduct_Qty_Positive", "[Quantity] >= 1");
-                        });
-                });
-
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ProductsInWarehouse", b =>
                 {
                     b.Property<int>("ProductId")
@@ -419,6 +306,27 @@ namespace Backend.Api.Migrations
                     b.ToTable("ProductsInWarehouse", t =>
                         {
                             t.HasCheckConstraint("CK_ProductsInWarehouse_Qty_NonNegative", "[Quantity] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ShipmentProduct", b =>
+                {
+                    b.Property<int>("ShipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("ShipmentId", "ProductId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ShipmentProducts", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
                         });
                 });
 
@@ -571,38 +479,89 @@ namespace Backend.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AddressReceiverId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AddressSenderId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DeliveryCompanyId")
-                        .HasColumnType("int");
-
                     b.Property<DateTimeOffset?>("DeliveryDate")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset>("SendDate")
+                    b.Property<string>("Description")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal?>("Height")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("Length")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("ReceiverAddressId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiverDetails")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("ReceiverName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("ReceiverTaxId")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset?>("SendDate")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<int>("Status")
+                    b.Property<int?>("SenderAddressId")
                         .HasColumnType("int");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
+                    b.Property<string>("SenderDetails")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("SenderName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("SenderTaxId")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<decimal?>("Weight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("Width")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AddressReceiverId");
+                    b.HasIndex("ReceiverAddressId");
 
-                    b.HasIndex("AddressSenderId");
-
-                    b.HasIndex("DeliveryCompanyId");
+                    b.HasIndex("SenderAddressId");
 
                     b.ToTable("Shipments", t =>
                         {
-                            t.HasCheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [DeliveryDate] >= [SendDate]");
+                            t.HasCheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [SendDate] IS NULL OR [DeliveryDate] >= [SendDate]");
+
+                            t.HasCheckConstraint("CK_Shipment_Dims_Positive", "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR ([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
+
+                            t.HasCheckConstraint("CK_Shipment_Status_Delivered_Date", "[Status] != 5 OR [DeliveryDate] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Shipment_Status_Ready_Fields", "[Status] IN (0, 1) OR ([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND [SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND [SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Shipment_Status_Sent_Date", "[Status] NOT IN (3, 4, 5) OR [SendDate] IS NOT NULL");
                         });
                 });
 
@@ -741,27 +700,6 @@ namespace Backend.Api.Migrations
                     b.Navigation("Address");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.DeliveryCompany", b =>
-                {
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "Address")
-                        .WithOne()
-                        .HasForeignKey("Backend.Api.Objects.Entities.Models.DeliveryCompany", "AddressId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Address");
-                });
-
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Parcel", b =>
-                {
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Shipment", "Shipment")
-                        .WithMany("Parcels")
-                        .HasForeignKey("ShipmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Shipment");
-                });
-
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Product", b =>
                 {
                     b.HasOne("Backend.Api.Objects.Entities.Models.Category", "Category")
@@ -792,25 +730,6 @@ namespace Backend.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ParcelProduct", b =>
-                {
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Parcel", "Parcel")
-                        .WithMany("ParcelProducts")
-                        .HasForeignKey("ParcelId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
-                        .WithMany("ParcelProducts")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Parcel");
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ProductsInWarehouse", b =>
                 {
                     b.HasOne("Backend.Api.Objects.Entities.Models.Location", "Location")
@@ -828,6 +747,25 @@ namespace Backend.Api.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ShipmentProduct", b =>
+                {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
+                        .WithMany("ShipmentProducts")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Shipment", "Shipment")
+                        .WithMany("ShipmentProducts")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Shipment");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocument", b =>
@@ -880,29 +818,19 @@ namespace Backend.Api.Migrations
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Shipment", b =>
                 {
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "AddressReceiver")
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "ReceiverAddress")
                         .WithMany()
-                        .HasForeignKey("AddressReceiverId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("ReceiverAddressId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "AddressSender")
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "SenderAddress")
                         .WithMany()
-                        .HasForeignKey("AddressSenderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("SenderAddressId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Backend.Api.Objects.Entities.Models.DeliveryCompany", "DeliveryCompany")
-                        .WithMany()
-                        .HasForeignKey("DeliveryCompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Navigation("ReceiverAddress");
 
-                    b.Navigation("AddressReceiver");
-
-                    b.Navigation("AddressSender");
-
-                    b.Navigation("DeliveryCompany");
+                    b.Navigation("SenderAddress");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.User", b =>
@@ -932,16 +860,11 @@ namespace Backend.Api.Migrations
                     b.Navigation("Products");
                 });
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Parcel", b =>
-                {
-                    b.Navigation("ParcelProducts");
-                });
-
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Product", b =>
                 {
-                    b.Navigation("ParcelProducts");
-
                     b.Navigation("ProductsInWarehouse");
+
+                    b.Navigation("ShipmentProducts");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocument", b =>
@@ -953,7 +876,7 @@ namespace Backend.Api.Migrations
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Shipment", b =>
                 {
-                    b.Navigation("Parcels");
+                    b.Navigation("ShipmentProducts");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.User", b =>

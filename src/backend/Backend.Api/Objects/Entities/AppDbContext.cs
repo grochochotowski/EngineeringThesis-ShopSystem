@@ -15,9 +15,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Address>           Addresses           => Set<Address>();
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
-        public DbSet<DeliveryCompany>   DeliveryCompanies   => Set<DeliveryCompany>();
         public DbSet<Location>          Locations           => Set<Location>();
-        public DbSet<Parcel>            Parcels             => Set<Parcel>();
         public DbSet<Product>           Products            => Set<Product>();
         public DbSet<RefreshToken>      RefreshTokens       => Set<RefreshToken>();
         public DbSet<SalesDocument>     SalesDocuments      => Set<SalesDocument>();
@@ -30,7 +28,7 @@ namespace Backend.Api.Objects.Entities
 
         // --- Relation DbSets ---
         public DbSet<ProductsInWarehouse> ProductsInWarehouse => Set<ProductsInWarehouse>();
-        public DbSet<ParcelProduct>       ParcelProducts      => Set<ParcelProduct>();
+        public DbSet<ShipmentProduct>     ShipmentProducts    => Set<ShipmentProduct>();
 
 
 
@@ -82,45 +80,6 @@ namespace Backend.Api.Objects.Entities
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // delivery company
-            modelBuilder.Entity<DeliveryCompany>(b =>
-            {
-                b.HasIndex(x => x.Name).IsUnique();
-                b.HasIndex(x => x.Email).IsUnique();
-                b.HasIndex(x => x.PhoneNumber).IsUnique();
-
-                b.Property(x => x.Name).HasMaxLength(64);
-                b.Property(x => x.Email).HasMaxLength(64);
-                b.Property(x => x.PhoneNumber).HasMaxLength(32);
-                b.Property(d => d.IsActive).HasDefaultValue(true);
-
-                b.HasOne(x => x.Address)
-                 .WithOne()
-                 .HasForeignKey<DeliveryCompany>(x => x.AddressId)
-                 .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // parcel
-            modelBuilder.Entity<Parcel>(b =>
-            {
-                b.HasIndex(x => x.ShipmentId);
-                b.Property(x => x.Description).HasMaxLength(256);
-                b.Property(x => x.Weight).HasPrecision(18, 3);
-                b.Property(x => x.Length).HasPrecision(18, 3);
-                b.Property(x => x.Width).HasPrecision(18, 3);
-                b.Property(x => x.Height).HasPrecision(18, 3);
-
-                b.HasOne(x => x.Shipment)
-                 .WithMany(s => s.Parcels)
-                 .HasForeignKey(x => x.ShipmentId)
-                 .OnDelete(DeleteBehavior.SetNull);
-
-                b.ToTable(t =>
-                {
-                    t.HasCheckConstraint("CK_Parcel_Weight_Positive", "[Weight] > 0");
-                    t.HasCheckConstraint("CK_Parcel_Dims_Positive", "[Length] > 0 AND [Width] > 0 AND [Height] > 0");
-                });
-            });
 
             // product
             modelBuilder.Entity<Product>(b =>
@@ -246,29 +205,63 @@ namespace Backend.Api.Objects.Entities
             // shipment
             modelBuilder.Entity<Shipment>(b =>
             {
-                b.HasMany(x => x.Parcels)
-                 .WithOne(p => p.Shipment)
-                 .HasForeignKey(p => p.ShipmentId)
-                 .OnDelete(DeleteBehavior.SetNull);
+                // string length configurations
+                b.Property(x => x.Description).HasMaxLength(256);
+                b.Property(x => x.SenderName).HasMaxLength(128);
+                b.Property(x => x.SenderTaxId).HasMaxLength(32);
+                b.Property(x => x.SenderDetails).HasMaxLength(512);
+                b.Property(x => x.ReceiverName).HasMaxLength(128);
+                b.Property(x => x.ReceiverTaxId).HasMaxLength(32);
+                b.Property(x => x.ReceiverDetails).HasMaxLength(512);
 
-                b.HasOne(x => x.DeliveryCompany)
+                // decimal precision for dimensions and weight
+                b.Property(x => x.Weight).HasPrecision(18, 3);
+                b.Property(x => x.Length).HasPrecision(18, 3);
+                b.Property(x => x.Width).HasPrecision(18, 3);
+                b.Property(x => x.Height).HasPrecision(18, 3);
+
+                // enum conversion
+                b.Property(x => x.Type).HasConversion<string>().HasMaxLength(32);
+                b.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+
+                // address relationships
+                b.HasOne(x => x.SenderAddress)
                  .WithMany()
-                 .HasForeignKey(x => x.DeliveryCompanyId)
+                 .HasForeignKey(x => x.SenderAddressId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                b.HasOne(x => x.AddressSender)
+                b.HasOne(x => x.ReceiverAddress)
                  .WithMany()
-                 .HasForeignKey(x => x.AddressSenderId)
+                 .HasForeignKey(x => x.ReceiverAddressId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                b.HasOne(x => x.AddressReceiver)
-                 .WithMany()
-                 .HasForeignKey(x => x.AddressReceiverId)
-                 .OnDelete(DeleteBehavior.Restrict);
-
+                // check constraints
                 b.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [DeliveryDate] >= [SendDate]");
+                    // dates validation
+                    t.HasCheckConstraint("CK_Shipment_Dates_Valid",
+                        "[DeliveryDate] IS NULL OR [SendDate] IS NULL OR [DeliveryDate] >= [SendDate]");
+
+                    // dimensions must be positive when set
+                    t.HasCheckConstraint("CK_Shipment_Dims_Positive",
+                        "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR " +
+                        "([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
+
+                    // status-based validations for InPreparation (value 1) and Unspecified (value 0)
+                    // When status is NOT InPreparation or Unspecified, certain fields are required
+                    t.HasCheckConstraint("CK_Shipment_Status_Ready_Fields",
+                        "[Status] IN (0, 1) OR " + // 0=Unspecified, 1=InPreparation
+                        "([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND " +
+                        "[SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND " +
+                        "[SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
+
+                    // When status is Collected (3), InTransit (4), or Delivered (5), SendDate is required
+                    t.HasCheckConstraint("CK_Shipment_Status_Sent_Date",
+                        "[Status] NOT IN (3, 4, 5) OR [SendDate] IS NOT NULL"); // Collected, InTransit, Delivered
+
+                    // When status is Delivered (5), DeliveryDate is required
+                    t.HasCheckConstraint("CK_Shipment_Status_Delivered_Date",
+                        "[Status] != 5 OR [DeliveryDate] IS NOT NULL"); // Delivered
                 });
             });
 
@@ -360,24 +353,24 @@ namespace Backend.Api.Objects.Entities
                 });
             });
 
-            // parcel-product
-            modelBuilder.Entity<ParcelProduct>(b =>
+            // shipment-product
+            modelBuilder.Entity<ShipmentProduct>(b =>
             {
-                b.HasKey(x => new { x.ParcelId, x.ProductId });
+                b.HasKey(x => new { x.ShipmentId, x.ProductId });
 
-                b.HasOne(x => x.Parcel)
-                 .WithMany(p => p.ParcelProducts)
-                 .HasForeignKey(x => x.ParcelId)
-                 .OnDelete(DeleteBehavior.Restrict);
+                b.HasOne(x => x.Shipment)
+                 .WithMany(s => s.ShipmentProducts)
+                 .HasForeignKey(x => x.ShipmentId)
+                 .OnDelete(DeleteBehavior.Cascade);
 
                 b.HasOne(x => x.Product)
-                 .WithMany(p => p.ParcelProducts)
+                 .WithMany(p => p.ShipmentProducts)
                  .HasForeignKey(x => x.ProductId)
                  .OnDelete(DeleteBehavior.Restrict);
 
                 b.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_ParcelProduct_Qty_Positive", "[Quantity] >= 1");
+                    t.HasCheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
                 });
             });
         }

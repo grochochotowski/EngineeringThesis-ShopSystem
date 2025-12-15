@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Backend.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class InitAfterConvertToLocationBasedInventory : Migration
+    public partial class UpdateShipmentStatusConstraints : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -53,7 +53,8 @@ namespace Backend.Api.Migrations
                     Zone = table.Column<string>(type: "nvarchar(4)", maxLength: 4, nullable: false),
                     Col = table.Column<string>(type: "nvarchar(4)", maxLength: 4, nullable: false),
                     Shelf = table.Column<string>(type: "nvarchar(4)", maxLength: 4, nullable: false),
-                    LocationCode = table.Column<string>(type: "nvarchar(14)", maxLength: 14, nullable: false)
+                    LocationCode = table.Column<string>(type: "nvarchar(14)", maxLength: 14, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true)
                 },
                 constraints: table =>
                 {
@@ -104,23 +105,46 @@ namespace Backend.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "DeliveryCompanies",
+                name: "Shipments",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    PhoneNumber = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
-                    AddressId = table.Column<int>(type: "int", nullable: false)
+                    Type = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    SendDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    DeliveryDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Weight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    Length = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    Width = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    Height = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: true),
+                    SenderName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    SenderTaxId = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true),
+                    SenderAddressId = table.Column<int>(type: "int", nullable: true),
+                    SenderDetails = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                    ReceiverName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    ReceiverTaxId = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true),
+                    ReceiverAddressId = table.Column<int>(type: "int", nullable: true),
+                    ReceiverDetails = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DeliveryCompanies", x => x.Id);
+                    table.PrimaryKey("PK_Shipments", x => x.Id);
+                    table.CheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [SendDate] IS NULL OR [DeliveryDate] >= [SendDate]");
+                    table.CheckConstraint("CK_Shipment_Dims_Positive", "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR ([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
+                    table.CheckConstraint("CK_Shipment_Status_Delivered_Date", "[Status] != 5 OR [DeliveryDate] IS NOT NULL");
+                    table.CheckConstraint("CK_Shipment_Status_Ready_Fields", "[Status] IN (0, 1) OR ([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND [SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND [SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
+                    table.CheckConstraint("CK_Shipment_Status_Sent_Date", "[Status] NOT IN (3, 4, 5) OR [SendDate] IS NOT NULL");
                     table.ForeignKey(
-                        name: "FK_DeliveryCompanies_Addresses_AddressId",
-                        column: x => x.AddressId,
+                        name: "FK_Shipments_Addresses_ReceiverAddressId",
+                        column: x => x.ReceiverAddressId,
+                        principalTable: "Addresses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Shipments_Addresses_SenderAddressId",
+                        column: x => x.SenderAddressId,
                         principalTable: "Addresses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -213,44 +237,6 @@ namespace Backend.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Shipments",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Type = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    SendDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    DeliveryDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                    DeliveryCompanyId = table.Column<int>(type: "int", nullable: false),
-                    AddressSenderId = table.Column<int>(type: "int", nullable: false),
-                    AddressReceiverId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Shipments", x => x.Id);
-                    table.CheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [DeliveryDate] >= [SendDate]");
-                    table.ForeignKey(
-                        name: "FK_Shipments_Addresses_AddressReceiverId",
-                        column: x => x.AddressReceiverId,
-                        principalTable: "Addresses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Shipments_Addresses_AddressSenderId",
-                        column: x => x.AddressSenderId,
-                        principalTable: "Addresses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Shipments_DeliveryCompanies_DeliveryCompanyId",
-                        column: x => x.DeliveryCompanyId,
-                        principalTable: "DeliveryCompanies",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "RefreshTokens",
                 columns: table => new
                 {
@@ -323,6 +309,32 @@ namespace Backend.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ShipmentProducts",
+                columns: table => new
+                {
+                    ShipmentId = table.Column<int>(type: "int", nullable: false),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ShipmentProducts", x => new { x.ShipmentId, x.ProductId });
+                    table.CheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
+                    table.ForeignKey(
+                        name: "FK_ShipmentProducts_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ShipmentProducts_Shipments_ShipmentId",
+                        column: x => x.ShipmentId,
+                        principalTable: "Shipments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SalesDocumentItems",
                 columns: table => new
                 {
@@ -386,58 +398,6 @@ namespace Backend.Api.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Parcels",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    Weight = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    Length = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    Width = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    Height = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
-                    ShipmentId = table.Column<int>(type: "int", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Parcels", x => x.Id);
-                    table.CheckConstraint("CK_Parcel_Dims_Positive", "[Length] > 0 AND [Width] > 0 AND [Height] > 0");
-                    table.CheckConstraint("CK_Parcel_Weight_Positive", "[Weight] > 0");
-                    table.ForeignKey(
-                        name: "FK_Parcels_Shipments_ShipmentId",
-                        column: x => x.ShipmentId,
-                        principalTable: "Shipments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ParcelProducts",
-                columns: table => new
-                {
-                    ParcelId = table.Column<int>(type: "int", nullable: false),
-                    ProductId = table.Column<int>(type: "int", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ParcelProducts", x => new { x.ParcelId, x.ProductId });
-                    table.CheckConstraint("CK_ParcelProduct_Qty_Positive", "[Quantity] >= 1");
-                    table.ForeignKey(
-                        name: "FK_ParcelProducts_Parcels_ParcelId",
-                        column: x => x.ParcelId,
-                        principalTable: "Parcels",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ParcelProducts_Products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "Products",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Addresses_Country_City_PostalCode_Street_Building_Premises",
                 table: "Addresses",
@@ -476,44 +436,10 @@ namespace Backend.Api.Migrations
                 filter: "[TaxId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DeliveryCompanies_AddressId",
-                table: "DeliveryCompanies",
-                column: "AddressId",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DeliveryCompanies_Email",
-                table: "DeliveryCompanies",
-                column: "Email",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DeliveryCompanies_Name",
-                table: "DeliveryCompanies",
-                column: "Name",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DeliveryCompanies_PhoneNumber",
-                table: "DeliveryCompanies",
-                column: "PhoneNumber",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Locations_LocationCode",
                 table: "Locations",
                 column: "LocationCode",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ParcelProducts_ProductId",
-                table: "ParcelProducts",
-                column: "ProductId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Parcels_ShipmentId",
-                table: "Parcels",
-                column: "ShipmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Products_CategoryId",
@@ -579,19 +505,19 @@ namespace Backend.Api.Migrations
                 column: "SalesDocumentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Shipments_AddressReceiverId",
-                table: "Shipments",
-                column: "AddressReceiverId");
+                name: "IX_ShipmentProducts_ProductId",
+                table: "ShipmentProducts",
+                column: "ProductId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Shipments_AddressSenderId",
+                name: "IX_Shipments_ReceiverAddressId",
                 table: "Shipments",
-                column: "AddressSenderId");
+                column: "ReceiverAddressId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Shipments_DeliveryCompanyId",
+                name: "IX_Shipments_SenderAddressId",
                 table: "Shipments",
-                column: "DeliveryCompanyId");
+                column: "SenderAddressId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TaxRates_Code",
@@ -628,9 +554,6 @@ namespace Backend.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "ParcelProducts");
-
-            migrationBuilder.DropTable(
                 name: "ProductsInWarehouse");
 
             migrationBuilder.DropTable(
@@ -643,37 +566,34 @@ namespace Backend.Api.Migrations
                 name: "SalesPayments");
 
             migrationBuilder.DropTable(
-                name: "UserCredentials");
+                name: "ShipmentProducts");
 
             migrationBuilder.DropTable(
-                name: "Parcels");
+                name: "UserCredentials");
 
             migrationBuilder.DropTable(
                 name: "Locations");
 
             migrationBuilder.DropTable(
+                name: "SalesDocuments");
+
+            migrationBuilder.DropTable(
                 name: "Products");
 
             migrationBuilder.DropTable(
-                name: "SalesDocuments");
+                name: "Shipments");
 
             migrationBuilder.DropTable(
                 name: "Users");
 
             migrationBuilder.DropTable(
-                name: "Shipments");
+                name: "Clients");
 
             migrationBuilder.DropTable(
                 name: "Categories");
 
             migrationBuilder.DropTable(
                 name: "TaxRates");
-
-            migrationBuilder.DropTable(
-                name: "Clients");
-
-            migrationBuilder.DropTable(
-                name: "DeliveryCompanies");
 
             migrationBuilder.DropTable(
                 name: "Addresses");
