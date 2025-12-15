@@ -222,7 +222,7 @@ namespace Backend.Api.Objects.Entities
 
                 // enum conversion
                 b.Property(x => x.Type).HasConversion<string>().HasMaxLength(32);
-                b.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+                b.Property(x => x.Status).HasMaxLength(32);
 
                 // address relationships
                 b.HasOne(x => x.SenderAddress)

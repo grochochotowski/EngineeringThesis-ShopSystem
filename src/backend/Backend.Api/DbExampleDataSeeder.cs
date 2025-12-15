@@ -224,48 +224,93 @@ namespace Backend.Api.Infrastructure
             if (_db.Shipments.Any()) return;
 
             var addresses = _db.Addresses.ToList();
-            var products = _db.Products.Take(5).ToList();
-
-            for (int i = 0; i < 3; i++)
+            if (addresses.Count == 0)
             {
+                // Cannot seed shipments without addresses
+                return;
+            }
+
+            var products = _db.Products.Take(5).ToList();
+            if (products.Count == 0)
+            {
+                // Cannot seed shipments without products
+                return;
+            }
+
+            // Create 5 shipments with different statuses to demonstrate full workflow
+            var statuses = new[] {
+                ShipmentStatus.InPreparation,      // 1 - minimal data
+                ShipmentStatus.ReadyToCollect,     // 2 - complete data, no dates
+                ShipmentStatus.Collected,          // 3 - complete data + SendDate
+                ShipmentStatus.InTransit,          // 4 - complete data + SendDate
+                ShipmentStatus.Delivered           // 5 - complete data + both dates
+            };
+
+            for (int i = 0; i < statuses.Length; i++)
+            {
+                var status = statuses[i];
                 var senderAddr = addresses[_rand.Next(addresses.Count)];
                 var receiverAddr = addresses[_rand.Next(addresses.Count)];
 
-                // create shipment with dimensions directly on shipment
-                // Status: 1=InPreparation, 2=ReadyToCollect, 3=Collected, 4=InTransit, 5=Delivered
-                var status = (ShipmentStatus)_rand.Next(1, 6);
                 var shipment = new Shipment
                 {
                     Type = ShipmentType.Outgoing,
-                    Status = status,
-                    // Set dates based on status (Collected+ needs SendDate, Delivered needs DeliveryDate)
-                    SendDate = status >= ShipmentStatus.Collected ? DateTimeOffset.UtcNow.AddDays(-_rand.Next(1, 10)) : null,
-                    DeliveryDate = status == ShipmentStatus.Delivered ? DateTimeOffset.UtcNow.AddDays(-_rand.Next(0, 5)) : null,
-
-                    // Parcel fields (dimensions)
-                    Description = $"Package #{i + 1} containing electronic goods",
-                    Weight = (decimal)(_rand.NextDouble() * 5 + 0.5),
-                    Length = 20 + _rand.Next(30),
-                    Width = 15 + _rand.Next(20),
-                    Height = 10 + _rand.Next(10),
-
-                    // Sender information
-                    SenderName = "Company Warehouse",
-                    SenderTaxId = "PL1234567890",
-                    SenderAddressId = senderAddr.Id,
-                    SenderDetails = "Main distribution center",
-
-                    // Receiver information
-                    ReceiverName = i % 2 == 0 ? "Jan Kowalski" : "Anna Nowak",
-                    ReceiverTaxId = null,
-                    ReceiverAddressId = receiverAddr.Id,
-                    ReceiverDetails = "Please call before delivery"
+                    Status = status
                 };
+
+                // For InPreparation: fields are optional (can be null or set)
+                // For other statuses: dimensions and sender/receiver MUST be set
+                if (status == ShipmentStatus.InPreparation)
+                {
+                    // Option 1: Leave some fields null (valid for InPreparation)
+                    shipment.Description = $"Draft shipment #{i + 1}";
+                    // Weight, Length, Width, Height can be null
+                    // SenderName, ReceiverName can be null
+                    // Addresses can be null
+                    // Dates can be null
+                }
+                else
+                {
+                    // For all non-InPreparation statuses: set required fields
+                    // Dimensions (required for status >= 2)
+                    shipment.Description = $"Package #{i + 1} containing electronic goods";
+                    shipment.Weight = (decimal)(_rand.NextDouble() * 5 + 0.5); // > 0
+                    shipment.Length = 20 + _rand.Next(30); // > 0
+                    shipment.Width = 15 + _rand.Next(20); // > 0
+                    shipment.Height = 10 + _rand.Next(10); // > 0
+
+                    // Sender information (required for status >= 2)
+                    shipment.SenderName = "Company Warehouse";
+                    shipment.SenderTaxId = "PL1234567890";
+                    shipment.SenderAddressId = senderAddr.Id;
+                    shipment.SenderDetails = "Main distribution center";
+
+                    // Receiver information (required for status >= 2)
+                    shipment.ReceiverName = i % 2 == 0 ? "Jan Kowalski" : "Anna Nowak";
+                    shipment.ReceiverTaxId = null; // Optional
+                    shipment.ReceiverAddressId = receiverAddr.Id;
+                    shipment.ReceiverDetails = "Please call before delivery";
+
+                    // Dates: SendDate required for status >= 3 (Collected, InTransit, Delivered)
+                    if (status >= ShipmentStatus.Collected)
+                    {
+                        shipment.SendDate = DateTimeOffset.UtcNow.AddDays(-_rand.Next(5, 15));
+                    }
+
+                    // Dates: DeliveryDate required for status == 5 (Delivered)
+                    if (status == ShipmentStatus.Delivered)
+                    {
+                        // DeliveryDate must be >= SendDate (per constraint)
+                        shipment.DeliveryDate = shipment.SendDate!.Value.AddDays(_rand.Next(1, 7));
+                    }
+                }
+
                 _db.Shipments.Add(shipment);
                 _db.SaveChanges();
 
-                // assign some products directly to the shipment via ShipmentProduct
-                foreach (var p in products.Take(_rand.Next(2, 5)))
+                // Assign products to shipment via ShipmentProduct (optional, can be done regardless of status)
+                int productCount = _rand.Next(2, Math.Min(5, products.Count + 1));
+                foreach (var p in products.Take(productCount))
                 {
                     _db.ShipmentProducts.Add(new ShipmentProduct
                     {
