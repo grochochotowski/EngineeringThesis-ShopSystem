@@ -207,6 +207,20 @@ textarea:focus {
     cursor: not-allowed;
 }
 
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    border-color: var(--border-muted);
+}
+
+.btn-action:disabled:hover {
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    border-color: var(--border-muted);
+}
+
 .btn-action.btn-confirm-positive:hover {
     background-color: var(--btn-success-bg);
     color: white;

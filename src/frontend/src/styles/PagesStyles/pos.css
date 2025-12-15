@@ -61,6 +61,12 @@
   opacity: 0.5;
 }
 
+.pos-search-bar input:disabled:hover,
+.pos-product-search:disabled:hover {
+  background: var(--bg-panel);
+  border-color: var(--border-muted);
+}
+
 .btn-search-document {
   padding: 0.75rem 1.5rem;
   border: none;
@@ -139,8 +145,8 @@
 }
 
 .pos-products-table-wrapper.disabled {
-  opacity: 0.5;
   pointer-events: none;
+  cursor: not-allowed;
 }
 
 .pos-products-table {
@@ -185,6 +191,28 @@
   outline-offset: -2px;
 }
 
+/* Clean header style - minimal and professional */
+.pos-products-table-clean-header thead {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
+}
+
+.pos-products-table-clean-header th {
+  padding: 0.75rem 0.6rem;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-dark);
+  background: transparent;
+  border-bottom: 2px solid var(--border);
+}
+
+.pos-products-table-clean-header thead tr {
+  border-bottom: 2px solid var(--border);
+}
+
 /* Return quantity input */
 .return-qty-input {
   width: 80px;
@@ -198,6 +226,40 @@
 .return-qty-input:focus {
   outline: 2px solid var(--accent-main);
   outline-offset: -1px;
+}
+
+/* Remove product button */
+.btn-remove-product {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-remove-product:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--btn-danger-bg);
+}
+
+.btn-remove-product:active:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-remove-product:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-remove-product svg {
+  pointer-events: none;
 }
 
 /* Empty message */
@@ -394,7 +456,7 @@
   margin: 0;
 }
 
-/* Radio button group */
+/* Radio button group - Styled to match form inputs */
 .pos-radio-group {
   display: flex;
   flex-direction: row;
@@ -408,16 +470,15 @@
   border: var(--border-muted);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: all 0.2s ease;
   background: var(--bg-card);
   font-weight: normal;
-  color: var(--text-muted);
+  color: var(--text-dark);
   flex: 1;
   justify-content: center;
 }
 
-.pos-radio-group label:hover:not(.disabled) {
-  background: var(--bg-hover);
+.pos-radio-group label:hover:not(.disabled):not(.active) {
   border-color: var(--accent-main);
 }
 
@@ -431,6 +492,8 @@
 .pos-radio-group label.disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: var(--bg-panel);
+  color: var(--text-muted);
 }
 
 .pos-radio-group input[type="radio"] {
@@ -441,6 +504,14 @@
 .pos-radio-group label:has(input[type="radio"]:disabled) {
   opacity: 0.5;
   cursor: not-allowed;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+}
+
+.pos-radio-group input[type="radio"]:disabled + label:hover,
+.pos-radio-group label:has(input[type="radio"]:disabled):hover {
+  background: var(--bg-panel);
+  border-color: var(--border-muted);
 }
 
 /* Option button */
@@ -468,6 +539,11 @@
   color: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.pos-option-button:disabled:hover {
+  background: var(--bg-panel);
+  border-color: var(--border-muted);
 }
 
 .pos-selected-info {
@@ -501,6 +577,11 @@
   color: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.pos-amount-input:disabled:hover {
+  background: var(--bg-panel);
+  border-color: var(--border-muted);
 }
 
 /* Action section */
@@ -584,6 +665,32 @@
   color: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Revert Payment button */
+.pos-revert-button {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--btn-danger-bg);
+  color: var(--text-white);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.pos-revert-button:hover {
+  background: var(--btn-danger-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.pos-revert-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 /* === MODALS === */
