@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -22,7 +22,6 @@ export default function POS() {
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [productSearchResults, setProductSearchResults] = useState([]);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const searchTimeoutRef = useRef(null);
 
   // Sale mode state
   const [documentType, setDocumentType] = useState('Receipt'); // Receipt, Invoice
@@ -55,6 +54,8 @@ export default function POS() {
   // Confirmation dialogs
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showReturnConfirm, setShowReturnConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   // Toast messages
   const [toast, setToast] = useState(null);
@@ -85,19 +86,15 @@ export default function POS() {
     fetchTaxRates();
   }, []);
 
-  // Product search with debounce
+  // Product search with immediate results
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
     if (productSearchQuery.trim().length === 0) {
       setProductSearchResults([]);
       setShowProductDropdown(false);
       return;
     }
 
-    searchTimeoutRef.current = setTimeout(async () => {
+    const searchProducts = async () => {
       try {
         const { items } = await api.get('/Products', {
           params: {
@@ -112,13 +109,9 @@ export default function POS() {
         console.error('Product search failed:', error);
         setProductSearchResults([]);
       }
-    }, 1000);
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
     };
+
+    searchProducts();
   }, [productSearchQuery]);
 
   // Add product to scanned list
@@ -191,7 +184,6 @@ export default function POS() {
   const remainingBalance = parseFloat(totals.totalGross) - totalPaid;
 
   // Two separate flags for different purposes:
-  const hasPayments = payments.length > 0; // Has any payment been made?
   const isFullyPaid = scannedProducts.length > 0 && remainingBalance <= 0; // Is transaction fully paid?
 
   const change = totalPaid > parseFloat(totals.totalGross) ? totalPaid - parseFloat(totals.totalGross) : 0;
@@ -220,6 +212,27 @@ export default function POS() {
       };
       return updated;
     });
+  };
+
+  // Handle product removal - show confirmation first
+  const handleRemoveProductClick = (product) => {
+    setProductToDelete(product);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleRemoveProductConfirm = () => {
+    if (!productToDelete) return;
+
+    setScannedProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+
+    // Clear selection if the removed product was selected
+    if (selectedProduct?.id === productToDelete.id) {
+      setSelectedProduct(null);
+    }
+
+    setToast({ type: 'success', message: 'Product removed from list' });
+    setShowDeleteConfirm(false);
+    setProductToDelete(null);
   };
 
   // Change price (Deputy Manager or higher)
@@ -318,6 +331,15 @@ export default function POS() {
     setPayments(prev => prev.filter(p => p.method !== method));
     setPaymentMethod(null);
     setToast({ type: 'success', message: `${method} payment removed` });
+  };
+
+  // Revert all payments and unlock interface
+  const handleRevertPayment = () => {
+    setPayments([]);
+    setPaymentMethod(null);
+    setPaymentAmount(0);
+    setSaleDocumentGenerated(null);
+    setToast({ type: 'success', message: 'All payments reverted' });
   };
 
   // Payment Step 1: Record a payment
@@ -565,7 +587,7 @@ export default function POS() {
                 value={productSearchQuery}
                 onChange={(e) => setProductSearchQuery(e.target.value)}
                 onFocus={() => productSearchResults.length > 0 && setShowProductDropdown(true)}
-                disabled={hasPayments}
+                disabled={isFullyPaid}
                 className="pos-product-search"
               />
               {showProductDropdown && productSearchResults.length > 0 && (
@@ -615,18 +637,19 @@ export default function POS() {
               <div className="pos-list-header">
                 <h3>Scanned Products</h3>
               </div>
-              <div className={`pos-products-table-wrapper ${hasPayments ? 'disabled' : ''}`}>
+              <div className={`pos-products-table-wrapper ${isFullyPaid ? 'disabled' : ''}`}>
                 {scannedProducts.length === 0 ? (
                   <div className="pos-empty-message">No products scanned</div>
                 ) : (
-                  <table className="pos-products-table">
+                  <table className="pos-products-table pos-products-table-clean-header">
                     <thead>
                       <tr>
-                        <th style={{ width: "35%" }}>Product</th>
+                        <th style={{ width: "30%", textAlign: "left" }}>Product</th>
                         <th style={{ width: "10%", textAlign: "center" }}>Qty</th>
-                        <th style={{ width: "15%", textAlign: "right" }}>Price</th>
-                        <th style={{ width: "20%", textAlign: "right" }}>Tax</th>
-                        <th style={{ width: "20%", textAlign: "right" }}>Total</th>
+                        <th style={{ width: "15%", textAlign: "center" }}>Price</th>
+                        <th style={{ width: "18%", textAlign: "center" }}>Tax</th>
+                        <th style={{ width: "17%", textAlign: "center", paddingRight: "2rem" }}>Total</th>
+                        <th style={{ width: "10%", textAlign: "center" }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -637,37 +660,54 @@ export default function POS() {
                           <tr
                             key={product.id}
                             className={selectedProduct?.id === product.id ? 'selected' : ''}
-                            onClick={() => !hasPayments && handleProductRowClick(product)}
+                            onClick={() => !isFullyPaid && handleProductRowClick(product)}
                           >
                             {/* Product Name */}
-                            <td>{product.name}</td>
+                            <td style={{ width: "30%", textAlign: "left" }}>{product.name}</td>
 
                             {/* Editable Quantity */}
-                            <td style={{ textAlign: "center" }}>
+                            <td style={{ width: "10%", textAlign: "center" }}>
                               <input
                                 type="number"
                                 min="1"
                                 value={product.quantity}
                                 onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
                                 onClick={(e) => e.stopPropagation()}
-                                disabled={hasPayments}
+                                disabled={isFullyPaid}
                                 style={{ width: "60px", textAlign: "center" }}
                               />
                             </td>
 
                             {/* Net Price (without tax) */}
-                            <td style={{ textAlign: "right" }}>
+                            <td style={{ width: "15%", textAlign: "center" }}>
                               ${product.unitPriceNet.toFixed(2)}
                             </td>
 
-                            {/* Tax (percentage and amount) */}
-                            <td style={{ textAlign: "right" }}>
-                              {(product.taxRate * 100).toFixed(0)}% - ${product.unitTaxAmount.toFixed(2)}
+                            {/* Tax (amount and percentage) - New format: XX.XX (yy%) */}
+                            <td style={{ width: "18%", textAlign: "center" }}>
+                              ${product.unitTaxAmount.toFixed(2)} ({(product.taxRate * 100).toFixed(0)}%)
                             </td>
 
-                            {/* Total (gross price × quantity) */}
-                            <td style={{ textAlign: "right" }}>
+                            {/* Total (gross price × quantity) - Add padding */}
+                            <td style={{ width: "17%", textAlign: "center", paddingRight: "2rem" }}>
                               ${lineGross.toFixed(2)}
+                            </td>
+
+                            {/* Remove Button - Trash icon */}
+                            <td style={{ width: "10%", textAlign: "center" }}>
+                              <button
+                                className="btn-remove-product"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveProductClick(product);
+                                }}
+                                disabled={isFullyPaid}
+                                title="Remove product"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18">
+                                  <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6m4-6v6"/>
+                                </svg>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -733,10 +773,11 @@ export default function POS() {
 
           {/* Totals Section */}
           <div className="pos-totals">
-            <div className="pos-totals-row">
+            {/* Total Tax row hidden - calculation kept for receipt generation */}
+            {/* <div className="pos-totals-row">
               <span>Total Tax:</span>
               <span>${activeMode === 'Sale' ? totals.totalTax : returnTotals.totalTax}</span>
-            </div>
+            </div> */}
 
             {/* Payment tracking rows (Sale mode only) */}
             {activeMode === 'Sale' && payments.length > 0 && (
@@ -817,7 +858,7 @@ export default function POS() {
                       value="Receipt"
                       checked={documentType === 'Receipt'}
                       onChange={(e) => setDocumentType(e.target.value)}
-                      disabled={hasPayments}
+                      disabled={isFullyPaid}
                     />
                     Receipt
                   </label>
@@ -828,7 +869,7 @@ export default function POS() {
                       value="Invoice"
                       checked={documentType === 'Invoice'}
                       onChange={(e) => setDocumentType(e.target.value)}
-                      disabled={hasPayments}
+                      disabled={isFullyPaid}
                     />
                     Invoice
                   </label>
@@ -836,7 +877,7 @@ export default function POS() {
                 <button
                   className="pos-option-button"
                   onClick={handleOpenClientModal}
-                  disabled={documentType === 'Receipt' || hasPayments}
+                  disabled={documentType === 'Receipt' || isFullyPaid}
                 >
                   {selectedClient ? selectedClient.name : 'Select Client'}
                 </button>
@@ -855,7 +896,7 @@ export default function POS() {
                 <button
                   className="btn-action btn-view-details"
                   onClick={handleChangePrice}
-                  disabled={!selectedProduct || userRole < 4 || hasPayments}
+                  disabled={!selectedProduct || userRole < 4 || isFullyPaid}
                   title={userRole < 4 ? 'Requires Deputy Manager or higher' : ''}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
@@ -877,6 +918,7 @@ export default function POS() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   className="pos-amount-input"
+                  disabled={isFullyPaid}
                 />
                 <div className="pos-radio-group">
                   <label className={paymentMethod === 'Card' ? 'active' : ''}>
@@ -886,6 +928,7 @@ export default function POS() {
                       value="Card"
                       checked={paymentMethod === 'Card'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
+                      disabled={isFullyPaid}
                     />
                     Card
                   </label>
@@ -896,6 +939,7 @@ export default function POS() {
                       value="Cash"
                       checked={paymentMethod === 'Cash'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
+                      disabled={isFullyPaid}
                     />
                     Cash
                   </label>
@@ -906,18 +950,28 @@ export default function POS() {
                       value="Gift Card"
                       checked={paymentMethod === 'Gift Card'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
+                      disabled={isFullyPaid}
                     />
                     Gift Card
                   </label>
                 </div>
                 <div className="pos-payment-buttons">
-                  <button
-                    className="pos-pay-button"
-                    onClick={handlePayClick}
-                    disabled={!paymentMethod || parseFloat(paymentAmount) <= 0}
-                  >
-                    Pay
-                  </button>
+                  {!isFullyPaid ? (
+                    <button
+                      className="pos-pay-button"
+                      onClick={handlePayClick}
+                      disabled={!paymentMethod || parseFloat(paymentAmount) <= 0}
+                    >
+                      Pay
+                    </button>
+                  ) : (
+                    <button
+                      className="pos-revert-button"
+                      onClick={handleRevertPayment}
+                    >
+                      Revert Payment
+                    </button>
+                  )}
                   <button
                     className="pos-finish-button"
                     onClick={handleFinishTransaction}
@@ -1111,7 +1165,7 @@ export default function POS() {
             </label>
             <div className="pos-modal-actions">
               <button
-                className="pos-button-primary"
+                className="btn-action btn-choose-modal"
                 onClick={handlePriceChangeConfirm}
               >
                 Save
@@ -1140,6 +1194,20 @@ export default function POS() {
           confirmText="Confirm"
           onConfirm={handleReturnConfirm}
           onCancel={() => setShowReturnConfirm(false)}
+        />
+      )}
+
+      {/* Delete Product Confirmation */}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Remove Product"
+          message={`Remove "${productToDelete?.name}" from the transaction?`}
+          confirmText="Remove"
+          onConfirm={handleRemoveProductConfirm}
+          onCancel={() => {
+            setShowDeleteConfirm(false);
+            setProductToDelete(null);
+          }}
         />
       )}
 
