@@ -87,6 +87,9 @@ export default function IncomingShipments() {
   const isDeputyManagerOrHigher = userRoleLevel >= getRoleLevel("DeputyManager");
   const isManagerOrHigher = userRoleLevel >= getRoleLevel("Manager");
 
+  // State for status change confirmation
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
+
   // Fetch shipments data
   const fetchShipmentsData = async (page, currentFilters, currentSearchQuery, currentSortColumn, currentSortDirection) => {
     try {
@@ -238,17 +241,32 @@ export default function IncomingShipments() {
     }
   };
 
-  // Handle status change
-  const handleStatusChange = async (shipmentId, newStatus) => {
+  // Handle status change request (shows confirmation)
+  const handleStatusChangeRequest = (shipmentId, currentStatus, newStatus) => {
+    const statusLabel = getStatusLabel(parseInt(newStatus));
+    setPendingStatusChange({
+      shipmentId,
+      currentStatus,
+      newStatus: parseInt(newStatus),
+      statusLabel,
+    });
+  };
+
+  // Execute status change after confirmation
+  const executeStatusChange = async () => {
+    if (!pendingStatusChange) return;
+
+    const { shipmentId, newStatus } = pendingStatusChange;
+
     try {
-      await api.patch(`/Shipments/${shipmentId}/status`, { status: parseInt(newStatus) });
+      await api.patch(`/Shipments/${shipmentId}/status`, { status: newStatus });
 
       // Refresh the shipment
       const updated = await api.get(`/Shipments/${shipmentId}`);
       setSelectedShipmentDetails(updated);
 
       // Update in list
-      setShipments(prev => prev.map(s => s.id === shipmentId ? { ...s, status: parseInt(newStatus) } : s));
+      setShipments(prev => prev.map(s => s.id === shipmentId ? { ...s, status: newStatus } : s));
 
       setToast({
         message: "Status updated successfully!",
@@ -260,6 +278,8 @@ export default function IncomingShipments() {
         message: err.response?.data?.message || "Failed to update status.",
         type: "error",
       });
+    } finally {
+      setPendingStatusChange(null);
     }
   };
 
@@ -767,14 +787,18 @@ export default function IncomingShipments() {
         value={currentStatus}
         onChange={(e) => {
           e.stopPropagation();
-          handleStatusChange(row.id, e.target.value);
+          const newStatus = e.target.value;
+          // Only trigger if actually changed
+          if (parseInt(newStatus) !== currentStatus) {
+            handleStatusChangeRequest(row.id, currentStatus, newStatus);
+          }
         }}
         onClick={(e) => e.stopPropagation()}
         className="status-select"
       >
         {shipmentStatusesData.map(s => {
-          // For users below Manager, only show higher statuses
-          if (!isManagerOrHigher && s.id < currentStatus) {
+          // Only show current status and higher statuses
+          if (s.id < currentStatus) {
             return null;
           }
           return <option key={s.id} value={s.id}>{s.value}</option>;
@@ -806,11 +830,32 @@ export default function IncomingShipments() {
     }
   };
 
+  // Helper to get status badge class
+  const getStatusBadgeClass = (statusId) => {
+    switch (statusId) {
+      case 0: return "badge-unspecified"; // gray
+      case 1: return "badge-in-preparation"; // blue
+      case 2: return "badge-ready-to-collect"; // yellow
+      case 3: return "badge-collected"; // orange
+      case 4: return "badge-in-transit"; // purple
+      case 5: return "badge-delivered"; // green
+      case 6: return "badge-cancelled"; // red
+      case 7: return "badge-returned"; // brown
+      default: return "badge-unspecified";
+    }
+  };
+
   const detailsConfig = {
+    status: {
+      key: "status",
+      render: (data) => (
+        <div className={`badge ${getStatusBadgeClass(data.status)}`}>
+          {getStatusLabel(data.status)}
+        </div>
+      ),
+    },
     fields: [
       { label: "ID", key: "id" },
-      { label: "Type", key: "type", render: (data) => data.type === 1 ? "Incoming" : "Outgoing" },
-      { label: "Status", key: "status", render: (data) => getStatusLabel(data.status) },
       { label: "Sender", key: "senderName" },
       { label: "Sender Tax ID", key: "senderTaxId" },
       { label: "Receiver", key: "receiverName" },
@@ -858,7 +903,7 @@ export default function IncomingShipments() {
           searchValue={searchQuery}
           hideDeleteButton={true}
           hideAddButton={false}
-          disableEdit={!isDeputyManagerOrHigher || !selectedRow}
+          disableEdit={!selectedRow}
           changePasswordButtonLabel="Collect"
           changePasswordButtonClass="btn-go-to"
           changePasswordDisabled={!selectedRow || selectedRow.statusRaw !== 5}
@@ -875,12 +920,12 @@ export default function IncomingShipments() {
           <div className="filters-panel" ref={filtersRef}>
             <h4>Filters</h4>
             <div className="filter-group">
-              <label htmlFor="status-filter">Status:</label>
               <select
                 id="status-filter"
                 name="status"
                 value={filters.status}
                 onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                className="filter-input"
               >
                 <option value="">All Statuses</option>
                 {shipmentStatusesData.map(s => (
@@ -898,13 +943,16 @@ export default function IncomingShipments() {
                   placeholder="From"
                   value={filters.sendDateFrom}
                   onChange={(e) => setFilters(prev => ({ ...prev, sendDateFrom: e.target.value }))}
+                  className="filter-input"
                 />
+                <span className="date-separator">to</span>
                 <input
                   type="date"
                   name="sendDateTo"
                   placeholder="To"
                   value={filters.sendDateTo}
                   onChange={(e) => setFilters(prev => ({ ...prev, sendDateTo: e.target.value }))}
+                  className="filter-input"
                 />
               </div>
             </div>
@@ -918,13 +966,16 @@ export default function IncomingShipments() {
                   placeholder="From"
                   value={filters.deliveryDateFrom}
                   onChange={(e) => setFilters(prev => ({ ...prev, deliveryDateFrom: e.target.value }))}
+                  className="filter-input"
                 />
+                <span className="date-separator">to</span>
                 <input
                   type="date"
                   name="deliveryDateTo"
                   placeholder="To"
                   value={filters.deliveryDateTo}
                   onChange={(e) => setFilters(prev => ({ ...prev, deliveryDateTo: e.target.value }))}
+                  className="filter-input"
                 />
               </div>
             </div>
@@ -1403,6 +1454,18 @@ export default function IncomingShipments() {
           confirmText="Confirm"
           onConfirm={executeCollection}
           onCancel={() => setShowConfirmFinish(false)}
+        />
+      )}
+
+      {/* Confirm Status Change Dialog */}
+      {pendingStatusChange && (
+        <ConfirmDialog
+          title="Confirm Status Change"
+          message={`Are you sure you want to change status to ${pendingStatusChange.statusLabel}?`}
+          confirmText="Confirm"
+          confirmButtonClass="dialog-btn-confirm-positive"
+          onConfirm={executeStatusChange}
+          onCancel={() => setPendingStatusChange(null)}
         />
       )}
 

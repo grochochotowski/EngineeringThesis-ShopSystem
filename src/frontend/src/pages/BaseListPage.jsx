@@ -20,9 +20,13 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
             <div className="title-details-row">
                 <h3>Details</h3>
                 {effectiveDetailsConfig.status && (
-                    <div className={detailsData[effectiveDetailsConfig.status.key] ? "badge status-active" : "badge status-inactive"}>
-                        {detailsData[effectiveDetailsConfig.status.key] ? effectiveDetailsConfig.status.activeLabel : effectiveDetailsConfig.status.inactiveLabel}
-                    </div>
+                    effectiveDetailsConfig.status.render ? (
+                        effectiveDetailsConfig.status.render(detailsData)
+                    ) : (
+                        <div className={detailsData[effectiveDetailsConfig.status.key] ? "badge status-active" : "badge status-inactive"}>
+                            {detailsData[effectiveDetailsConfig.status.key] ? effectiveDetailsConfig.status.activeLabel : effectiveDetailsConfig.status.inactiveLabel}
+                        </div>
+                    )
                 )}
             </div>
             <ul>
