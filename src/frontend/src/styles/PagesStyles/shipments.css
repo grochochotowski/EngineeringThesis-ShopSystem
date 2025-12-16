@@ -17,11 +17,13 @@
 /* Filter input with consistent border styling */
 .filter-input {
   padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border-muted);
+  border: 1px solid #e2e8f0;
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
-  background: var(--bg-card);
-  color: var(--text-dark);
+  background: #ffffff;
+  color: #0f1624;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-input:focus {
@@ -33,11 +35,13 @@
 .filter-group input,
 .filter-group select {
   padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border-muted);
+  border: 1px solid #e2e8f0;
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
-  background: var(--bg-card);
-  color: var(--text-dark);
+  background: #ffffff;
+  color: #0f1624;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-group input:focus,
@@ -74,11 +78,11 @@
   min-width: 0;
   max-width: 100%;
   padding: 0.5rem 0.5rem;
-  border: 1px solid var(--border-muted);
+  border: 1px solid #e2e8f0;
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
-  background: var(--bg-card);
-  color: var(--text-dark);
+  background: #ffffff;
+  color: #0f1624;
   box-sizing: border-box;
 }
 
