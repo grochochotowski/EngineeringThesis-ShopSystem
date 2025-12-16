@@ -7,7 +7,6 @@ import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageBox from "../../components/MessageBox";
 import { shipmentStatusesData } from "../../data/shipmentStatuses";
-import { userRolesData } from "../../data/userRoles";
 import "../../styles/PagesStyles/shipments.css";
 
 export default function IncomingShipments() {
@@ -24,6 +23,45 @@ export default function IncomingShipments() {
   const [sortDirection, setSortDirection] = useState("desc");
   const [showCollectModal, setShowCollectModal] = useState(false);
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
+
+  // Edit Shipment Modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    id: null,
+    type: 1,
+    status: 1,
+    sendDate: "",
+    deliveryDate: "",
+    description: "",
+    length: "",
+    width: "",
+    height: "",
+    weight: "",
+    senderName: "",
+    senderTaxId: "",
+    senderStreet: "",
+    senderBuilding: "",
+    senderPremises: "",
+    senderPostalCode: "",
+    senderCity: "",
+    senderCountry: "",
+    senderAddressId: null,
+    receiverName: "",
+    receiverTaxId: "",
+    receiverDetails: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Edit modal product management state
+  const [editSelectedProducts, setEditSelectedProducts] = useState([]);
+  const [editProductSearch, setEditProductSearch] = useState("");
+  const [editProductSuggestions, setEditProductSuggestions] = useState([]);
+  const [showEditProductDropdown, setShowEditProductDropdown] = useState(false);
+  const [editHighlightedIndex, setEditHighlightedIndex] = useState(0);
+  const [editProductPageNumber, setEditProductPageNumber] = useState(1);
+  const [hasMoreEditProducts, setHasMoreEditProducts] = useState(true);
+  const [loadingEditProducts, setLoadingEditProducts] = useState(false);
+  const editProductDropdownRef = useRef(null);
 
   // Search and filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,16 +114,6 @@ export default function IncomingShipments() {
   const filtersRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
-  const userRole = localStorage.getItem("userRole");
-  const userRoleLevel = userRolesData.find(r => r.value === userRole)?.id || 0;
-
-  // Helper: get role level by name
-  const getRoleLevel = (roleName) => {
-    return userRolesData.find(r => r.value === roleName)?.id || 0;
-  };
-
-  const isDeputyManagerOrHigher = userRoleLevel >= getRoleLevel("DeputyManager");
-  const isManagerOrHigher = userRoleLevel >= getRoleLevel("Manager");
 
   // State for status change confirmation
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
@@ -214,8 +242,8 @@ export default function IncomingShipments() {
     from: `${s.senderName || "Unknown"}${s.senderTaxId ? ` (${s.senderTaxId})` : ""}`,
     size: s.length && s.width && s.height ? `${s.length} x ${s.width} x ${s.height}` : "—",
     productCount: s.shipmentProducts?.length || 0,
-    sendDate: formatDate(s.sendDate),
-    deliveryDate: formatDate(s.deliveryDate),
+    sendDate: s.sendDate,
+    deliveryDate: s.deliveryDate,
     status: s.status,
     statusRaw: s.status,
   }));
@@ -274,10 +302,19 @@ export default function IncomingShipments() {
       });
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to update status.",
-        type: "error",
-      });
+
+      // Handle 409 Conflict errors with specific message
+      if (err.response?.status === 409) {
+        setToast({
+          message: err.response?.data?.message || err.response?.data || "Conflict: Cannot change to this status.",
+          type: "error",
+        });
+      } else {
+        setToast({
+          message: err.response?.data?.message || err.response?.data || "Failed to update status.",
+          type: "error",
+        });
+      }
     } finally {
       setPendingStatusChange(null);
     }
@@ -513,6 +550,203 @@ export default function IncomingShipments() {
     setSelectedProducts(prev => prev.filter(p => p.id !== productId));
   };
 
+  // === EDIT MODAL PRODUCT MANAGEMENT ===
+
+  // Product search for edit modal
+  useEffect(() => {
+    if (!editProductSearch.trim()) {
+      setEditProductSuggestions([]);
+      setShowEditProductDropdown(false);
+      setEditProductPageNumber(1);
+      setHasMoreEditProducts(true);
+      setEditHighlightedIndex(0);
+      return;
+    }
+
+    const searchProducts = async () => {
+      try {
+        setLoadingEditProducts(true);
+        const response = await api.get("/products-in-warehouse/search-product", {
+          params: {
+            pageNumber: 1,
+            pageSize: 100,
+            searchTerm: editProductSearch,
+          },
+        });
+
+        const products = response.items || [];
+        setEditProductSuggestions(products);
+        setShowEditProductDropdown(products.length > 0);
+        setEditProductPageNumber(1);
+        setHasMoreEditProducts(response.totalPages > 1);
+        setEditHighlightedIndex(0);
+      } catch (err) {
+        console.error("Failed to search products", err);
+        setEditProductSuggestions([]);
+      } finally {
+        setLoadingEditProducts(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      searchProducts();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [editProductSearch]);
+
+  // Lazy load more products for edit modal
+  const loadMoreEditProducts = async () => {
+    if (!hasMoreEditProducts || loadingEditProducts || !editProductSearch.trim()) return;
+
+    try {
+      setLoadingEditProducts(true);
+      const nextPage = editProductPageNumber + 1;
+      const response = await api.get("/products-in-warehouse/search-product", {
+        params: {
+          pageNumber: nextPage,
+          pageSize: 100,
+          searchTerm: editProductSearch,
+        },
+      });
+
+      const newProducts = response.items || [];
+      setEditProductSuggestions(prev => [...prev, ...newProducts]);
+      setEditProductPageNumber(nextPage);
+      setHasMoreEditProducts(nextPage < response.totalPages);
+    } catch (err) {
+      console.error("Failed to load more products", err);
+    } finally {
+      setLoadingEditProducts(false);
+    }
+  };
+
+  // Handle scroll in edit product dropdown
+  const handleEditProductDropdownScroll = (e) => {
+    const bottom = e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 50;
+    if (bottom && hasMoreEditProducts && !loadingEditProducts) {
+      loadMoreEditProducts();
+    }
+  };
+
+  // Add product to edit shipment
+  const handleEditAddProduct = (product) => {
+    const productId = product.productId || product.id;
+    const existing = editSelectedProducts.find(p => p.id === productId);
+    if (existing) {
+      setToast({
+        message: "Product already added to shipment",
+        type: "error",
+      });
+      return;
+    }
+
+    setEditSelectedProducts(prev => [...prev, {
+      id: productId,
+      sku: product.sku,
+      name: product.name,
+      quantity: 1,
+      currentStock: product.totalQuantity || 0,
+    }]);
+    setEditProductSearch("");
+    setEditProductSuggestions([]);
+    setShowEditProductDropdown(false);
+    setEditHighlightedIndex(0);
+  };
+
+  // Handle keyboard navigation in edit product dropdown
+  const handleEditProductSearchKeyDown = (e) => {
+    if (!showEditProductDropdown || editProductSuggestions.length === 0) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleEditExactSKUMatch();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setEditHighlightedIndex(prev =>
+          prev < editProductSuggestions.length - 1 ? prev + 1 : prev
+        );
+        scrollEditHighlightedIntoView(editHighlightedIndex + 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setEditHighlightedIndex(prev => prev > 0 ? prev - 1 : 0);
+        scrollEditHighlightedIntoView(editHighlightedIndex - 1);
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (editProductSuggestions[editHighlightedIndex]) {
+          handleEditAddProduct(editProductSuggestions[editHighlightedIndex]);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setShowEditProductDropdown(false);
+        setEditProductSearch("");
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Scroll highlighted item into view for edit modal
+  const scrollEditHighlightedIntoView = (index) => {
+    if (editProductDropdownRef.current) {
+      const items = editProductDropdownRef.current.querySelectorAll(".product-suggestion-item");
+      if (items[index]) {
+        items[index].scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  };
+
+  // Handle exact SKU match for edit modal
+  const handleEditExactSKUMatch = async () => {
+    const searchTerm = editProductSearch.trim();
+    if (!searchTerm) return;
+
+    try {
+      const response = await api.get("/products-in-warehouse/search-product", {
+        params: {
+          pageNumber: 1,
+          pageSize: 1,
+          searchTerm: searchTerm,
+        },
+      });
+
+      const products = response.items || [];
+      if (products.length > 0 && products[0].sku.toLowerCase() === searchTerm.toLowerCase()) {
+        handleEditAddProduct(products[0]);
+      } else {
+        setToast({
+          message: `No exact SKU match found for "${searchTerm}"`,
+          type: "error",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to search for exact SKU", err);
+      setToast({
+        message: "Failed to search for product",
+        type: "error",
+      });
+    }
+  };
+
+  // Update product quantity in edit shipment
+  const handleEditProductQuantityChange = (productId, newQuantity) => {
+    setEditSelectedProducts(prev => prev.map(p =>
+      p.id === productId ? { ...p, quantity: Math.max(1, parseInt(newQuantity) || 1) } : p
+    ));
+  };
+
+  // Remove product from edit shipment
+  const handleEditRemoveProduct = (productId) => {
+    setEditSelectedProducts(prev => prev.filter(p => p.id !== productId));
+  };
+
   // Save shipment
   const handleSaveShipment = async () => {
     // Validate required fields
@@ -539,9 +773,9 @@ export default function IncomingShipments() {
     try {
       setSavingShipment(true);
 
-      // Step 1: Create sender address
+      // Step 1: Create sender address (backend expects Country enum as integer)
       const senderAddressPayload = {
-        country: addForm.senderCountry,
+        country: getCountryEnumValue(addForm.senderCountry),
         city: addForm.senderCity,
         street: addForm.senderStreet,
         building: addForm.senderBuilding,
@@ -599,6 +833,242 @@ export default function IncomingShipments() {
       });
     } finally {
       setSavingShipment(false);
+    }
+  };
+
+  // Handle Edit Shipment Modal Open
+  const handleOpenEditModal = async () => {
+    if (!selectedShipmentDetails) {
+      setToast({
+        message: "Please select a shipment to edit.",
+        type: "error",
+      });
+      return;
+    }
+
+    // Parse sender address from address object
+    const senderAddress = selectedShipmentDetails.senderAddress || {};
+
+    setEditForm({
+      id: selectedShipmentDetails.id,
+      type: selectedShipmentDetails.type,
+      status: selectedShipmentDetails.status,
+      sendDate: selectedShipmentDetails.sendDate ? selectedShipmentDetails.sendDate.split('T')[0] : "",
+      deliveryDate: selectedShipmentDetails.deliveryDate ? selectedShipmentDetails.deliveryDate.split('T')[0] : "",
+      description: selectedShipmentDetails.description || "",
+      length: selectedShipmentDetails.length || "",
+      width: selectedShipmentDetails.width || "",
+      height: selectedShipmentDetails.height || "",
+      weight: selectedShipmentDetails.weight || "",
+      senderName: selectedShipmentDetails.senderName || "",
+      senderTaxId: selectedShipmentDetails.senderTaxId || "",
+      senderStreet: senderAddress.street || "",
+      senderBuilding: senderAddress.building || "",
+      senderPremises: senderAddress.premises || "",
+      senderPostalCode: senderAddress.postalCode || "",
+      senderCity: senderAddress.city || "",
+      senderCountry: senderAddress.country || "Poland",
+      senderAddressId: selectedShipmentDetails.senderAddressId,
+      receiverName: selectedShipmentDetails.receiverName || "",
+      receiverTaxId: selectedShipmentDetails.receiverTaxId || "",
+      receiverDetails: selectedShipmentDetails.receiverDetails || "",
+    });
+
+    // Initialize products from shipment
+    const productsWithStock = await Promise.all(
+      (selectedShipmentDetails.shipmentProducts || []).map(async (sp) => {
+        try {
+          const response = await api.get("/products-in-warehouse/search-product", {
+            params: {
+              pageNumber: 1,
+              pageSize: 1,
+              searchTerm: sp.productSKU,
+            },
+          });
+          const productData = response.items?.[0];
+          return {
+            id: sp.productId,
+            sku: sp.productSKU,
+            name: sp.productName,
+            quantity: sp.quantity,
+            currentStock: productData?.totalQuantity || 0,
+          };
+        } catch (err) {
+          console.error("Failed to fetch stock for product", sp.productSKU, err);
+          return {
+            id: sp.productId,
+            sku: sp.productSKU,
+            name: sp.productName,
+            quantity: sp.quantity,
+            currentStock: 0,
+          };
+        }
+      })
+    );
+
+    setEditSelectedProducts(productsWithStock);
+    setEditProductSearch("");
+    setEditProductSuggestions([]);
+
+    setShowEditModal(true);
+  };
+
+  // Handle edit form input change
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Helper: Map country name to enum integer (backend Country enum)
+  const getCountryEnumValue = (countryName) => {
+    const countryMap = {
+      "Poland": 145,
+      "Germany": 69,
+      "France": 65,
+      "UnitedKingdom": 191,
+      "Italy": 88,
+      "Spain": 170,
+      "Netherlands": 130,
+      "Belgium": 21,
+      "Austria": 14,
+      "Czechia": 50,
+      "Slovakia": 164,
+      "Hungary": 80,
+      "Romania": 149,
+      "Bulgaria": 30,
+      "Croatia": 47,
+      "Slovenia": 165,
+      "Lithuania": 107,
+      "Latvia": 101,
+      "Estonia": 60,
+      "Ukraine": 190,
+    };
+    return countryMap[countryName] || 145; // Default to Poland
+  };
+
+  // Save edited shipment
+  const handleSaveEdit = async () => {
+    // Validate required fields
+    if (!editForm.status) {
+      setToast({ message: "Status is required", type: "error" });
+      return;
+    }
+
+    if (!editForm.senderName || !editForm.senderTaxId) {
+      setToast({ message: "Sender name and Tax ID are required", type: "error" });
+      return;
+    }
+
+    if (!editForm.senderStreet || !editForm.senderBuilding || !editForm.senderPostalCode || !editForm.senderCity || !editForm.senderCountry) {
+      setToast({ message: "Complete sender address is required", type: "error" });
+      return;
+    }
+
+    if (editSelectedProducts.length === 0) {
+      setToast({ message: "At least one product is required", type: "error" });
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+
+      // Step 1: Update sender address (backend expects Country enum as integer)
+      const senderAddressPayload = {
+        country: getCountryEnumValue(editForm.senderCountry),
+        city: editForm.senderCity,
+        street: editForm.senderStreet,
+        building: editForm.senderBuilding,
+        premises: editForm.senderPremises || null,
+        postalCode: editForm.senderPostalCode,
+      };
+
+      await api.put(`/Addresses/${editForm.senderAddressId}`, senderAddressPayload);
+
+      // Step 2: Update shipment
+      const shipmentPayload = {
+        type: 1, // Incoming - fixed for this page
+        status: parseInt(editForm.status),
+        sendDate: editForm.sendDate || null,
+        deliveryDate: editForm.deliveryDate || null,
+        description: editForm.description || null,
+        weight: editForm.weight ? parseFloat(editForm.weight) : null,
+        length: editForm.length ? parseFloat(editForm.length) : null,
+        width: editForm.width ? parseFloat(editForm.width) : null,
+        height: editForm.height ? parseFloat(editForm.height) : null,
+        senderName: editForm.senderName,
+        senderTaxId: editForm.senderTaxId,
+        senderAddressId: editForm.senderAddressId,
+        receiverName: editForm.receiverName,
+        receiverTaxId: editForm.receiverTaxId,
+        receiverDetails: editForm.receiverDetails,
+      };
+
+      await api.put(`/Shipments/${editForm.id}`, shipmentPayload);
+
+      // Step 3: Update products - compare with original and add/remove as needed
+      const originalProducts = selectedShipmentDetails.shipmentProducts || [];
+      const originalProductIds = originalProducts.map(p => p.productId);
+      const newProductIds = editSelectedProducts.map(p => p.id);
+
+      // Remove products that are no longer in the list
+      const toRemove = originalProductIds.filter(id => !newProductIds.includes(id));
+      if (toRemove.length > 0) {
+        await api.post(`/Shipments/${editForm.id}/products/remove`, {
+          productIds: toRemove,
+        });
+      }
+
+      // Add new products or update quantities
+      const toAddOrUpdate = editSelectedProducts.filter(p => {
+        const original = originalProducts.find(op => op.productId === p.id);
+        return !original || original.quantity !== p.quantity;
+      });
+
+      if (toAddOrUpdate.length > 0) {
+        // Remove all current products and re-add with new quantities
+        if (originalProductIds.length > 0) {
+          await api.post(`/Shipments/${editForm.id}/products/remove`, {
+            productIds: originalProductIds,
+          });
+        }
+
+        // Add all products with updated quantities
+        await api.post(`/Shipments/${editForm.id}/products`, {
+          products: editSelectedProducts.map(p => ({
+            productId: p.id,
+            quantity: p.quantity,
+          })),
+        });
+      }
+
+      setToast({
+        message: "Shipment updated successfully!",
+        type: "success",
+      });
+
+      setShowEditModal(false);
+
+      // Refresh the shipment details and list
+      const updated = await api.get(`/Shipments/${editForm.id}`);
+      setSelectedShipmentDetails(updated);
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+    } catch (err) {
+      console.error(err);
+
+      // Handle 409 Conflict errors with specific message
+      if (err.response?.status === 409) {
+        setToast({
+          message: err.response?.data?.message || err.response?.data || "Conflict: Cannot update shipment with these values.",
+          type: "error",
+        });
+      } else {
+        setToast({
+          message: err.response?.data?.message || err.response?.data || "Failed to update shipment.",
+          type: "error",
+        });
+      }
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -846,16 +1316,26 @@ export default function IncomingShipments() {
     },
     fields: [
       { label: "ID", key: "id" },
-      { label: "Sender", key: "senderName" },
+      { label: "Sender Name", key: "senderName" },
       { label: "Sender Tax ID", key: "senderTaxId" },
-      { label: "Receiver", key: "receiverName" },
+      { label: "Sender Address", key: "senderAddress", render: (data) => {
+        if (!data.senderAddress) return "—";
+        const addr = data.senderAddress;
+        return `${addr.street} ${addr.building}${addr.premises ? `/${addr.premises}` : ""}, ${addr.postalCode} ${addr.city}, ${addr.country}`;
+      }},
+      { label: "Receiver Name", key: "receiverName" },
       { label: "Receiver Tax ID", key: "receiverTaxId" },
-      { label: "Weight", key: "weight" },
-      { label: "Dimensions", key: "dimensions", render: (data) =>
+      { label: "Receiver Details", key: "receiverDetails" },
+      { label: "Weight (kg)", key: "weight", render: (data) => data.weight ? `${data.weight} kg` : "—" },
+      { label: "Dimensions (cm)", key: "dimensions", render: (data) =>
         data.length && data.width && data.height ? `${data.length} x ${data.width} x ${data.height}` : "—"
       },
       { label: "Send Date", key: "sendDate", render: (data) => formatDate(data.sendDate) },
       { label: "Delivery Date", key: "deliveryDate", render: (data) => formatDate(data.deliveryDate) },
+      { label: "Products", key: "shipmentProducts", render: (data) => {
+        if (!data.shipmentProducts || data.shipmentProducts.length === 0) return "No products";
+        return data.shipmentProducts.map(sp => `${sp.productName} (${sp.productSKU}) x${sp.quantity}`).join(", ");
+      }},
       { label: "Description", key: "description", isColumn: true },
     ],
   };
@@ -884,10 +1364,7 @@ export default function IncomingShipments() {
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           onAdd={handleOpenAddModal}
-          onEdit={() => {
-            // TODO: Implement edit shipment modal
-            setToast({ message: "Edit shipment - to be implemented", type: "info" });
-          }}
+          onEdit={handleOpenEditModal}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={setSearchQuery}
           searchValue={searchQuery}
@@ -1351,6 +1828,388 @@ export default function IncomingShipments() {
                   disabled={savingShipment}
                 >
                   {savingShipment ? "Saving..." : "Save Shipment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Shipment Modal */}
+      {showEditModal && (
+        <Modal
+          title="Edit Shipment"
+          onClose={() => setShowEditModal(false)}
+          wide
+        >
+          <div className="edit-shipment-modal">
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+              <div className="form-content" style={{ flex: 1, overflowY: "auto", paddingBottom: "20px" }}>
+                {/* Section A: Basic Information */}
+                <div className="form-section">
+                  <h4 className="section-title">Basic Information</h4>
+                  <div className="form-grid-2col">
+                    <div className="form-field">
+                      <label htmlFor="edit-status">Status *</label>
+                      <select
+                        id="edit-status"
+                        name="status"
+                        value={editForm.status}
+                        onChange={handleEditFormChange}
+                        required
+                      >
+                        {shipmentStatusesData.map(status => (
+                          <option key={status.id} value={status.id}>{status.value}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-sendDate">Send Date</label>
+                      <input
+                        type="date"
+                        id="edit-sendDate"
+                        name="sendDate"
+                        value={editForm.sendDate}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-deliveryDate">Delivery Date</label>
+                      <input
+                        type="date"
+                        id="edit-deliveryDate"
+                        name="deliveryDate"
+                        value={editForm.deliveryDate}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-weight">Weight (kg)</label>
+                      <input
+                        type="number"
+                        id="edit-weight"
+                        name="weight"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={editForm.weight}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-grid-3col">
+                    <div className="form-field">
+                      <label htmlFor="edit-length">Length (cm)</label>
+                      <input
+                        type="number"
+                        id="edit-length"
+                        name="length"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={editForm.length}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-width">Width (cm)</label>
+                      <input
+                        type="number"
+                        id="edit-width"
+                        name="width"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={editForm.width}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-height">Height (cm)</label>
+                      <input
+                        type="number"
+                        id="edit-height"
+                        name="height"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={editForm.height}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="edit-description">Description</label>
+                    <textarea
+                      id="edit-description"
+                      name="description"
+                      rows="3"
+                      placeholder="Enter shipment description..."
+                      value={editForm.description}
+                      onChange={handleEditFormChange}
+                    />
+                  </div>
+                </div>
+
+                {/* Section B: Sender Information */}
+                <div className="form-section">
+                  <h4 className="section-title">Sender Information</h4>
+                  <div className="form-grid-2col">
+                    <div className="form-field">
+                      <label htmlFor="edit-senderName">Name *</label>
+                      <input
+                        type="text"
+                        id="edit-senderName"
+                        name="senderName"
+                        placeholder="Company or person name"
+                        value={editForm.senderName}
+                        onChange={handleEditFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderTaxId">Tax ID *</label>
+                      <input
+                        type="text"
+                        id="edit-senderTaxId"
+                        name="senderTaxId"
+                        placeholder="Tax identification number"
+                        value={editForm.senderTaxId}
+                        onChange={handleEditFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderStreet">Street *</label>
+                      <input
+                        type="text"
+                        id="edit-senderStreet"
+                        name="senderStreet"
+                        placeholder="Street name"
+                        value={editForm.senderStreet}
+                        onChange={handleEditFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderBuilding">Building *</label>
+                      <input
+                        type="text"
+                        id="edit-senderBuilding"
+                        name="senderBuilding"
+                        placeholder="Building number"
+                        value={editForm.senderBuilding}
+                        onChange={handleEditFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderPremises">Premises</label>
+                      <input
+                        type="text"
+                        id="edit-senderPremises"
+                        name="senderPremises"
+                        placeholder="Apartment/Suite (optional)"
+                        value={editForm.senderPremises}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderPostalCode">Postal Code *</label>
+                      <input
+                        type="text"
+                        id="edit-senderPostalCode"
+                        name="senderPostalCode"
+                        placeholder="12-345"
+                        value={editForm.senderPostalCode}
+                        onChange={handleEditFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderCity">City *</label>
+                      <input
+                        type="text"
+                        id="edit-senderCity"
+                        name="senderCity"
+                        placeholder="City name"
+                        value={editForm.senderCity}
+                        onChange={handleEditFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="edit-senderCountry">Country *</label>
+                      <select
+                        id="edit-senderCountry"
+                        name="senderCountry"
+                        value={editForm.senderCountry}
+                        onChange={handleEditFormChange}
+                        required
+                      >
+                        <option value="Poland">Poland</option>
+                        <option value="Germany">Germany</option>
+                        <option value="France">France</option>
+                        <option value="UnitedKingdom">United Kingdom</option>
+                        <option value="Italy">Italy</option>
+                        <option value="Spain">Spain</option>
+                        <option value="Netherlands">Netherlands</option>
+                        <option value="Belgium">Belgium</option>
+                        <option value="Austria">Austria</option>
+                        <option value="Czechia">Czechia</option>
+                        <option value="Slovakia">Slovakia</option>
+                        <option value="Hungary">Hungary</option>
+                        <option value="Romania">Romania</option>
+                        <option value="Bulgaria">Bulgaria</option>
+                        <option value="Croatia">Croatia</option>
+                        <option value="Slovenia">Slovenia</option>
+                        <option value="Lithuania">Lithuania</option>
+                        <option value="Latvia">Latvia</option>
+                        <option value="Estonia">Estonia</option>
+                        <option value="Ukraine">Ukraine</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section C: Receiver Information (Display Only) */}
+                <div className="form-section">
+                  <h4 className="section-title">Receiver Information (Read Only)</h4>
+                  <div className="receiver-info-display">
+                    <div className="info-row">
+                      <span className="info-label">Name:</span>
+                      <span className="info-value">{editForm.receiverName || "—"}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-label">Tax ID:</span>
+                      <span className="info-value">{editForm.receiverTaxId || "—"}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-label">Details:</span>
+                      <span className="info-value">{editForm.receiverDetails || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section D: Product Management */}
+                <div className="form-section">
+                  <h4 className="section-title">Products *</h4>
+                  <div className="product-search-panel">
+                    <input
+                      type="text"
+                      placeholder="Search products by name or SKU... (Type full SKU and press Enter for exact match)"
+                      value={editProductSearch}
+                      onChange={(e) => setEditProductSearch(e.target.value)}
+                      onKeyDown={handleEditProductSearchKeyDown}
+                      onFocus={() => editProductSuggestions.length > 0 && setShowEditProductDropdown(true)}
+                      className="product-search-input"
+                      autoComplete="off"
+                    />
+                    {showEditProductDropdown && editProductSuggestions.length > 0 && (
+                      <div
+                        className="product-suggestions"
+                        ref={editProductDropdownRef}
+                        onScroll={handleEditProductDropdownScroll}
+                      >
+                        {editProductSuggestions.map((product, index) => (
+                          <div
+                            key={product.productId || product.id}
+                            className={`product-suggestion-item ${index === editHighlightedIndex ? "highlighted" : ""}`}
+                            onClick={() => handleEditAddProduct(product)}
+                            onMouseEnter={() => setEditHighlightedIndex(index)}
+                          >
+                            <div className="product-suggestion-main">
+                              <strong>{product.name}</strong>
+                              <span className="product-sku">{product.sku}</span>
+                            </div>
+                            <span className="product-stock">Stock: {product.totalQuantity || 0}</span>
+                          </div>
+                        ))}
+                        {loadingEditProducts && (
+                          <div className="product-suggestion-item loading-item">
+                            Loading more products...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {editSelectedProducts.length > 0 ? (
+                    <table className="products-table">
+                      <thead>
+                        <tr>
+                          <th>Product Name</th>
+                          <th>SKU</th>
+                          <th>Amount in Shipment</th>
+                          <th>Amount in Store</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editSelectedProducts.map(product => (
+                          <tr key={product.id}>
+                            <td>{product.name}</td>
+                            <td>{product.sku}</td>
+                            <td>
+                              <input
+                                type="number"
+                                min="1"
+                                value={product.quantity}
+                                onChange={(e) => handleEditProductQuantityChange(product.id, e.target.value)}
+                                className="quantity-input"
+                              />
+                            </td>
+                            <td>{product.currentStock}</td>
+                            <td>
+                              <button
+                                type="button"
+                                onClick={() => handleEditRemoveProduct(product.id)}
+                                className="btn-remove-product"
+                                title="Remove product"
+                              >
+                                ×
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="no-products-message">No products added. Search and select products above.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Section E: Actions */}
+              <div className="form-actions" style={{ flexShrink: 0, paddingTop: "10px", borderTop: "1px solid #ddd" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="btn-cancel"
+                  disabled={savingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-confirm"
+                  disabled={savingEdit}
+                >
+                  {savingEdit ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>
