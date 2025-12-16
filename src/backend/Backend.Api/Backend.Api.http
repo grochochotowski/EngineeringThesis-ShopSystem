@@ -1,6 +1,139 @@
-@Backend.Api_HostAddress = http://localhost:5051
+@Backend.Api_HostAddress = https://localhost:7132
+@token = your_jwt_token_here
 
 GET {{Backend.Api_HostAddress}}/weatherforecast/
 Accept: application/json
+
+###
+
+# ==========================================
+# SHIPMENTS API TESTS
+# ==========================================
+
+### Get all shipments (with pagination and filters)
+GET {{Backend.Api_HostAddress}}/api/Shipments?pageNumber=1&pageSize=10
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get shipment by ID
+GET {{Backend.Api_HostAddress}}/api/Shipments/11
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Create a new shipment (InPreparation status - no required fields)
+POST {{Backend.Api_HostAddress}}/api/Shipments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": 1,
+  "status": 1,
+  "description": "Test shipment in preparation",
+  "sendDate": null,
+  "deliveryDate": null,
+  "weight": null,
+  "length": null,
+  "width": null,
+  "height": null,
+  "senderName": null,
+  "senderTaxId": null,
+  "senderAddressId": null,
+  "senderDetails": null,
+  "receiverName": null,
+  "receiverTaxId": null,
+  "receiverAddressId": null,
+  "receiverDetails": null
+}
+
+###
+
+### Update shipment status - WILL FAIL if required fields missing
+### This will return 409 Conflict with error message when trying to change to ReadyToCollect
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/11/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 2
+}
+
+###
+
+### Update full shipment (fill in required fields before status change)
+PUT {{Backend.Api_HostAddress}}/api/Shipments/11
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": 1,
+  "status": 1,
+  "sendDate": "2025-12-16T10:00:00Z",
+  "deliveryDate": null,
+  "description": "Updated shipment with all required fields",
+  "weight": 5.5,
+  "length": 30.0,
+  "width": 20.0,
+  "height": 15.0,
+  "senderName": "Warehouse ABC",
+  "senderTaxId": "1234567890",
+  "senderAddressId": 1,
+  "senderDetails": "Building A, Dock 5",
+  "receiverName": "Customer XYZ",
+  "receiverTaxId": "0987654321",
+  "receiverAddressId": 2,
+  "receiverDetails": "Apartment 42, Ring bell twice"
+}
+
+###
+
+### Update shipment status - NOW WILL SUCCEED after required fields are filled
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/11/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 2
+}
+
+###
+
+### Add products to shipment
+POST {{Backend.Api_HostAddress}}/api/Shipments/11/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "products": [
+    {
+      "productId": 1,
+      "quantity": 10
+    },
+    {
+      "productId": 2,
+      "quantity": 5
+    }
+  ]
+}
+
+###
+
+### Remove products from shipment
+DELETE {{Backend.Api_HostAddress}}/api/Shipments/11/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productIds": [1, 2]
+}
+
+###
+
+### Delete shipment
+DELETE {{Backend.Api_HostAddress}}/api/Shipments/11
+Authorization: Bearer {{token}}
 
 ###

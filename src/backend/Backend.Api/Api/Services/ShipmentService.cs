@@ -258,6 +258,31 @@ namespace Backend.Api.Api.Services
             var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
 
+            // Validate required fields when changing to ReadyToCollect (2) or higher status
+            if (dto.Status >= ShipmentStatus.ReadyToCollect)
+            {
+                // Check dimensions
+                if (s.Weight == null || s.Length == null || s.Width == null || s.Height == null)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot change to this status: dimensions (Weight, Length, Width, Height) are required.");
+                }
+
+                // Check sender and receiver names
+                if (string.IsNullOrWhiteSpace(s.SenderName) || string.IsNullOrWhiteSpace(s.ReceiverName))
+                {
+                    throw new InvalidOperationException(
+                        "Cannot change to this status: sender and receiver names are required.");
+                }
+
+                // Check sender and receiver addresses
+                if (s.SenderAddressId == null || s.ReceiverAddressId == null)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot change to this status: sender and receiver addresses are required.");
+                }
+            }
+
             s.Status = dto.Status;
 
             // Auto-set delivery date when status changes to Delivered
