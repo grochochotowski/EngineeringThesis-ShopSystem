@@ -72,5 +72,6 @@ export const api = {
     get: (path, config = {}) => apiRequest(path, "GET", null, config.params || {}),
     post: (path, data) => apiRequest(path, "POST", data),
     put: (path, data) => apiRequest(path, "PUT", data),
+    patch: (path, data) => apiRequest(path, "PATCH", data),
     delete: (path) => apiRequest(path, "DELETE"),
 };

@@ -764,24 +764,14 @@ export default function IncomingShipments() {
     }
   };
 
-  // Render status dropdown or text based on role and status
+  // Render status dropdown - available to all users with confirmation dialog
   const renderStatusCell = (row) => {
     const shipment = shipments.find(s => s.id === row.id);
     if (!shipment) return getStatusLabel(row.statusRaw);
 
     const currentStatus = shipment.status;
-    const isDelivered = currentStatus === 5;
 
-    // If delivered, only Manager+ can change
-    if (isDelivered && !isManagerOrHigher) {
-      return <span>{getStatusLabel(currentStatus)}</span>;
-    }
-
-    // Deputy Manager+ can change status
-    if (!isDeputyManagerOrHigher) {
-      return <span>{getStatusLabel(currentStatus)}</span>;
-    }
-
+    // All users can change status, confirmation dialog will be shown
     return (
       <select
         value={currentStatus}
