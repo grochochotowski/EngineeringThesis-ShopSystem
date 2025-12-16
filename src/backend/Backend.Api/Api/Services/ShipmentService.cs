@@ -70,79 +70,98 @@ namespace Backend.Api.Api.Services
             // Sorting
             qry = ApplySorting(qry, orderBy, sortDirection);
 
-            // Project to DTO
-            var projected = qry.Select(s => new GetShipmentListItemDto
+            // Get total count before pagination
+            var totalCount = await qry.CountAsync(ct);
+
+            // Materialize entities first (apply pagination)
+            var entities = await qry
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
+                .ToListAsync(ct);
+
+            // Map to DTOs in memory (no EF translation issues)
+            var dtos = entities.Select(s => new GetShipmentListItemDto
             {
                 Id = s.Id,
-                Type = s.Type,
-                Status = s.Status,
+                Type = (int)s.Type,
+                Status = (int)s.Status,
                 SendDate = s.SendDate,
                 DeliveryDate = s.DeliveryDate,
                 SenderName = s.SenderName,
                 ReceiverName = s.ReceiverName,
                 Weight = s.Weight
-            });
+            }).ToList();
 
-            return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
+            // Return PagedResult manually
+            return new PagedResult<GetShipmentListItemDto>
+            {
+                Items = dtos,
+                TotalCount = totalCount,
+                PageNumber = pagination.PageNumber,
+                PageSize = pagination.PageSize
+            };
         }
 
         // --- GET SHIPMENT BY ID ---
         public async Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
-            return await _db.Shipments
+            var shipment = await _db.Shipments
                 .AsNoTracking()
                 .Include(s => s.SenderAddress)
                 .Include(s => s.ReceiverAddress)
                 .Include(s => s.ShipmentProducts)
                     .ThenInclude(sp => sp.Product)
-                .Where(s => s.Id == id)
-                .Select(s => new GetShipmentDto
+                .FirstOrDefaultAsync(s => s.Id == id, ct);
+
+            if (shipment == null)
+                return null;
+
+            return new GetShipmentDto
+            {
+                Id = shipment.Id,
+                Type = (int)shipment.Type,
+                Status = (int)shipment.Status,
+                SendDate = shipment.SendDate,
+                DeliveryDate = shipment.DeliveryDate,
+                Description = shipment.Description,
+                Weight = shipment.Weight,
+                Length = shipment.Length,
+                Width = shipment.Width,
+                Height = shipment.Height,
+                SenderName = shipment.SenderName,
+                SenderTaxId = shipment.SenderTaxId,
+                SenderAddressId = shipment.SenderAddressId,
+                SenderDetails = shipment.SenderDetails,
+                SenderAddress = shipment.SenderAddress != null ? new GetAddressDto
                 {
-                    Id = s.Id,
-                    Type = s.Type,
-                    Status = s.Status,
-                    SendDate = s.SendDate,
-                    DeliveryDate = s.DeliveryDate,
-                    Description = s.Description,
-                    Weight = s.Weight,
-                    Length = s.Length,
-                    Width = s.Width,
-                    Height = s.Height,
-                    SenderName = s.SenderName,
-                    SenderTaxId = s.SenderTaxId,
-                    SenderAddressId = s.SenderAddressId,
-                    SenderDetails = s.SenderDetails,
-                    SenderAddress = s.SenderAddress != null ? new GetAddressDto
-                    {
-                        Id = s.SenderAddress.Id,
-                        Street = s.SenderAddress.Street,
-                        City = s.SenderAddress.City,
-                        PostalCode = s.SenderAddress.PostalCode,
-                        Country = s.SenderAddress.Country.ToString()
-                    } : null,
-                    ReceiverName = s.ReceiverName,
-                    ReceiverTaxId = s.ReceiverTaxId,
-                    ReceiverAddressId = s.ReceiverAddressId,
-                    ReceiverDetails = s.ReceiverDetails,
-                    ReceiverAddress = s.ReceiverAddress != null ? new GetAddressDto
-                    {
-                        Id = s.ReceiverAddress.Id,
-                        Street = s.ReceiverAddress.Street,
-                        City = s.ReceiverAddress.City,
-                        PostalCode = s.ReceiverAddress.PostalCode,
-                        Country = s.ReceiverAddress.Country.ToString()
-                    } : null,
-                    ShipmentProducts = s.ShipmentProducts.Select(sp => new GetShipmentProductDto
-                    {
-                        ShipmentId = sp.ShipmentId,
-                        ProductId = sp.ProductId,
-                        Quantity = sp.Quantity,
-                        ProductSKU = sp.Product.SKU,
-                        ProductName = sp.Product.Name,
-                        ProductPrice = sp.Product.Price
-                    }).ToList()
-                })
-                .FirstOrDefaultAsync(ct);
+                    Id = shipment.SenderAddress.Id,
+                    Street = shipment.SenderAddress.Street,
+                    City = shipment.SenderAddress.City,
+                    PostalCode = shipment.SenderAddress.PostalCode,
+                    Country = shipment.SenderAddress.Country.ToString()
+                } : null,
+                ReceiverName = shipment.ReceiverName,
+                ReceiverTaxId = shipment.ReceiverTaxId,
+                ReceiverAddressId = shipment.ReceiverAddressId,
+                ReceiverDetails = shipment.ReceiverDetails,
+                ReceiverAddress = shipment.ReceiverAddress != null ? new GetAddressDto
+                {
+                    Id = shipment.ReceiverAddress.Id,
+                    Street = shipment.ReceiverAddress.Street,
+                    City = shipment.ReceiverAddress.City,
+                    PostalCode = shipment.ReceiverAddress.PostalCode,
+                    Country = shipment.ReceiverAddress.Country.ToString()
+                } : null,
+                ShipmentProducts = shipment.ShipmentProducts.Select(sp => new GetShipmentProductDto
+                {
+                    ShipmentId = sp.ShipmentId,
+                    ProductId = sp.ProductId,
+                    Quantity = sp.Quantity,
+                    ProductSKU = sp.Product.SKU,
+                    ProductName = sp.Product.Name,
+                    ProductPrice = sp.Product.Price
+                }).ToList()
+            };
         }
 
         // --- CREATE SHIPMENT ---
@@ -165,8 +184,8 @@ namespace Backend.Api.Api.Services
 
             var entity = new Shipment
             {
-                Type = dto.Type,
-                Status = dto.Status,
+                Type = (ShipmentType)dto.Type,
+                Status = (ShipmentStatus)dto.Status,
                 SendDate = dto.SendDate,
                 DeliveryDate = dto.DeliveryDate,
                 Description = dto.Description,
@@ -212,8 +231,8 @@ namespace Backend.Api.Api.Services
                     throw new InvalidOperationException($"Receiver address {dto.ReceiverAddressId.Value} not found.");
             }
 
-            s.Type = dto.Type;
-            s.Status = dto.Status;
+            s.Type = (ShipmentType)dto.Type;
+            s.Status = (ShipmentStatus)dto.Status;
             s.SendDate = dto.SendDate;
             s.DeliveryDate = dto.DeliveryDate;
             s.Description = dto.Description;

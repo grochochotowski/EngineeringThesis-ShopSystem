@@ -7,8 +7,8 @@ namespace Backend.Api.Objects.DTOs
     public class GetShipmentDto
     {
                                     public int Id                               { get; set; }
-                                    public ShipmentType Type                    { get; set; }
-                                    public ShipmentStatus Status                { get; set; }
+                                    public int Type                    { get; set; }
+                                    public int Status                { get; set; }
                                     public DateTimeOffset? SendDate             { get; set; }
                                     public DateTimeOffset? DeliveryDate         { get; set; }
 
@@ -41,8 +41,8 @@ namespace Backend.Api.Objects.DTOs
     public class GetShipmentListItemDto
     {
                                     public int Id                               { get; set; }
-                                    public ShipmentType Type                    { get; set; }
-                                    public ShipmentStatus Status                { get; set; }
+                                    public int Type                    { get; set; }
+                                    public int Status                { get; set; }
                                     public DateTimeOffset? SendDate             { get; set; }
                                     public DateTimeOffset? DeliveryDate         { get; set; }
                                     public string? SenderName                   { get; set; }
@@ -53,8 +53,8 @@ namespace Backend.Api.Objects.DTOs
     // --- CREATE SHIPMENT ---
     public class CreateShipmentDto
     {
-        [Required]                  public ShipmentType Type                    { get; set; }
-                                    public ShipmentStatus Status                { get; set; } = ShipmentStatus.InPreparation;
+        [Required]                  public int Type                             { get; set; }
+                                    public int Status                           { get; set; } = (int)ShipmentStatus.InPreparation;
 
         // Dates (nullable until shipment is sent)
                                     public DateTimeOffset? SendDate             { get; set; }
@@ -87,8 +87,8 @@ namespace Backend.Api.Objects.DTOs
     // --- UPDATE SHIPMENT ---
     public class UpdateShipmentDto
     {
-        [Required]                  public ShipmentType Type                    { get; set; }
-        [Required]                  public ShipmentStatus Status                { get; set; }
+        [Required]                  public int Type                    { get; set; }
+        [Required]                  public int Status                { get; set; }
 
         // Dates (nullable until shipment is sent)
                                     public DateTimeOffset? SendDate             { get; set; }
