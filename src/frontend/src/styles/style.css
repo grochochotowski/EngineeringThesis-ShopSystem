@@ -73,6 +73,12 @@
     --toast-warning-bg: #fffbea;
     --toast-warning-border: #744210;
     --toast-warning-text: #744210;
+
+    /* === Row status colors (for shipment collection) === */
+    --row-success-bg: #e6ffed;
+    --row-success-hover: #d1f7dd;
+    --row-error-bg: #ffe6e6;
+    --row-error-hover: #ffd1d1;
 }
 
 

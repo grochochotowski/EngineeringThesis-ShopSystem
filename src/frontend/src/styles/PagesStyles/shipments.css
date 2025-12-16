@@ -1,0 +1,187 @@
+/* Shipment Pages Styles */
+
+/* Filter group styling */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  background: var(--bg-card);
+  color: var(--text-dark);
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  border-color: var(--accent-main);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Status select dropdown in table */
+.status-select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.status-select:hover {
+  border-color: var(--accent-main);
+}
+
+.status-select:focus {
+  border-color: var(--accent-main);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Collection Modal Styles */
+.collection-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.scan-panel {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-panel);
+  border-radius: var(--radius-md);
+}
+
+.scan-panel input {
+  flex: 1;
+}
+
+.scan-panel button {
+  flex-shrink: 0;
+  padding: 0.6rem 1.5rem;
+}
+
+/* Collection Table */
+.collection-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.collection-table thead {
+  background: var(--bg-panel);
+}
+
+.collection-table th {
+  padding: 0.8rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dark);
+  border-bottom: 2px solid var(--border-muted);
+}
+
+.collection-table td {
+  padding: 0.8rem;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.collection-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.collection-table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.collection-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+/* Row status colors */
+.collection-table .row-success {
+  background-color: var(--row-success-bg, #e6ffed);
+}
+
+.collection-table .row-success:hover {
+  background-color: var(--row-success-hover, #d1f7dd);
+}
+
+.collection-table .row-error {
+  background-color: var(--row-error-bg, #ffe6e6);
+}
+
+.collection-table .row-error:hover {
+  background-color: var(--row-error-hover, #ffd1d1);
+}
+
+/* Collected input */
+.collected-input {
+  width: 80px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.collected-input:focus {
+  border-color: var(--accent-main);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Finish button */
+.finish-btn {
+  align-self: flex-end;
+  padding: 0.7rem 2rem;
+  margin-top: 1rem;
+}
+
+/* Location select in collection table */
+.collection-table select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: var(--bg-card);
+}
+
+.collection-table select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-panel);
+}
+
+/* Button success class */
+.btn-success {
+  background-color: var(--btn-success-bg);
+  color: white;
+  border: none;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: var(--btn-success-hover);
+}

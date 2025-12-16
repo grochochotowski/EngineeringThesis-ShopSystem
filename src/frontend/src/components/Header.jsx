@@ -27,10 +27,10 @@ export default function Header({ user, onLogout }) {
             ],
         },
         {
-            title: "Deliveries",
+            title: "Shipments",
             items: [
-                { name: "Incoming shipments", path: "/deliveries/shipments/incoming" },
-                { name: "Leaving shipments", path: "/deliveries/shipments/leaving" },
+                { name: "Incoming", path: "/shipments/incoming" },
+                { name: "Leaving", path: "/shipments/leaving" },
             ],
         },
         {

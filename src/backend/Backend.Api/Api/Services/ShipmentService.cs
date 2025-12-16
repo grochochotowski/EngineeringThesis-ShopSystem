@@ -1,257 +1,347 @@
-﻿//using Backend.Api.Objects.DTOs;
-//using Backend.Api.Objects.Entities;
-//using Backend.Api.Objects.Entities.Models;
-//using Microsoft.EntityFrameworkCore;
+using Backend.Api.Objects.DTOs;
+using Backend.Api.Objects.Entities;
+using Backend.Api.Objects.Entities.Models;
+using Backend.Api.Objects.Entities.Models.Relations;
+using Microsoft.EntityFrameworkCore;
 
-//namespace Backend.Api.Api.Services
-//{
-//    public interface IShipmentService
-//    {
-//        Task<PagedResult<GetShipmentDto>> GetAllAsync(
-//            string? q = null,
-//            ShipmentType? type = null,
-//            ShipmentStatus? status = null,
-//            int? deliveryCompanyId = null,
-//            PaginationParams? pagination = null,
-//            CancellationToken ct = default);
+namespace Backend.Api.Api.Services
+{
+    public class ShipmentService : IShipmentService
+    {
+        private readonly AppDbContext _db;
+        public ShipmentService(AppDbContext db) => _db = db;
 
-//        Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default);
-//        Task<GetShipmentParcelsDto?> GetParcelsAsync(int shipmentId, CancellationToken ct = default);
+        // --- GET ALL SHIPMENTS (pagination and filters) ---
+        public async Task<PagedResult<GetShipmentListItemDto>> GetAllAsync(
+            string? q = null,
+            ShipmentType? type = null,
+            ShipmentStatus? status = null,
+            DateTimeOffset? sendDateFrom = null,
+            DateTimeOffset? sendDateTo = null,
+            DateTimeOffset? deliveryDateFrom = null,
+            DateTimeOffset? deliveryDateTo = null,
+            string? orderBy = null,
+            string? sortDirection = null,
+            PaginationParams? pagination = null,
+            CancellationToken ct = default)
+        {
+            pagination ??= new PaginationParams();
 
-//        Task<int> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default);
-//        Task UpdateAsync(int id, UpdateShipmentDto dto, CancellationToken ct = default);
-//        Task UpdateStatusAsync(int id, UpdateShipmentStatusDto dto, CancellationToken ct = default);
+            var qry = _db.Shipments
+                .AsNoTracking()
+                .Include(s => s.SenderAddress)
+                .Include(s => s.ReceiverAddress)
+                .Include(s => s.ShipmentProducts)
+                    .ThenInclude(sp => sp.Product)
+                .AsQueryable();
 
-//        Task AddParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default);
-//        Task RemoveParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default);
-//        Task DeleteAsync(int id, CancellationToken ct = default);
-//    }
+            // Search filter (sender/receiver name or tax ID)
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim().ToLower();
+                qry = qry.Where(s =>
+                    (s.SenderName != null && s.SenderName.ToLower().Contains(term)) ||
+                    (s.SenderTaxId != null && s.SenderTaxId.ToLower().Contains(term)) ||
+                    (s.ReceiverName != null && s.ReceiverName.ToLower().Contains(term)) ||
+                    (s.ReceiverTaxId != null && s.ReceiverTaxId.ToLower().Contains(term)));
+            }
 
-//    public class ShipmentService : IShipmentService
-//    {
-//        private readonly AppDbContext _db;
-//        public ShipmentService(AppDbContext db) => _db = db;
+            // Type filter (Incoming/Outgoing)
+            if (type.HasValue)
+                qry = qry.Where(s => s.Type == type.Value);
 
-//        // --- GET ALL SHIPMENTS (pagination and filters) ---
-//        public async Task<PagedResult<GetShipmentDto>> GetAllAsync(
-//            string? q = null,
-//            ShipmentType? type = null,
-//            ShipmentStatus? status = null,
-//            int? deliveryCompanyId = null,
-//            PaginationParams? pagination = null,
-//            CancellationToken ct = default)
-//        {
-//            pagination ??= new PaginationParams();
+            // Status filter
+            if (status.HasValue)
+                qry = qry.Where(s => s.Status == status.Value);
 
-//            var qry = _db.Shipments
-//                .AsNoTracking()
-//                .Include(s => s.AddressSender)
-//                .Include(s => s.AddressReceiver)
-//                .AsQueryable();
+            // Date filters
+            if (sendDateFrom.HasValue)
+                qry = qry.Where(s => s.SendDate >= sendDateFrom.Value);
 
-//            if (!string.IsNullOrWhiteSpace(q))
-//            {
-//                var term = q.Trim().ToLower();
-//                qry = qry.Where(s =>
-//                    s.Id.ToString().Contains(term) ||
-//                    (s.AddressSender != null && s.AddressSender.City.ToLower().Contains(term)) ||
-//                    (s.AddressReceiver != null && s.AddressReceiver.City.ToLower().Contains(term)));
-//            }
+            if (sendDateTo.HasValue)
+                qry = qry.Where(s => s.SendDate <= sendDateTo.Value);
 
-//            if (type.HasValue)
-//                qry = qry.Where(s => s.Type == type.Value);
+            if (deliveryDateFrom.HasValue)
+                qry = qry.Where(s => s.DeliveryDate >= deliveryDateFrom.Value);
 
-//            if (status.HasValue)
-//                qry = qry.Where(s => s.Status == status.Value);
+            if (deliveryDateTo.HasValue)
+                qry = qry.Where(s => s.DeliveryDate <= deliveryDateTo.Value);
 
-//            if (deliveryCompanyId.HasValue)
-//                qry = qry.Where(s => s.DeliveryCompanyId == deliveryCompanyId.Value);
+            // Sorting
+            qry = ApplySorting(qry, orderBy, sortDirection);
 
-//            var projected = qry
-//                .OrderByDescending(s => s.SendDate)
-//                .Select(s => new GetShipmentDto
-//                {
-//                    Id = s.Id,
-//                    Type = s.Type,
-//                    Status = s.Status,
-//                    SendDate = s.SendDate,
-//                    DeliveryDate = s.DeliveryDate ?? DateTimeOffset.MinValue,
-//                    DeliveryCompanyId = s.DeliveryCompanyId,
-//                    AddressSenderId = s.AddressSenderId,
-//                    AddressReceiverId = s.AddressReceiverId
-//                });
+            // Project to DTO
+            var projected = qry.Select(s => new GetShipmentListItemDto
+            {
+                Id = s.Id,
+                Type = s.Type,
+                Status = s.Status,
+                SendDate = s.SendDate,
+                DeliveryDate = s.DeliveryDate,
+                SenderName = s.SenderName,
+                ReceiverName = s.ReceiverName,
+                Weight = s.Weight
+            });
 
-//            return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
-//        }
+            return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
+        }
 
-//        // --- GET SHIPMENT BY ID  ---
-//        public async Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default)
-//        {
-//            return await _db.Shipments
-//                .AsNoTracking()
-//                .Where(s => s.Id == id)
-//                .Select(s => new GetShipmentDto
-//                {
-//                    Id = s.Id,
-//                    Type = s.Type,
-//                    Status = s.Status,
-//                    SendDate = s.SendDate,
-//                    DeliveryDate = s.DeliveryDate ?? DateTimeOffset.MinValue,
-//                    DeliveryCompanyId = s.DeliveryCompanyId,
-//                    AddressSenderId = s.AddressSenderId,
-//                    AddressReceiverId = s.AddressReceiverId
-//                })
-//                .FirstOrDefaultAsync(ct);
-//        }
+        // --- GET SHIPMENT BY ID ---
+        public async Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default)
+        {
+            return await _db.Shipments
+                .AsNoTracking()
+                .Include(s => s.SenderAddress)
+                .Include(s => s.ReceiverAddress)
+                .Include(s => s.ShipmentProducts)
+                    .ThenInclude(sp => sp.Product)
+                .Where(s => s.Id == id)
+                .Select(s => new GetShipmentDto
+                {
+                    Id = s.Id,
+                    Type = s.Type,
+                    Status = s.Status,
+                    SendDate = s.SendDate,
+                    DeliveryDate = s.DeliveryDate,
+                    Description = s.Description,
+                    Weight = s.Weight,
+                    Length = s.Length,
+                    Width = s.Width,
+                    Height = s.Height,
+                    SenderName = s.SenderName,
+                    SenderTaxId = s.SenderTaxId,
+                    SenderAddressId = s.SenderAddressId,
+                    SenderDetails = s.SenderDetails,
+                    SenderAddress = s.SenderAddress != null ? new GetAddressDto
+                    {
+                        Id = s.SenderAddress.Id,
+                        Street = s.SenderAddress.Street,
+                        City = s.SenderAddress.City,
+                        PostalCode = s.SenderAddress.PostalCode,
+                        Country = s.SenderAddress.Country.ToString()
+                    } : null,
+                    ReceiverName = s.ReceiverName,
+                    ReceiverTaxId = s.ReceiverTaxId,
+                    ReceiverAddressId = s.ReceiverAddressId,
+                    ReceiverDetails = s.ReceiverDetails,
+                    ReceiverAddress = s.ReceiverAddress != null ? new GetAddressDto
+                    {
+                        Id = s.ReceiverAddress.Id,
+                        Street = s.ReceiverAddress.Street,
+                        City = s.ReceiverAddress.City,
+                        PostalCode = s.ReceiverAddress.PostalCode,
+                        Country = s.ReceiverAddress.Country.ToString()
+                    } : null,
+                    ShipmentProducts = s.ShipmentProducts.Select(sp => new GetShipmentProductDto
+                    {
+                        ShipmentId = sp.ShipmentId,
+                        ProductId = sp.ProductId,
+                        Quantity = sp.Quantity,
+                        ProductSKU = sp.Product.SKU,
+                        ProductName = sp.Product.Name,
+                        ProductPrice = sp.Product.Price
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync(ct);
+        }
 
-//        /* --- GET PARCELS OF SHIPMENT ---
-//        public async Task<GetShipmentParcelsDto?> GetParcelsAsync(int shipmentId, CancellationToken ct = default)
-//        {
-//            var exists = await _db.Shipments.AsNoTracking().AnyAsync(x => x.Id == shipmentId, ct);
-//            if (!exists) return null;
+        // --- CREATE SHIPMENT ---
+        public async Task<GetShipmentDto> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default)
+        {
+            // Validate addresses if provided
+            if (dto.SenderAddressId.HasValue)
+            {
+                var senderExists = await _db.Addresses.AnyAsync(a => a.Id == dto.SenderAddressId.Value, ct);
+                if (!senderExists)
+                    throw new InvalidOperationException($"Sender address {dto.SenderAddressId.Value} not found.");
+            }
 
-//            var parcels = await _db.Parcels
-//                .AsNoTracking()
-//                .Where(p => p.ShipmentId == shipmentId)
-//                .Select(p => new GetParcelDto
-//                {
-//                    Id = p.Id,
-//                    Description = p.Description,
-//                    Weight = p.Weight,
-//                    Length = p.Length,
-//                    Width = p.Width,
-//                    Height = p.Height,
-//                    ShipmentId = p.ShipmentId
-//                })
-//                .ToListAsync(ct);
+            if (dto.ReceiverAddressId.HasValue)
+            {
+                var receiverExists = await _db.Addresses.AnyAsync(a => a.Id == dto.ReceiverAddressId.Value, ct);
+                if (!receiverExists)
+                    throw new InvalidOperationException($"Receiver address {dto.ReceiverAddressId.Value} not found.");
+            }
 
-//            return new GetShipmentParcelsDto { Parcels = parcels };
-//        }*/
+            var entity = new Shipment
+            {
+                Type = dto.Type,
+                Status = dto.Status,
+                SendDate = dto.SendDate,
+                DeliveryDate = dto.DeliveryDate,
+                Description = dto.Description,
+                Weight = dto.Weight,
+                Length = dto.Length,
+                Width = dto.Width,
+                Height = dto.Height,
+                SenderName = dto.SenderName,
+                SenderTaxId = dto.SenderTaxId,
+                SenderAddressId = dto.SenderAddressId,
+                SenderDetails = dto.SenderDetails,
+                ReceiverName = dto.ReceiverName,
+                ReceiverTaxId = dto.ReceiverTaxId,
+                ReceiverAddressId = dto.ReceiverAddressId,
+                ReceiverDetails = dto.ReceiverDetails
+            };
 
-//        // --- CREATE SHIPMENT ---
-//        public async Task<int> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default)
-//        {
-//            await ValidateForeignKeys(dto.DeliveryCompanyId, dto.AddressSenderId, dto.AddressReceiverId, ct);
-//            ValidateDates(dto.SendDate, dto.DeliveryDate);
+            _db.Shipments.Add(entity);
+            await _db.SaveChangesAsync(ct);
 
-//            var entity = new Shipment
-//            {
-//                Type = dto.Type,
-//                Status = dto.Status,
-//                SendDate = dto.SendDate,
-//                DeliveryDate = dto.DeliveryDate,
-//                //DeliveryCompanyId = dto.DeliveryCompanyId,
-//                //AddressSenderId = dto.AddressSenderId,
-//                //AddressReceiverId = dto.AddressReceiverId
-//            };
+            // Return the created shipment
+            return (await GetByIdAsync(entity.Id, ct))!;
+        }
 
-//            _db.Shipments.Add(entity);
-//            await _db.SaveChangesAsync(ct);
-//            return entity.Id;
-//        }
+        // --- UPDATE SHIPMENT ---
+        public async Task UpdateAsync(int id, UpdateShipmentDto dto, CancellationToken ct = default)
+        {
+            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
 
-//        // --- UPDATE SHIPMENT ---
-//        public async Task UpdateAsync(int id, UpdateShipmentDto dto, CancellationToken ct = default)
-//        {
-//            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
-//            if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
+            // Validate addresses if changed
+            if (dto.SenderAddressId.HasValue && dto.SenderAddressId != s.SenderAddressId)
+            {
+                var senderExists = await _db.Addresses.AnyAsync(a => a.Id == dto.SenderAddressId.Value, ct);
+                if (!senderExists)
+                    throw new InvalidOperationException($"Sender address {dto.SenderAddressId.Value} not found.");
+            }
 
-//            await ValidateForeignKeys(dto.DeliveryCompanyId, dto.AddressSenderId, dto.AddressReceiverId, ct);
-//            ValidateDates(dto.SendDate, dto.DeliveryDate);
+            if (dto.ReceiverAddressId.HasValue && dto.ReceiverAddressId != s.ReceiverAddressId)
+            {
+                var receiverExists = await _db.Addresses.AnyAsync(a => a.Id == dto.ReceiverAddressId.Value, ct);
+                if (!receiverExists)
+                    throw new InvalidOperationException($"Receiver address {dto.ReceiverAddressId.Value} not found.");
+            }
 
-//            s.Type = dto.Type;
-//            s.Status = dto.Status;
-//            s.SendDate = dto.SendDate;
-//            s.DeliveryDate = dto.DeliveryDate;
-//            //s.DeliveryCompanyId = dto.DeliveryCompanyId;
-//            //s.AddressSenderId = dto.AddressSenderId;
-//            //s.AddressReceiverId = dto.AddressReceiverId;
+            s.Type = dto.Type;
+            s.Status = dto.Status;
+            s.SendDate = dto.SendDate;
+            s.DeliveryDate = dto.DeliveryDate;
+            s.Description = dto.Description;
+            s.Weight = dto.Weight;
+            s.Length = dto.Length;
+            s.Width = dto.Width;
+            s.Height = dto.Height;
+            s.SenderName = dto.SenderName;
+            s.SenderTaxId = dto.SenderTaxId;
+            s.SenderAddressId = dto.SenderAddressId;
+            s.SenderDetails = dto.SenderDetails;
+            s.ReceiverName = dto.ReceiverName;
+            s.ReceiverTaxId = dto.ReceiverTaxId;
+            s.ReceiverAddressId = dto.ReceiverAddressId;
+            s.ReceiverDetails = dto.ReceiverDetails;
 
-//            await _db.SaveChangesAsync(ct);
-//        }
+            await _db.SaveChangesAsync(ct);
+        }
 
-//        // --- UPDATE STATUS ---
-//        public async Task UpdateStatusAsync(int id, UpdateShipmentStatusDto dto, CancellationToken ct = default)
-//        {
-//            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
-//            if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
-//            s.Status = dto.Status;
-//            await _db.SaveChangesAsync(ct);
-//        }
+        // --- UPDATE STATUS ---
+        public async Task UpdateStatusAsync(int id, UpdateShipmentStatusDto dto, CancellationToken ct = default)
+        {
+            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
 
-//        /* --- ADD PARCELS ---
-//        public async Task AddParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default)
-//        {
-//            if (parcelIds is null || parcelIds.Count == 0) return;
+            s.Status = dto.Status;
 
-//            parcelIds = parcelIds.Distinct().ToList();
-//            var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId, ct)
-//                ?? throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
+            // Auto-set delivery date when status changes to Delivered
+            if (dto.Status == ShipmentStatus.Delivered && !s.DeliveryDate.HasValue)
+            {
+                s.DeliveryDate = DateTimeOffset.UtcNow;
+            }
 
-//            var parcels = await _db.Parcels.Where(p => parcelIds.Contains(p.Id)).ToListAsync(ct);
+            await _db.SaveChangesAsync(ct);
+        }
 
-//            // 🔒 Conflict validation
-//            var conflicts = parcels
-//                .Where(p => p.ShipmentId.HasValue && p.ShipmentId != shipmentId)
-//                .Select(p => p.Id)
-//                .ToList();
+        // --- ADD PRODUCTS TO SHIPMENT ---
+        public async Task AddProductsAsync(int shipmentId, List<ShipmentProductItemDto> products, CancellationToken ct = default)
+        {
+            if (products is null || products.Count == 0) return;
 
-//            if (conflicts.Count > 0)
-//                throw new InvalidOperationException($"Parcels already belong to another shipment: {string.Join(", ", conflicts)}");
+            var shipment = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId, ct);
+            if (shipment is null)
+                throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
 
-//            foreach (var p in parcels)
-//                p.ShipmentId = shipmentId;
+            // Validate all products exist
+            var productIds = products.Select(p => p.ProductId).Distinct().ToList();
+            var existingProducts = await _db.Products
+                .Where(p => productIds.Contains(p.Id))
+                .Select(p => p.Id)
+                .ToListAsync(ct);
 
-//            await _db.SaveChangesAsync(ct);
-//        }*/
+            var missingProducts = productIds.Except(existingProducts).ToList();
+            if (missingProducts.Any())
+                throw new InvalidOperationException($"Products not found: {string.Join(", ", missingProducts)}");
 
-//        /* --- REMOVE PARCELS ---
-//        public async Task RemoveParcelsAsync(int shipmentId, List<int> parcelIds, CancellationToken ct = default)
-//        {
-//            if (parcelIds is null || parcelIds.Count == 0) return;
+            foreach (var item in products)
+            {
+                // Check if product already in shipment
+                var existing = await _db.ShipmentProducts
+                    .FirstOrDefaultAsync(sp => sp.ShipmentId == shipmentId && sp.ProductId == item.ProductId, ct);
 
-//            var parcels = await _db.Parcels
-//                .Where(p => p.ShipmentId == shipmentId && parcelIds.Contains(p.Id))
-//                .ToListAsync(ct);
+                if (existing != null)
+                {
+                    // Update quantity
+                    existing.Quantity += item.Quantity;
+                }
+                else
+                {
+                    // Add new
+                    _db.ShipmentProducts.Add(new ShipmentProduct
+                    {
+                        ShipmentId = shipmentId,
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity
+                    });
+                }
+            }
 
-//            foreach (var p in parcels)
-//                p.ShipmentId = null;
+            await _db.SaveChangesAsync(ct);
+        }
 
-//            await _db.SaveChangesAsync(ct);
-//        }*/
+        // --- REMOVE PRODUCTS FROM SHIPMENT ---
+        public async Task RemoveProductsAsync(int shipmentId, List<int> productIds, CancellationToken ct = default)
+        {
+            if (productIds is null || productIds.Count == 0) return;
 
-//        // --- DELETE SHIPMENT (cascade delete parcels) ---
-//        public async Task DeleteAsync(int id, CancellationToken ct = default)
-//        {
-//            var s = await _db.Shipments
-//                //.Include(x => x.Parcels)
-//                .FirstOrDefaultAsync(x => x.Id == id, ct);
+            var toRemove = await _db.ShipmentProducts
+                .Where(sp => sp.ShipmentId == shipmentId && productIds.Contains(sp.ProductId))
+                .ToListAsync(ct);
 
-//            if (s is null) return;
+            _db.ShipmentProducts.RemoveRange(toRemove);
+            await _db.SaveChangesAsync(ct);
+        }
 
-//            //if (s.Parcels.Any())
-//              //  _db.Parcels.RemoveRange(s.Parcels);
+        // --- DELETE SHIPMENT ---
+        public async Task DeleteAsync(int id, CancellationToken ct = default)
+        {
+            var s = await _db.Shipments
+                .Include(x => x.ShipmentProducts)
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
 
-//            _db.Shipments.Remove(s);
-//            await _db.SaveChangesAsync(ct);
-//        }
+            if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
 
-//        // --- VALIDATION HELPERS ---
-//        private static void ValidateDates(DateTimeOffset send, DateTimeOffset delivery)
-//        {
-//            if (delivery < send)
-//                throw new ArgumentException("DeliveryDate cannot be earlier than SendDate.", nameof(delivery));
-//        }
+            // Remove all shipment products first
+            if (s.ShipmentProducts.Any())
+                _db.ShipmentProducts.RemoveRange(s.ShipmentProducts);
 
-//        private async Task ValidateForeignKeys(int deliveryCompanyId, int senderAddressId, int receiverAddressId, CancellationToken ct)
-//        {
-//            //var dcExists = await _db.DeliveryCompanies.AnyAsync(x => x.Id == deliveryCompanyId, ct);
-//            var senderExists = await _db.Addresses.AnyAsync(x => x.Id == senderAddressId, ct);
-//            var receiverExists = await _db.Addresses.AnyAsync(x => x.Id == receiverAddressId, ct);
+            _db.Shipments.Remove(s);
+            await _db.SaveChangesAsync(ct);
+        }
 
-//            if (!dcExists) throw new ArgumentException($"DeliveryCompany {deliveryCompanyId} not found.");
-//            if (!senderExists) throw new ArgumentException($"Sender Address {senderAddressId} not found.");
-//            if (!receiverExists) throw new ArgumentException($"Receiver Address {receiverAddressId} not found.");
-//        }
-//    }
-//}
+        // --- HELPER: Apply sorting ---
+        private IQueryable<Shipment> ApplySorting(IQueryable<Shipment> query, string? orderBy, string? sortDirection)
+        {
+            var isDescending = sortDirection?.ToLower() == "desc";
+
+            return orderBy?.ToLower() switch
+            {
+                "id" => isDescending ? query.OrderByDescending(s => s.Id) : query.OrderBy(s => s.Id),
+                "type" => isDescending ? query.OrderByDescending(s => s.Type) : query.OrderBy(s => s.Type),
+                "status" => isDescending ? query.OrderByDescending(s => s.Status) : query.OrderBy(s => s.Status),
+                "senddate" => isDescending ? query.OrderByDescending(s => s.SendDate) : query.OrderBy(s => s.SendDate),
+                "deliverydate" => isDescending ? query.OrderByDescending(s => s.DeliveryDate) : query.OrderBy(s => s.DeliveryDate),
+                "sendername" => isDescending ? query.OrderByDescending(s => s.SenderName) : query.OrderBy(s => s.SenderName),
+                "receivername" => isDescending ? query.OrderByDescending(s => s.ReceiverName) : query.OrderBy(s => s.ReceiverName),
+                _ => query.OrderByDescending(s => s.Id) // Default: newest first
+            };
+        }
+    }
+}

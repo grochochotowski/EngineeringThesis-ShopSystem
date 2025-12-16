@@ -82,7 +82,7 @@ namespace Backend.Api
             builder.Services.AddScoped<ISalesDocumentService, SalesDocumentService>();
             builder.Services.AddScoped<ISalesDocumentItemService, SalesDocumentItemService>();
             builder.Services.AddScoped<ISalesPaymentService, SalesPaymentService>();
-            //builder.Services.AddScoped<IShipmentService, ShipmentService>();
+            builder.Services.AddScoped<IShipmentService, ShipmentService>();
             builder.Services.AddScoped<ITaxRateService, TaxRateService>();
             builder.Services.AddScoped<IUsersService, UserService>();
 
