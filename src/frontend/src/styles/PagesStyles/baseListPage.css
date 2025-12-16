@@ -259,6 +259,7 @@ li.list-column .description {
     top: 110px;
     left: 300px;
     width: 260px;
+    max-width: 260px;
     background: var(--bg-card);
     border: var(--border-muted);
     border-radius: var(--radius-lg);
@@ -269,6 +270,8 @@ li.list-column .description {
     gap: 0.7rem;
     z-index: 10;
     animation: fadeIn 0.25s ease;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 /* Min/Max price row */

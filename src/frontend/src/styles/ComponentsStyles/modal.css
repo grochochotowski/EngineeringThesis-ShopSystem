@@ -43,8 +43,9 @@
 
 .modal-body {
     padding: 1.2rem;
-    max-height: calc(90vh - 150px);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .modal-body p {
