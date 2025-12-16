@@ -114,6 +114,76 @@ namespace Backend.Api.Infrastructure
             {
                 Console.WriteLine("Root user already exists — skipping seeding.");
             }
+
+            // --- ADD EXAMPLE SHIPMENTS ---
+            if (!_db.Shipments.Any())
+            {
+                var senderAddress = new Address
+                {
+                    Country = Country.Germany,
+                    City = "Berlin",
+                    Street = "Supplier Street",
+                    Building = "10",
+                    PostalCode = "10115"
+                };
+                _db.Addresses.Add(senderAddress);
+                _db.SaveChanges();
+
+                var receiverAddress = new Address
+                {
+                    Country = Country.Poland,
+                    City = "Warszawa",
+                    Street = "Warehouse Street",
+                    Building = "5",
+                    PostalCode = "00-001"
+                };
+                _db.Addresses.Add(receiverAddress);
+                _db.SaveChanges();
+
+                var product1 = _db.Products.FirstOrDefault(x => x.SKU == "SKU-0001");
+                var product2 = _db.Products.FirstOrDefault(x => x.SKU == "SKU-0002");
+
+                var shipment1 = new Shipment
+                {
+                    Type = ShipmentType.Incoming,
+                    Status = ShipmentStatus.InPreparation,
+                    SenderName = "Example Supplier GmbH",
+                    SenderTaxId = "DE123456789",
+                    SenderAddressId = senderAddress.Id,
+                    ReceiverName = "Main Store",
+                    ReceiverTaxId = "1234567890",
+                    ReceiverAddressId = receiverAddress.Id,
+                    Weight = 15.5m,
+                    Length = 50,
+                    Width = 40,
+                    Height = 30,
+                    Description = "Example incoming shipment"
+                };
+                _db.Shipments.Add(shipment1);
+                _db.SaveChanges();
+
+                if (product1 != null)
+                {
+                    _db.ShipmentProducts.Add(new ShipmentProduct
+                    {
+                        ShipmentId = shipment1.Id,
+                        ProductId = product1.Id,
+                        Quantity = 10
+                    });
+                }
+                if (product2 != null)
+                {
+                    _db.ShipmentProducts.Add(new ShipmentProduct
+                    {
+                        ShipmentId = shipment1.Id,
+                        ProductId = product2.Id,
+                        Quantity = 5
+                    });
+                }
+                _db.SaveChanges();
+
+                Console.WriteLine("Example shipment created.");
+            }
         }
 
         private static void CreatePasswordHash(string password, out byte[] hash, out byte[] salt)

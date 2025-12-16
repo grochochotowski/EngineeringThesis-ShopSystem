@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251215165402_UpdateShipmentStatusConstraints")]
-    partial class UpdateShipmentStatusConstraints
+    [Migration("20251216203152_constrain_change")]
+    partial class constrain_change
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -222,7 +222,7 @@ namespace Backend.Api.Objects.Entities
 
                 // enum conversion
                 b.Property(x => x.Type).HasConversion<string>().HasMaxLength(32);
-                b.Property(x => x.Status).HasMaxLength(32);
+                b.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
 
                 // address relationships
                 b.HasOne(x => x.SenderAddress)
@@ -247,21 +247,21 @@ namespace Backend.Api.Objects.Entities
                         "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR " +
                         "([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
 
-                    // status-based validations for InPreparation (value 1) and Unspecified (value 0)
+                    // status-based validations for InPreparation and Unspecified
                     // When status is NOT InPreparation or Unspecified, certain fields are required
                     t.HasCheckConstraint("CK_Shipment_Status_Ready_Fields",
-                        "[Status] IN (0, 1) OR " + // 0=Unspecified, 1=InPreparation
+                        "[Status] IN ('Unspecified', 'InPreparation') OR " +
                         "([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND " +
                         "[SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND " +
                         "[SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
 
-                    // When status is Collected (3), InTransit (4), or Delivered (5), SendDate is required
+                    // When status is Collected, InTransit, or Delivered, SendDate is required
                     t.HasCheckConstraint("CK_Shipment_Status_Sent_Date",
-                        "[Status] NOT IN (3, 4, 5) OR [SendDate] IS NOT NULL"); // Collected, InTransit, Delivered
+                        "[Status] NOT IN ('Collected', 'InTransit', 'Delivered') OR [SendDate] IS NOT NULL");
 
-                    // When status is Delivered (5), DeliveryDate is required
+                    // When status is Delivered, DeliveryDate is required
                     t.HasCheckConstraint("CK_Shipment_Status_Delivered_Date",
-                        "[Status] != 5 OR [DeliveryDate] IS NOT NULL"); // Delivered
+                        "[Status] != 'Delivered' OR [DeliveryDate] IS NOT NULL");
                 });
             });
 
