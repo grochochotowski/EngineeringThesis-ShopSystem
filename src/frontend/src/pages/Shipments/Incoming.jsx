@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { api } from "../../api/apiClient";
+import { api, apiRequest } from "../../api/apiClient";
 import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
 import Modal from "../../components/Modal";
@@ -54,6 +54,7 @@ export default function IncomingShipments() {
 
   // Edit modal product management state
   const [editSelectedProducts, setEditSelectedProducts] = useState([]);
+  const [originalEditProducts, setOriginalEditProducts] = useState([]); // Track original products for comparison
   const [editProductSearch, setEditProductSearch] = useState("");
   const [editProductSuggestions, setEditProductSuggestions] = useState([]);
   const [showEditProductDropdown, setShowEditProductDropdown] = useState(false);
@@ -117,6 +118,11 @@ export default function IncomingShipments() {
 
   // State for status change confirmation
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
+
+  // State for View Products Modal
+  const [showViewProductsModal, setShowViewProductsModal] = useState(false);
+  const [viewProductsData, setViewProductsData] = useState([]);
+  const [expandedProductLocations, setExpandedProductLocations] = useState({});
 
   // Fetch shipments data
   const fetchShipmentsData = async (page, currentFilters, currentSearchQuery, currentSortColumn, currentSortDirection) => {
@@ -231,22 +237,24 @@ export default function IncomingShipments() {
   const columns = [
     { key: "from", label: "From", width: "25%", sortable: false },
     { key: "size", label: "Size", width: "15%", sortable: false },
-    { key: "productCount", label: "No. of products", width: "15%", sortable: false },
+    { key: "totalQuantity", label: "Total Qty", width: "15%", sortable: false },
     { key: "sendDate", label: "Send Date", width: "15%", sortable: true },
     { key: "deliveryDate", label: "Delivery Date", width: "15%", sortable: true },
     { key: "status", label: "Status", width: "15%", sortable: false },
   ];
 
-  const rows = shipments.map((s) => ({
-    id: s.id,
-    from: `${s.senderName || "Unknown"}${s.senderTaxId ? ` (${s.senderTaxId})` : ""}`,
-    size: s.length && s.width && s.height ? `${s.length} x ${s.width} x ${s.height}` : "—",
-    productCount: s.shipmentProducts?.length || 0,
-    sendDate: s.sendDate,
-    deliveryDate: s.deliveryDate,
-    status: s.status,
-    statusRaw: s.status,
-  }));
+  const rows = shipments.map((s) => {
+    return {
+      id: s.id,
+      from: `${s.senderName || "Unknown"}${s.senderTaxId ? ` (${s.senderTaxId})` : ""}`,
+      size: s.length && s.width && s.height ? `${s.length} x ${s.width} x ${s.height}` : "—",
+      totalQuantity: s.totalQuantity || 0,
+      sendDate: s.sendDate,
+      deliveryDate: s.deliveryDate,
+      status: s.status,
+      statusRaw: s.status,
+    };
+  });
 
   // Handle row selection
   const handleRowSelect = async (row) => {
@@ -802,7 +810,7 @@ export default function IncomingShipments() {
         senderAddressId: senderAddressId,
         receiverName: "Main Store",
         receiverTaxId: "1234567890",
-        receiverDetails: "123 Main Street, 12-345 Warsaw, Poland",
+        receiverDetails: "Main Street 123, 00-950 Warszawa, Poland",
       };
 
       const shipmentResponse = await api.post("/Shipments", shipmentPayload);
@@ -846,7 +854,7 @@ export default function IncomingShipments() {
       return;
     }
 
-    // Parse sender address from address object
+    // Parse sender address from address object (API returns camelCase properties)
     const senderAddress = selectedShipmentDetails.senderAddress || {};
 
     setEditForm({
@@ -907,6 +915,7 @@ export default function IncomingShipments() {
     );
 
     setEditSelectedProducts(productsWithStock);
+    setOriginalEditProducts(productsWithStock); // Store original state for comparison
     setEditProductSearch("");
     setEditProductSuggestions([]);
 
@@ -1006,35 +1015,40 @@ export default function IncomingShipments() {
       await api.put(`/Shipments/${editForm.id}`, shipmentPayload);
 
       // Step 3: Update products - compare with original and add/remove as needed
-      const originalProducts = selectedShipmentDetails.shipmentProducts || [];
-      const originalProductIds = originalProducts.map(p => p.productId);
+      const originalProductIds = originalEditProducts.map(p => p.id);
       const newProductIds = editSelectedProducts.map(p => p.id);
 
       // Remove products that are no longer in the list
       const toRemove = originalProductIds.filter(id => !newProductIds.includes(id));
       if (toRemove.length > 0) {
-        await api.post(`/Shipments/${editForm.id}/products/remove`, {
+        await apiRequest(`/Shipments/${editForm.id}/products`, "DELETE", {
           productIds: toRemove,
         });
       }
 
       // Add new products or update quantities
+      // Since backend doesn't have update endpoint, we need to remove and re-add products with changed quantities
       const toAddOrUpdate = editSelectedProducts.filter(p => {
-        const original = originalProducts.find(op => op.productId === p.id);
+        const original = originalEditProducts.find(op => op.id === p.id);
         return !original || original.quantity !== p.quantity;
       });
 
       if (toAddOrUpdate.length > 0) {
-        // Remove all current products and re-add with new quantities
-        if (originalProductIds.length > 0) {
-          await api.post(`/Shipments/${editForm.id}/products/remove`, {
-            productIds: originalProductIds,
+        // Get IDs of products that need quantity updates (already exist but quantity changed)
+        const toUpdate = toAddOrUpdate
+          .filter(p => originalProductIds.includes(p.id))
+          .map(p => p.id);
+
+        // Remove existing products that need quantity updates
+        if (toUpdate.length > 0) {
+          await apiRequest(`/Shipments/${editForm.id}/products`, "DELETE", {
+            productIds: toUpdate,
           });
         }
 
-        // Add all products with updated quantities
+        // Add all new and updated products
         await api.post(`/Shipments/${editForm.id}/products`, {
-          products: editSelectedProducts.map(p => ({
+          products: toAddOrUpdate.map(p => ({
             productId: p.id,
             quantity: p.quantity,
           })),
@@ -1332,12 +1346,80 @@ export default function IncomingShipments() {
       },
       { label: "Send Date", key: "sendDate", render: (data) => formatDate(data.sendDate) },
       { label: "Delivery Date", key: "deliveryDate", render: (data) => formatDate(data.deliveryDate) },
-      { label: "Products", key: "shipmentProducts", render: (data) => {
-        if (!data.shipmentProducts || data.shipmentProducts.length === 0) return "No products";
-        return data.shipmentProducts.map(sp => `${sp.productName} (${sp.productSKU}) x${sp.quantity}`).join(", ");
-      }},
       { label: "Description", key: "description", isColumn: true },
     ],
+    hideActions: true,
+  };
+
+  // Handle View Products button click
+  const handleViewProducts = async () => {
+    if (!selectedShipmentDetails) {
+      setToast({
+        message: "Please select a shipment to view products.",
+        type: "error",
+      });
+      return;
+    }
+
+    // Fetch warehouse stock for each product
+    try {
+      const productsWithStock = await Promise.all(
+        (selectedShipmentDetails.shipmentProducts || []).map(async (sp) => {
+          try {
+            const response = await api.get("/products-in-warehouse/search-product", {
+              params: {
+                pageNumber: 1,
+                pageSize: 1,
+                searchTerm: sp.productSKU,
+              },
+            });
+            const productData = response.items?.[0];
+            return {
+              ...sp,
+              warehouseStock: productData?.totalQuantity || 0,
+              productId: sp.productId,
+            };
+          } catch (err) {
+            console.error("Failed to fetch stock for product", sp.productSKU, err);
+            return {
+              ...sp,
+              warehouseStock: 0,
+              productId: sp.productId,
+            };
+          }
+        })
+      );
+
+      setViewProductsData(productsWithStock);
+      setExpandedProductLocations({});
+      setShowViewProductsModal(true);
+    } catch (err) {
+      console.error("Failed to fetch product warehouse data", err);
+      setToast({
+        message: "Failed to load product warehouse information.",
+        type: "error",
+      });
+    }
+  };
+
+  // Handle toggle location view for a product
+  const handleToggleProductLocations = async (productId) => {
+    if (expandedProductLocations[productId]) {
+      // Collapse
+      setExpandedProductLocations(prev => ({ ...prev, [productId]: null }));
+    } else {
+      // Expand - fetch locations
+      try {
+        const locations = await api.get(`/products-in-warehouse/product/${productId}`);
+        setExpandedProductLocations(prev => ({ ...prev, [productId]: locations }));
+      } catch (err) {
+        console.error("Failed to fetch locations for product", productId, err);
+        setToast({
+          message: "Failed to load product locations.",
+          type: "error",
+        });
+      }
+    }
   };
 
   return (
@@ -1378,6 +1460,15 @@ export default function IncomingShipments() {
           changePasswordButtonIcon={
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
               <path fill="none" stroke="currentColor" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+          }
+          changeLoginButtonLabel="View Products"
+          changeLoginButtonClass="btn-view"
+          changeLoginDisabled={!selectedRow}
+          onChangeLogin={handleViewProducts}
+          changeLoginButtonIcon={
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+              <path fill="none" stroke="currentColor" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 4h4m-4 3h4m-4 3h4"/>
             </svg>
           }
         />
@@ -1718,7 +1809,7 @@ export default function IncomingShipments() {
                   </div>
                   <div className="info-row">
                     <span className="info-label">Address:</span>
-                    <span className="info-value">123 Main Street, 12-345 Warsaw, Poland</span>
+                    <span className="info-value">Main Street 123, 00-950 Warszawa, Poland</span>
                   </div>
                 </div>
               </div>
@@ -2291,6 +2382,102 @@ export default function IncomingShipments() {
             <button onClick={handleFinishCollection} className="btn-action btn-success finish-btn">
               Finish Collection
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* View Products Modal */}
+      {showViewProductsModal && (
+        <Modal
+          title="Products in Shipment"
+          onClose={() => setShowViewProductsModal(false)}
+          wide
+        >
+          <div className="view-products-modal">
+            {viewProductsData && viewProductsData.length > 0 ? (
+              <>
+                <table className="products-table">
+                  <thead>
+                    <tr>
+                      <th>Product Name</th>
+                      <th>SKU</th>
+                      <th>Quantity in Shipment</th>
+                      <th>Number in Storage</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewProductsData.map((product, index) => (
+                      <React.Fragment key={index}>
+                        <tr>
+                          <td>{product.productName}</td>
+                          <td>{product.productSKU}</td>
+                          <td>{product.quantity}</td>
+                          <td>{product.warehouseStock}</td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleProductLocations(product.productId)}
+                              className="btn-action btn-view"
+                              style={{ padding: "4px 8px", fontSize: "12px" }}
+                            >
+                              {expandedProductLocations[product.productId] ? "Hide Locations" : "View Locations"}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedProductLocations[product.productId] && (
+                          <tr>
+                            <td colSpan="5" style={{ backgroundColor: "#f9f9f9", padding: "10px" }}>
+                              <div className="locations-list">
+                                <strong>Storage Locations:</strong>
+                                {expandedProductLocations[product.productId].length > 0 ? (
+                                  <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
+                                    <thead>
+                                      <tr>
+                                        <th>Zone</th>
+                                        <th>Column</th>
+                                        <th>Shelf</th>
+                                        <th>Quantity</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {expandedProductLocations[product.productId].map((loc, idx) => (
+                                        <tr key={idx}>
+                                          <td>{loc.zone}</td>
+                                          <td>{loc.col}</td>
+                                          <td>{loc.shelf}</td>
+                                          <td>{loc.quantity}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                ) : (
+                                  <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
+                                    No locations found for this product.
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginBottom: "2rem" }}></div>
+              </>
+            ) : (
+              <p className="no-products-message">No products in this shipment.</p>
+            )}
+            <div className="form-actions">
+              <button
+                type="button"
+                onClick={() => setShowViewProductsModal(false)}
+                className="btn-confirm"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </Modal>
       )}
