@@ -255,9 +255,9 @@ namespace Backend.Api.Objects.Entities
                         "[SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND " +
                         "[SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
 
-                    // When status is Collected, InTransit, or Delivered, SendDate is required
+                    // When status is InTransit or Delivered, SendDate is required (auto-set if not provided)
                     t.HasCheckConstraint("CK_Shipment_Status_Sent_Date",
-                        "[Status] NOT IN ('Collected', 'InTransit', 'Delivered') OR [SendDate] IS NOT NULL");
+                        "[Status] NOT IN ('InTransit', 'Delivered') OR [SendDate] IS NOT NULL");
 
                     // When status is Delivered, DeliveryDate is required
                     t.HasCheckConstraint("CK_Shipment_Status_Delivered_Date",

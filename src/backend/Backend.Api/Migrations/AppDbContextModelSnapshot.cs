@@ -557,11 +557,11 @@ namespace Backend.Api.Migrations
 
                             t.HasCheckConstraint("CK_Shipment_Dims_Positive", "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR ([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
 
-                            t.HasCheckConstraint("CK_Shipment_Status_Delivered_Date", "[Status] != 5 OR [DeliveryDate] IS NOT NULL");
+                            t.HasCheckConstraint("CK_Shipment_Status_Delivered_Date", "[Status] != 'Delivered' OR [DeliveryDate] IS NOT NULL");
 
-                            t.HasCheckConstraint("CK_Shipment_Status_Ready_Fields", "[Status] IN (0, 1) OR ([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND [SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND [SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Shipment_Status_Ready_Fields", "[Status] IN ('Unspecified', 'InPreparation') OR ([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND [SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND [SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_Shipment_Status_Sent_Date", "[Status] NOT IN (3, 4, 5) OR [SendDate] IS NOT NULL");
+                            t.HasCheckConstraint("CK_Shipment_Status_Sent_Date", "[Status] NOT IN ('InTransit', 'Delivered') OR [SendDate] IS NOT NULL");
                         });
                 });
 

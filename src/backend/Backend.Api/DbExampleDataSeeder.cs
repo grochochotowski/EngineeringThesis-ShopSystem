@@ -197,7 +197,8 @@ namespace Backend.Api.Infrastructure
         {
             if (_db.Clients.Any()) return;
 
-            // Add main company address first (for incoming shipments receiver)
+            // IMPORTANT: Add main company address FIRST (for incoming shipments receiver)
+            // This ensures it gets ID 1 in a fresh database
             var mainCompanyAddress = new Address
             {
                 Country = Country.Poland,
@@ -208,7 +209,7 @@ namespace Backend.Api.Infrastructure
             };
             _db.Addresses.Add(mainCompanyAddress);
             _db.SaveChanges();
-            Console.WriteLine("Main company address created in example seeder.");
+            Console.WriteLine($"Main company address created in example seeder (ID {mainCompanyAddress.Id}).");
 
             var addrs = new List<Address>
             {
@@ -254,13 +255,12 @@ namespace Backend.Api.Infrastructure
                 return;
             }
 
-            // Create 5 OUTGOING shipments with different statuses to demonstrate full workflow
+            // Create 4 OUTGOING shipments with different statuses to demonstrate full workflow
             var statuses = new[] {
                 ShipmentStatus.InPreparation,      // 1 - minimal data
                 ShipmentStatus.ReadyToCollect,     // 2 - complete data, no dates
-                ShipmentStatus.Collected,          // 3 - complete data + SendDate
-                ShipmentStatus.InTransit,          // 4 - complete data + SendDate
-                ShipmentStatus.Delivered           // 5 - complete data + both dates
+                ShipmentStatus.InTransit,          // 3 - complete data + SendDate (auto-set)
+                ShipmentStatus.Delivered           // 4 - complete data + both dates (auto-set)
             };
 
             for (int i = 0; i < statuses.Length; i++)
@@ -308,13 +308,13 @@ namespace Backend.Api.Infrastructure
                     shipment.ReceiverAddressId = receiverAddr.Id;
                     shipment.ReceiverDetails = "Please call before delivery";
 
-                    // Dates: SendDate required for status >= 3 (Collected, InTransit, Delivered)
-                    if (status >= ShipmentStatus.Collected)
+                    // Dates: SendDate auto-set for status >= 3 (InTransit, Delivered)
+                    if (status >= ShipmentStatus.InTransit)
                     {
                         shipment.SendDate = DateTimeOffset.UtcNow.AddDays(-_rand.Next(5, 15));
                     }
 
-                    // Dates: DeliveryDate required for status == 5 (Delivered)
+                    // Dates: DeliveryDate auto-set for status == 4 (Delivered)
                     if (status == ShipmentStatus.Delivered)
                     {
                         // DeliveryDate must be >= SendDate (per constraint)
@@ -384,7 +384,7 @@ namespace Backend.Api.Infrastructure
                         shipment.ReceiverAddressId = mainCompanyAddress.Id;
                         shipment.ReceiverDetails = "Receiving dock B";
 
-                        if (status >= ShipmentStatus.Collected)
+                        if (status >= ShipmentStatus.InTransit)
                         {
                             shipment.SendDate = DateTimeOffset.UtcNow.AddDays(-_rand.Next(3, 10));
                         }

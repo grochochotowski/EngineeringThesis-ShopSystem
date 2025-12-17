@@ -20,6 +20,35 @@ namespace Backend.Api.Infrastructure
         {
             if (!_db.Database.CanConnect()) return;
 
+            // --- ADD MAIN COMPANY ADDRESS FIRST (for incoming shipments receiver) ---
+            // IMPORTANT: This must be the first address created to ensure it gets ID 1
+            Address mainCompanyAddress;
+            var existingMainCompanyAddress = _db.Addresses.FirstOrDefault(a =>
+                a.Street == "Main Street" &&
+                a.Building == "123" &&
+                a.PostalCode == "00-950" &&
+                a.City == "Warszawa");
+
+            if (existingMainCompanyAddress == null)
+            {
+                mainCompanyAddress = new Address
+                {
+                    Country = Country.Poland,
+                    City = "Warszawa",
+                    Street = "Main Street",
+                    Building = "123",
+                    PostalCode = "00-950"
+                };
+                _db.Addresses.Add(mainCompanyAddress);
+                _db.SaveChanges();
+                Console.WriteLine("Main company address created (ID 1).");
+            }
+            else
+            {
+                mainCompanyAddress = existingMainCompanyAddress;
+                Console.WriteLine($"Main company address already exists (ID {mainCompanyAddress.Id}).");
+            }
+
             // --- ADD EXAMPLE CATEGORIES ---
             if (!_db.Categories.Any())
             {
@@ -115,35 +144,8 @@ namespace Backend.Api.Infrastructure
                 Console.WriteLine("Root user already exists — skipping seeding.");
             }
 
-            // --- ADD MAIN COMPANY ADDRESS (for incoming shipments receiver) ---
-            Address mainCompanyAddress;
-            var existingMainCompanyAddress = _db.Addresses.FirstOrDefault(a =>
-                a.Street == "Main Street" &&
-                a.Building == "123" &&
-                a.PostalCode == "00-950" &&
-                a.City == "Warszawa");
-
-            if (existingMainCompanyAddress == null)
-            {
-                mainCompanyAddress = new Address
-                {
-                    Country = Country.Poland,
-                    City = "Warszawa",
-                    Street = "Main Street",
-                    Building = "123",
-                    PostalCode = "00-950"
-                };
-                _db.Addresses.Add(mainCompanyAddress);
-                _db.SaveChanges();
-                Console.WriteLine("Main company address created.");
-            }
-            else
-            {
-                mainCompanyAddress = existingMainCompanyAddress;
-                Console.WriteLine("Main company address already exists.");
-            }
-
             // --- ADD EXAMPLE SHIPMENTS ---
+            // Note: mainCompanyAddress was created at the beginning of this method
             if (!_db.Shipments.Any())
             {
                 var senderAddress = new Address
