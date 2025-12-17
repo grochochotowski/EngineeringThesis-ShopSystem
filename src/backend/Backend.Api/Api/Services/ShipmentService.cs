@@ -271,25 +271,46 @@ namespace Backend.Api.Api.Services
             // Validate required fields when changing to ReadyToCollect (2) or higher status
             if (dto.Status >= ShipmentStatus.ReadyToCollect)
             {
-                // Check dimensions
-                if (s.Weight == null || s.Length == null || s.Width == null || s.Height == null)
+                // Check dimensions - provide specific error for each missing field
+                if (s.Weight == null)
                 {
-                    throw new InvalidOperationException(
-                        "Cannot change to this status: dimensions (Weight, Length, Width, Height) are required.");
+                    throw new InvalidOperationException("Cannot update status: weight is required");
+                }
+                if (s.Length == null)
+                {
+                    throw new InvalidOperationException("Cannot update status: length is required");
+                }
+                if (s.Width == null)
+                {
+                    throw new InvalidOperationException("Cannot update status: width is required");
+                }
+                if (s.Height == null)
+                {
+                    throw new InvalidOperationException("Cannot update status: height is required");
                 }
 
-                // Check sender and receiver names
-                if (string.IsNullOrWhiteSpace(s.SenderName) || string.IsNullOrWhiteSpace(s.ReceiverName))
+                // Check sender address
+                if (s.SenderAddressId == null)
                 {
-                    throw new InvalidOperationException(
-                        "Cannot change to this status: sender and receiver names are required.");
+                    throw new InvalidOperationException("Cannot update status: sender address is required");
                 }
 
-                // Check sender and receiver addresses
-                if (s.SenderAddressId == null || s.ReceiverAddressId == null)
+                // Check receiver address
+                if (s.ReceiverAddressId == null)
                 {
-                    throw new InvalidOperationException(
-                        "Cannot change to this status: sender and receiver addresses are required.");
+                    throw new InvalidOperationException("Cannot update status: receiver address is required");
+                }
+
+                // Check send date
+                if (s.SendDate == null)
+                {
+                    throw new InvalidOperationException("Cannot update status: send date is required");
+                }
+
+                // Check delivery date for Delivered status or higher
+                if (dto.Status >= ShipmentStatus.Delivered && s.DeliveryDate == null)
+                {
+                    throw new InvalidOperationException("Cannot update status: delivery date is required");
                 }
             }
 

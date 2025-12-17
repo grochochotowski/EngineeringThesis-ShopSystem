@@ -40,6 +40,7 @@ export default function IncomingShipments() {
     weight: "",
     senderName: "",
     senderTaxId: "",
+    senderDetails: "",
     senderStreet: "",
     senderBuilding: "",
     senderPremises: "",
@@ -88,12 +89,14 @@ export default function IncomingShipments() {
     weight: "",
     senderName: "",
     senderTaxId: "",
+    senderDetails: "",
     senderStreet: "",
     senderBuilding: "",
     senderPremises: "",
     senderPostalCode: "",
     senderCity: "",
     senderCountry: 141, // Default Poland (enum value)
+    receiverDetails: "",
   });
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productSearch, setProductSearch] = useState("");
@@ -223,16 +226,6 @@ export default function IncomingShipments() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showFilters]);
 
-  // DEBUG: Log editForm state changes, especially senderBuilding
-  useEffect(() => {
-    if (showEditModal && editForm.id) {
-      console.log("=== EDIT FORM STATE UPDATE ===");
-      console.log("editForm.senderBuilding value:", editForm.senderBuilding);
-      console.log("editForm.senderBuilding type:", typeof editForm.senderBuilding);
-      console.log("Full editForm state:", JSON.stringify(editForm, null, 2));
-      console.log("=== END EDIT FORM STATE UPDATE ===");
-    }
-  }, [editForm, showEditModal]);
 
   // Format dates for display
   const formatDate = (dateStr) => {
@@ -355,12 +348,14 @@ export default function IncomingShipments() {
       weight: "",
       senderName: "",
       senderTaxId: "",
+      senderDetails: "",
       senderStreet: "",
       senderBuilding: "",
       senderPremises: "",
       senderPostalCode: "",
       senderCity: "",
       senderCountry: 141, // Default Poland (enum value)
+      receiverDetails: "",
     });
     setSelectedProducts([]);
     setProductSearch("");
@@ -807,7 +802,41 @@ export default function IncomingShipments() {
       const senderAddressResponse = await api.post("/Addresses", senderAddressPayload);
       const senderAddressId = senderAddressResponse.id;
 
-      // Step 2: Create shipment
+      // Step 2: Get or create main company address for receiver
+      let receiverAddressId = null;
+      try {
+        // Check if main company address exists
+        const addressExistsResponse = await api.get("/Addresses/exists", {
+          params: {
+            street: "Main Street",
+            building: "123",
+            postalCode: "00-950",
+            city: "Warszawa",
+            country: 141, // Poland
+          },
+        });
+
+        if (addressExistsResponse.exists && addressExistsResponse.id) {
+          receiverAddressId = addressExistsResponse.id;
+        } else {
+          // Create main company address
+          const receiverAddressPayload = {
+            country: 141, // Poland
+            city: "Warszawa",
+            street: "Main Street",
+            building: "123",
+            premises: null,
+            postalCode: "00-950",
+          };
+          const receiverAddressResponse = await api.post("/Addresses", receiverAddressPayload);
+          receiverAddressId = receiverAddressResponse.id;
+        }
+      } catch (err) {
+        // If checking/creating receiver address fails, continue without it (will be caught by validation later)
+        console.error("Failed to get/create receiver address:", err);
+      }
+
+      // Step 3: Create shipment
       const shipmentPayload = {
         type: 1, // Incoming
         status: parseInt(addForm.status),
@@ -820,16 +849,18 @@ export default function IncomingShipments() {
         height: addForm.height ? parseFloat(addForm.height) : null,
         senderName: addForm.senderName,
         senderTaxId: addForm.senderTaxId,
+        senderDetails: addForm.senderDetails || null,
         senderAddressId: senderAddressId,
         receiverName: "Main Store",
         receiverTaxId: "1234567890",
-        receiverDetails: "Main Street 123, 00-950 Warszawa, Poland",
+        receiverAddressId: receiverAddressId,
+        receiverDetails: addForm.receiverDetails || "Main Street 123, 00-950 Warszawa, Poland",
       };
 
       const shipmentResponse = await api.post("/Shipments", shipmentPayload);
       const shipmentId = shipmentResponse.id;
 
-      // Step 3: Add products to shipment
+      // Step 4: Add products to shipment
       const productsPayload = {
         products: selectedProducts.map(p => ({
           productId: p.id,
@@ -886,6 +917,7 @@ export default function IncomingShipments() {
       weight: selectedShipmentDetails.weight || "",
       senderName: selectedShipmentDetails.senderName || "",
       senderTaxId: selectedShipmentDetails.senderTaxId || "",
+      senderDetails: selectedShipmentDetails.senderDetails || "",
       senderStreet: senderAddress.street || senderAddress.Street || "",
       senderBuilding: senderAddress.building || senderAddress.Building || "",
       senderPremises: senderAddress.premises || senderAddress.Premises || "",
@@ -998,6 +1030,7 @@ export default function IncomingShipments() {
         height: editForm.height ? parseFloat(editForm.height) : null,
         senderName: editForm.senderName,
         senderTaxId: editForm.senderTaxId,
+        senderDetails: editForm.senderDetails || null,
         senderAddressId: editForm.senderAddressId,
         receiverName: editForm.receiverName,
         receiverTaxId: editForm.receiverTaxId,
@@ -1692,6 +1725,18 @@ export default function IncomingShipments() {
                     />
                   </div>
 
+                  <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                    <label htmlFor="senderDetails">Sender Details</label>
+                    <textarea
+                      id="senderDetails"
+                      name="senderDetails"
+                      rows="2"
+                      placeholder="Additional notes about sender (optional)"
+                      value={addForm.senderDetails}
+                      onChange={handleAddFormChange}
+                    />
+                  </div>
+
                   <div className="form-field">
                     <label htmlFor="senderStreet">Street *</label>
                     <input
@@ -1789,6 +1834,17 @@ export default function IncomingShipments() {
                     <span className="info-label">Address:</span>
                     <span className="info-value">Main Street 123, 00-950 Warszawa, Poland</span>
                   </div>
+                </div>
+                <div className="form-field" style={{ marginTop: "15px" }}>
+                  <label htmlFor="receiverDetails">Receiver Details</label>
+                  <textarea
+                    id="receiverDetails"
+                    name="receiverDetails"
+                    rows="2"
+                    placeholder="Additional notes about receiver (optional)"
+                    value={addForm.receiverDetails}
+                    onChange={handleAddFormChange}
+                  />
                 </div>
               </div>
 
@@ -2057,6 +2113,18 @@ export default function IncomingShipments() {
                       />
                     </div>
 
+                    <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                      <label htmlFor="edit-senderDetails">Sender Details</label>
+                      <textarea
+                        id="edit-senderDetails"
+                        name="senderDetails"
+                        rows="2"
+                        placeholder="Additional notes about sender (optional)"
+                        value={editForm.senderDetails}
+                        onChange={handleEditFormChange}
+                      />
+                    </div>
+
                     <div className="form-field">
                       <label htmlFor="edit-senderStreet">Street *</label>
                       <input
@@ -2150,10 +2218,17 @@ export default function IncomingShipments() {
                       <span className="info-label">Tax ID:</span>
                       <span className="info-value">{editForm.receiverTaxId || "—"}</span>
                     </div>
-                    <div className="info-row">
-                      <span className="info-label">Details:</span>
-                      <span className="info-value">{editForm.receiverDetails || "—"}</span>
-                    </div>
+                  </div>
+                  <div className="form-field" style={{ marginTop: "15px" }}>
+                    <label htmlFor="edit-receiverDetails">Receiver Details</label>
+                    <textarea
+                      id="edit-receiverDetails"
+                      name="receiverDetails"
+                      rows="2"
+                      placeholder="Additional notes about receiver (optional)"
+                      value={editForm.receiverDetails}
+                      onChange={handleEditFormChange}
+                    />
                   </div>
                 </div>
 
