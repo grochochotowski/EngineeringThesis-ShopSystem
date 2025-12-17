@@ -7,6 +7,7 @@ import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageBox from "../../components/MessageBox";
 import { shipmentStatusesData } from "../../data/shipmentStatuses";
+import { countries, getCountryName } from "../../data/countries";
 import "../../styles/PagesStyles/shipments.css";
 
 export default function IncomingShipments() {
@@ -92,7 +93,7 @@ export default function IncomingShipments() {
     senderPremises: "",
     senderPostalCode: "",
     senderCity: "",
-    senderCountry: "Poland", // Default Poland
+    senderCountry: 141, // Default Poland (enum value)
   });
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productSearch, setProductSearch] = useState("");
@@ -359,7 +360,7 @@ export default function IncomingShipments() {
       senderPremises: "",
       senderPostalCode: "",
       senderCity: "",
-      senderCountry: "Poland",
+      senderCountry: 141, // Default Poland (enum value)
     });
     setSelectedProducts([]);
     setProductSearch("");
@@ -795,7 +796,7 @@ export default function IncomingShipments() {
 
       // Step 1: Create sender address (backend expects Country enum as integer)
       const senderAddressPayload = {
-        country: getCountryEnumValue(addForm.senderCountry),
+        country: parseInt(addForm.senderCountry), // Already an enum value
         city: addForm.senderCity,
         street: addForm.senderStreet,
         building: addForm.senderBuilding,
@@ -914,7 +915,7 @@ export default function IncomingShipments() {
       senderPremises: senderAddress.premises || senderAddress.Premises || "",
       senderPostalCode: senderAddress.postalCode || senderAddress.PostalCode || "",
       senderCity: senderAddress.city || senderAddress.City || "",
-      senderCountry: senderAddress.country || senderAddress.Country || "Poland",
+      senderCountry: senderAddress.country || senderAddress.Country || 141, // Default Poland (enum value)
       senderAddressId: selectedShipmentDetails.senderAddressId,
       receiverName: selectedShipmentDetails.receiverName || "",
       receiverTaxId: selectedShipmentDetails.receiverTaxId || "",
@@ -984,32 +985,6 @@ export default function IncomingShipments() {
     setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // Helper: Map country name to enum integer (backend Country enum)
-  const getCountryEnumValue = (countryName) => {
-    const countryMap = {
-      "Poland": 145,
-      "Germany": 69,
-      "France": 65,
-      "UnitedKingdom": 191,
-      "Italy": 88,
-      "Spain": 170,
-      "Netherlands": 130,
-      "Belgium": 21,
-      "Austria": 14,
-      "Czechia": 50,
-      "Slovakia": 164,
-      "Hungary": 80,
-      "Romania": 149,
-      "Bulgaria": 30,
-      "Croatia": 47,
-      "Slovenia": 165,
-      "Lithuania": 107,
-      "Latvia": 101,
-      "Estonia": 60,
-      "Ukraine": 190,
-    };
-    return countryMap[countryName] || 145; // Default to Poland
-  };
 
   // Save edited shipment
   const handleSaveEdit = async () => {
@@ -1039,7 +1014,7 @@ export default function IncomingShipments() {
 
       // Step 1: Update sender address (backend expects Country enum as integer)
       const senderAddressPayload = {
-        country: getCountryEnumValue(editForm.senderCountry),
+        country: parseInt(editForm.senderCountry), // Already an enum value
         city: editForm.senderCity,
         street: editForm.senderStreet,
         building: editForm.senderBuilding,
@@ -1391,7 +1366,8 @@ export default function IncomingShipments() {
       { label: "Sender Address", key: "senderAddress", render: (data) => {
         if (!data.senderAddress) return "—";
         const addr = data.senderAddress;
-        return `${addr.street} ${addr.building}${addr.premises ? `/${addr.premises}` : ""}, ${addr.postalCode} ${addr.city}, ${addr.country}`;
+        const countryName = getCountryName(addr.country);
+        return `${addr.street} ${addr.building}${addr.premises ? `/${addr.premises}` : ""}, ${addr.postalCode} ${addr.city}, ${countryName}`;
       }},
       { label: "Receiver Name", key: "receiverName" },
       { label: "Receiver Tax ID", key: "receiverTaxId" },
@@ -1827,26 +1803,9 @@ export default function IncomingShipments() {
                       onChange={handleAddFormChange}
                       required
                     >
-                      <option value="Poland">Poland</option>
-                      <option value="Germany">Germany</option>
-                      <option value="France">France</option>
-                      <option value="UnitedKingdom">United Kingdom</option>
-                      <option value="Italy">Italy</option>
-                      <option value="Spain">Spain</option>
-                      <option value="Netherlands">Netherlands</option>
-                      <option value="Belgium">Belgium</option>
-                      <option value="Austria">Austria</option>
-                      <option value="Czechia">Czechia</option>
-                      <option value="Slovakia">Slovakia</option>
-                      <option value="Hungary">Hungary</option>
-                      <option value="Romania">Romania</option>
-                      <option value="Bulgaria">Bulgaria</option>
-                      <option value="Croatia">Croatia</option>
-                      <option value="Slovenia">Slovenia</option>
-                      <option value="Lithuania">Lithuania</option>
-                      <option value="Latvia">Latvia</option>
-                      <option value="Estonia">Estonia</option>
-                      <option value="Ukraine">Ukraine</option>
+                      {Object.entries(countries).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -2209,26 +2168,9 @@ export default function IncomingShipments() {
                         onChange={handleEditFormChange}
                         required
                       >
-                        <option value="Poland">Poland</option>
-                        <option value="Germany">Germany</option>
-                        <option value="France">France</option>
-                        <option value="UnitedKingdom">United Kingdom</option>
-                        <option value="Italy">Italy</option>
-                        <option value="Spain">Spain</option>
-                        <option value="Netherlands">Netherlands</option>
-                        <option value="Belgium">Belgium</option>
-                        <option value="Austria">Austria</option>
-                        <option value="Czechia">Czechia</option>
-                        <option value="Slovakia">Slovakia</option>
-                        <option value="Hungary">Hungary</option>
-                        <option value="Romania">Romania</option>
-                        <option value="Bulgaria">Bulgaria</option>
-                        <option value="Croatia">Croatia</option>
-                        <option value="Slovenia">Slovenia</option>
-                        <option value="Lithuania">Lithuania</option>
-                        <option value="Latvia">Latvia</option>
-                        <option value="Estonia">Estonia</option>
-                        <option value="Ukraine">Ukraine</option>
+                        {Object.entries(countries).map(([id, name]) => (
+                          <option key={id} value={id}>{name}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
