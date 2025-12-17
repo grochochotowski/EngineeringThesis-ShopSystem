@@ -227,11 +227,18 @@ export default function IncomingShipments() {
   }, [showFilters]);
 
 
-  // Format dates for display
+  // Format dates for display as DD/MM/YYYY - HH:MM
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
     const date = new Date(dateStr);
-    return date.toLocaleDateString();
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${day}/${month}/${year} - ${hours}:${minutes}`;
   };
 
   // Get status label
@@ -255,8 +262,8 @@ export default function IncomingShipments() {
       from: `${s.senderName || "Unknown"}${s.senderTaxId ? ` (${s.senderTaxId})` : ""}`,
       size: s.length && s.width && s.height ? `${s.length} x ${s.width} x ${s.height}` : "—",
       totalQuantity: s.totalQuantity || 0,
-      sendDate: s.sendDate,
-      deliveryDate: s.deliveryDate,
+      sendDate: formatDate(s.sendDate),
+      deliveryDate: formatDate(s.deliveryDate),
       status: s.status,
       statusRaw: s.status,
     };
@@ -303,12 +310,15 @@ export default function IncomingShipments() {
     try {
       await api.patch(`/Shipments/${shipmentId}/status`, { status: newStatus });
 
-      // Refresh the shipment
+      // Refresh the shipment details
       const updated = await api.get(`/Shipments/${shipmentId}`);
       setSelectedShipmentDetails(updated);
 
       // Update in list
       setShipments(prev => prev.map(s => s.id === shipmentId ? { ...s, status: newStatus } : s));
+
+      // Reload the main list to get updated dates and other fields
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
 
       setToast({
         message: "Status updated successfully!",
