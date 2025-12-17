@@ -7,7 +7,7 @@ import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageBox from "../../components/MessageBox";
 import { shipmentStatusesData } from "../../data/shipmentStatuses";
-import { countries, getCountryName } from "../../data/countries";
+import { countries, getCountryValue } from "../../data/countries";
 import "../../styles/PagesStyles/shipments.css";
 
 export default function IncomingShipments() {
@@ -868,8 +868,10 @@ export default function IncomingShipments() {
     }
 
     const senderAddress = selectedShipmentDetails.senderAddress || selectedShipmentDetails.SenderAddress || {};
-    
-    const countryId = parseInt(senderAddress.country || senderAddress.Country, 10);
+
+    // Backend returns country as string name (e.g., "Poland"), need to convert to enum value for select
+    const countryName = senderAddress.country || senderAddress.Country;
+    const countryId = getCountryValue(countryName); // Convert name to enum value
 
     const formData = {
       id: selectedShipmentDetails.id,
@@ -889,7 +891,7 @@ export default function IncomingShipments() {
       senderPremises: senderAddress.premises || senderAddress.Premises || "",
       senderPostalCode: senderAddress.postalCode || senderAddress.PostalCode || "",
       senderCity: senderAddress.city || senderAddress.City || "",
-      senderCountry: isNaN(countryId) ? 141 : countryId, // Default to Poland if NaN
+      senderCountry: countryId !== null ? countryId : 141, // Default to Poland if conversion fails
       senderAddressId: selectedShipmentDetails.senderAddressId,
       receiverName: selectedShipmentDetails.receiverName || "",
       receiverTaxId: selectedShipmentDetails.receiverTaxId || "",
@@ -1325,8 +1327,8 @@ export default function IncomingShipments() {
       { label: "Sender Address", key: "senderAddress", render: (data) => {
         if (!data.senderAddress) return "—";
         const addr = data.senderAddress;
-        const countryId = parseInt(addr.country || addr.Country, 10);
-        const countryName = getCountryName(countryId);
+        // Backend returns country as string name (e.g., "Poland"), not enum value
+        const countryName = addr.country || addr.Country || "Unknown";
         return `${addr.street} ${addr.building}${addr.premises ? `/${addr.premises}` : ""}, ${addr.postalCode} ${addr.city}, ${countryName}`;
       }},
       { label: "Receiver Name", key: "receiverName" },
