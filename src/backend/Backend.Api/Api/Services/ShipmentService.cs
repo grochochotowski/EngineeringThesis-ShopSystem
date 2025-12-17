@@ -144,6 +144,8 @@ namespace Backend.Api.Api.Services
                     Street = shipment.SenderAddress.Street,
                     City = shipment.SenderAddress.City,
                     PostalCode = shipment.SenderAddress.PostalCode,
+                    Building = shipment.SenderAddress.Building,
+                    Premises = shipment.SenderAddress.Premises,
                     Country = shipment.SenderAddress.Country.ToString()
                 } : null,
                 ReceiverName = shipment.ReceiverName,
@@ -156,6 +158,8 @@ namespace Backend.Api.Api.Services
                     Street = shipment.ReceiverAddress.Street,
                     City = shipment.ReceiverAddress.City,
                     PostalCode = shipment.ReceiverAddress.PostalCode,
+                    Building = shipment.ReceiverAddress.Building,
+                    Premises = shipment.ReceiverAddress.Premises,
                     Country = shipment.ReceiverAddress.Country.ToString()
                 } : null,
                 ShipmentProducts = shipment.ShipmentProducts.Select(sp => new GetShipmentProductDto
