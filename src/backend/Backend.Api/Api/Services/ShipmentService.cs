@@ -300,23 +300,17 @@ namespace Backend.Api.Api.Services
                 {
                     throw new InvalidOperationException("Cannot update status: receiver address is required");
                 }
-
-                // Check send date
-                if (s.SendDate == null)
-                {
-                    throw new InvalidOperationException("Cannot update status: send date is required");
-                }
-
-                // Check delivery date for Delivered status or higher
-                if (dto.Status >= ShipmentStatus.Delivered && s.DeliveryDate == null)
-                {
-                    throw new InvalidOperationException("Cannot update status: delivery date is required");
-                }
             }
 
             s.Status = dto.Status;
 
-            // Auto-set delivery date when status changes to Delivered
+            // Auto-set send date when status changes to InTransit or higher (if not already set)
+            if (dto.Status >= ShipmentStatus.InTransit && !s.SendDate.HasValue)
+            {
+                s.SendDate = DateTimeOffset.UtcNow;
+            }
+
+            // Auto-set delivery date when status changes to Delivered (if not already set)
             if (dto.Status == ShipmentStatus.Delivered && !s.DeliveryDate.HasValue)
             {
                 s.DeliveryDate = DateTimeOffset.UtcNow;

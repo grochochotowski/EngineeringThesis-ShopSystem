@@ -977,7 +977,30 @@ export default function IncomingShipments() {
   // Handle edit form input change
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
-    setEditForm(prev => ({ ...prev, [name]: value }));
+
+    // Auto-set send date when status changes to InTransit (3) or higher
+    if (name === "status") {
+      const newStatus = parseInt(value);
+      setEditForm(prev => {
+        const updates = { [name]: value };
+
+        // If changing to InTransit or higher and no send date set, auto-set to today
+        if (newStatus >= 3 && !prev.sendDate) {
+          const today = new Date().toISOString().split('T')[0];
+          updates.sendDate = today;
+        }
+
+        // If changing to Delivered and no delivery date set, auto-set to today
+        if (newStatus >= 4 && !prev.deliveryDate) {
+          const today = new Date().toISOString().split('T')[0];
+          updates.deliveryDate = today;
+        }
+
+        return { ...prev, ...updates };
+      });
+    } else {
+      setEditForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
 
@@ -1115,7 +1138,7 @@ export default function IncomingShipments() {
 
   // Start collection workflow
   const handleStartCollection = () => {
-    if (!selectedShipmentDetails || selectedShipmentDetails.status !== 5) {
+    if (!selectedShipmentDetails || selectedShipmentDetails.status !== 4) {
       setToast({
         message: "Only delivered shipments can be collected.",
         type: "error",
@@ -1249,8 +1272,8 @@ export default function IncomingShipments() {
         }
       }
 
-      // Update shipment status to "Collected" (status 3)
-      await api.patch(`/Shipments/${selectedShipmentDetails.id}/status`, { status: 3 });
+      // Note: Shipment remains in "Delivered" status - collection is about receiving goods into warehouse,
+      // not about changing shipment delivery status
 
       setToast({
         message: "Collection completed successfully!",
@@ -1337,11 +1360,10 @@ export default function IncomingShipments() {
       case 0: return "badge-unspecified"; // gray
       case 1: return "badge-in-preparation"; // blue
       case 2: return "badge-ready-to-collect"; // yellow
-      case 3: return "badge-collected"; // orange
-      case 4: return "badge-in-transit"; // purple
-      case 5: return "badge-delivered"; // green
-      case 6: return "badge-cancelled"; // red
-      case 7: return "badge-returned"; // brown
+      case 3: return "badge-in-transit"; // purple
+      case 4: return "badge-delivered"; // green
+      case 5: return "badge-cancelled"; // red
+      case 6: return "badge-returned"; // brown
       default: return "badge-unspecified";
     }
   };
@@ -1485,7 +1507,7 @@ export default function IncomingShipments() {
           disableEdit={!selectedRow}
           changePasswordButtonLabel="Collect"
           changePasswordButtonClass="btn-go-to"
-          changePasswordDisabled={!selectedRow || selectedRow.statusRaw !== 5}
+          changePasswordDisabled={!selectedRow || selectedRow.statusRaw !== 4}
           onChangePassword={handleStartCollection}
           changePasswordButtonIcon={
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">

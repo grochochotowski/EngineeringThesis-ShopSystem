@@ -2,7 +2,7 @@
  * Shipment Statuses Dictionary
  * Enum mapping from backend ShipmentStatus enum
  *
- * Workflow: InPreparation → ReadyToCollect → Collected → InTransit → Delivered
+ * Workflow: InPreparation → ReadyToCollect → InTransit → Delivered
  * Alternative endings: Cancelled (from any status), Returned (from InTransit/Delivered)
  */
 
@@ -24,26 +24,21 @@ export const shipmentStatusesData = [
   },
   {
     id: 3,
-    value: "Collected",
-    description: "Shipment collected by carrier or customer"
-  },
-  {
-    id: 4,
     value: "InTransit",
     description: "Shipment in transit to destination"
   },
   {
-    id: 5,
+    id: 4,
     value: "Delivered",
     description: "Shipment successfully delivered to recipient"
   },
   {
-    id: 6,
+    id: 5,
     value: "Cancelled",
     description: "Shipment cancelled"
   },
   {
-    id: 7,
+    id: 6,
     value: "Returned",
     description: "Shipment returned to sender"
   },
