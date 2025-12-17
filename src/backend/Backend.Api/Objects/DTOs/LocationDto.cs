@@ -88,6 +88,9 @@ namespace Backend.Api.Objects.DTOs
         public int LocationId { get; set; }
         public string LocationCode { get; set; } = default!;
         public int Quantity { get; set; }
+        public string? Zone { get; set; }
+        public string? Col { get; set; }
+        public string? Shelf { get; set; }
     }
 
     // --- PRODUCT SEARCH RESULT ---

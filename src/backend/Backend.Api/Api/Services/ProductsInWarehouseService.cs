@@ -37,6 +37,7 @@ namespace Backend.Api.Api.Services
             PaginationParams pagination,
             CancellationToken ct = default);
         Task<PagedResult<LocationProductsResultDto>> SearchByLocationAsync(string locationCodePart, PaginationParams pagination, CancellationToken ct = default);
+        Task<List<ProductLocationInfoDto>> GetLocationsByProductIdAsync(int productId, CancellationToken ct = default);
     }
 
     public class ProductsInWarehouseService : IProductsInWarehouseService
@@ -585,6 +586,31 @@ namespace Backend.Api.Api.Services
                 PageNumber = pagination.PageNumber,
                 PageSize = pagination.PageSize
             };
+        }
+
+        // --- GET LOCATIONS BY PRODUCT ID ---
+        public async Task<List<ProductLocationInfoDto>> GetLocationsByProductIdAsync(int productId, CancellationToken ct = default)
+        {
+            // Validate product exists
+            if (!await _db.Products.AnyAsync(p => p.Id == productId, ct))
+                throw new ArgumentException($"Product with ID {productId} not found.");
+
+            var locations = await _db.ProductsInWarehouse
+                .AsNoTracking()
+                .Include(pw => pw.Location)
+                .Where(pw => pw.ProductId == productId)
+                .Select(pw => new ProductLocationInfoDto
+                {
+                    LocationId = pw.LocationId,
+                    LocationCode = pw.Location.LocationCode,
+                    Quantity = pw.Quantity,
+                    Zone = pw.Location.Zone,
+                    Col = pw.Location.Col,
+                    Shelf = pw.Location.Shelf
+                })
+                .ToListAsync(ct);
+
+            return locations;
         }
     }
 }

@@ -173,5 +173,22 @@ namespace Backend.Api.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // --- GET LOCATIONS BY PRODUCT ID ---
+        [HttpGet("product/{productId}")]
+        public async Task<ActionResult<List<ProductLocationInfoDto>>> GetLocationsByProductId(
+            [FromRoute] int productId,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                var locations = await _service.GetLocationsByProductIdAsync(productId, ct);
+                return Ok(locations);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
     }
 }

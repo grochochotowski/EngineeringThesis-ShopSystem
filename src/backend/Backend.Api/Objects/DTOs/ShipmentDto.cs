@@ -47,7 +47,13 @@ namespace Backend.Api.Objects.DTOs
                                     public DateTimeOffset? DeliveryDate         { get; set; }
                                     public string? SenderName                   { get; set; }
                                     public string? ReceiverName                 { get; set; }
+                                    public string? SenderTaxId                  { get; set; }
                                     public decimal? Weight                      { get; set; }
+                                    public decimal? Length                      { get; set; }
+                                    public decimal? Width                       { get; set; }
+                                    public decimal? Height                      { get; set; }
+                                    public int ProductCount                     { get; set; }
+                                    public int TotalQuantity                    { get; set; }
     }
 
     // --- CREATE SHIPMENT ---
