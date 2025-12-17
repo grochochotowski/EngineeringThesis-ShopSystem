@@ -867,35 +867,9 @@ export default function IncomingShipments() {
       return;
     }
 
-    // DEBUG: Log the full API response
-    console.log("=== EDIT MODAL DEBUG START ===");
-    console.log("Full selectedShipmentDetails object:", JSON.stringify(selectedShipmentDetails, null, 2));
-
-    // Parse sender address from address object (handle both camelCase and PascalCase)
     const senderAddress = selectedShipmentDetails.senderAddress || selectedShipmentDetails.SenderAddress || {};
-
-    // DEBUG: Log the sender address object
-    console.log("Extracted senderAddress object:", JSON.stringify(senderAddress, null, 2));
-    console.log("senderAddress type:", typeof senderAddress);
-    console.log("Is senderAddress an object?", senderAddress !== null && typeof senderAddress === 'object');
-
-    // DEBUG: Log each address property with both camelCase and PascalCase attempts
-    console.log("Address property extraction attempts:");
-    console.log("  street (camelCase):", senderAddress.street);
-    console.log("  Street (PascalCase):", senderAddress.Street);
-    console.log("  building (camelCase):", senderAddress.building);
-    console.log("  Building (PascalCase):", senderAddress.Building);
-    console.log("  premises (camelCase):", senderAddress.premises);
-    console.log("  Premises (PascalCase):", senderAddress.Premises);
-    console.log("  postalCode (camelCase):", senderAddress.postalCode);
-    console.log("  PostalCode (PascalCase):", senderAddress.PostalCode);
-    console.log("  city (camelCase):", senderAddress.city);
-    console.log("  City (PascalCase):", senderAddress.City);
-    console.log("  country (camelCase):", senderAddress.country);
-    console.log("  Country (PascalCase):", senderAddress.Country);
-
-    // DEBUG: Log all keys in senderAddress object
-    console.log("All keys in senderAddress object:", Object.keys(senderAddress));
+    
+    const countryId = parseInt(senderAddress.country || senderAddress.Country, 10);
 
     const formData = {
       id: selectedShipmentDetails.id,
@@ -915,29 +889,14 @@ export default function IncomingShipments() {
       senderPremises: senderAddress.premises || senderAddress.Premises || "",
       senderPostalCode: senderAddress.postalCode || senderAddress.PostalCode || "",
       senderCity: senderAddress.city || senderAddress.City || "",
-      senderCountry: senderAddress.country || senderAddress.Country || 141, // Default Poland (enum value)
+      senderCountry: isNaN(countryId) ? 141 : countryId, // Default to Poland if NaN
       senderAddressId: selectedShipmentDetails.senderAddressId,
       receiverName: selectedShipmentDetails.receiverName || "",
       receiverTaxId: selectedShipmentDetails.receiverTaxId || "",
       receiverDetails: selectedShipmentDetails.receiverDetails || "",
     };
 
-    // DEBUG: Log the form data being set with special focus on senderBuilding
-    console.log("Form data being set:");
-    console.log("  senderStreet:", formData.senderStreet);
-    console.log("  senderBuilding:", formData.senderBuilding);
-    console.log("  senderPremises:", formData.senderPremises);
-    console.log("  senderPostalCode:", formData.senderPostalCode);
-    console.log("  senderCity:", formData.senderCity);
-    console.log("  senderCountry:", formData.senderCountry);
-    console.log("Full formData object:", JSON.stringify(formData, null, 2));
-    console.log("=== EDIT MODAL DEBUG END ===");
-
     setEditForm(formData);
-
-    // DEBUG: Verify state update (note: this will show the value BEFORE React updates it due to async state)
-    console.log("After setEditForm called - state update is pending (React will apply it asynchronously)");
-    console.log("Expected senderBuilding in next render:", formData.senderBuilding);
 
     // Initialize products from shipment
     const productsWithStock = await Promise.all(
@@ -1366,7 +1325,8 @@ export default function IncomingShipments() {
       { label: "Sender Address", key: "senderAddress", render: (data) => {
         if (!data.senderAddress) return "—";
         const addr = data.senderAddress;
-        const countryName = getCountryName(addr.country);
+        const countryId = parseInt(addr.country || addr.Country, 10);
+        const countryName = getCountryName(countryId);
         return `${addr.street} ${addr.building}${addr.premises ? `/${addr.premises}` : ""}, ${addr.postalCode} ${addr.city}, ${countryName}`;
       }},
       { label: "Receiver Name", key: "receiverName" },
