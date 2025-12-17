@@ -52,6 +52,7 @@ export default function Header({ user, onLogout }) {
                 { name: "Shipment Statuses", path: "/dictionaries/shipment-statuses" },
                 { name: "Shipment Types", path: "/dictionaries/shipment-types" },
                 { name: "User Roles", path: "/dictionaries/user-roles" },
+                { name: "Countries", path: "/dictionaries/countries" },
             ],
         },
         {

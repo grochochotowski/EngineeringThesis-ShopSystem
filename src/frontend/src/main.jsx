@@ -31,6 +31,7 @@ const IncomingShipments = lazy(() => import("./pages/Shipments/Incoming.jsx"));
 const LeavingShipments = lazy(() => import("./pages/Shipments/Leaving.jsx"));
 
 const ClientTypes = lazy(() => import("./pages/Dictionaries/ClientTypes.jsx"));
+const Countries = lazy(() => import("./pages/Dictionaries/Countries.jsx"));
 const PaymentOptions = lazy(() => import("./pages/Dictionaries/PaymentOptions.jsx"));
 const SalesDocumentTypes = lazy(() => import("./pages/Dictionaries/SalesDocumentTypes.jsx"));
 const ShipmentStatuses = lazy(() => import("./pages/Dictionaries/ShipmentStatuses.jsx"));
@@ -223,6 +224,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
                     <UserRoles />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/dictionaries/countries',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={localStorage.getItem("userRole")} requiredRole="ShopAssistant">
+                    <Countries />
                 </ProtectedRoute>
             </PrivateRoute>
         ),
