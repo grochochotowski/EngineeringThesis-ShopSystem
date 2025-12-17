@@ -89,7 +89,13 @@ namespace Backend.Api.Api.Services
                 DeliveryDate = s.DeliveryDate,
                 SenderName = s.SenderName,
                 ReceiverName = s.ReceiverName,
-                Weight = s.Weight
+                SenderTaxId = s.SenderTaxId,
+                Weight = s.Weight,
+                Length = s.Length,
+                Width = s.Width,
+                Height = s.Height,
+                ProductCount = s.ShipmentProducts?.Count ?? 0,
+                TotalQuantity = s.ShipmentProducts?.Sum(sp => sp.Quantity) ?? 0
             }).ToList();
 
             // Return PagedResult manually
