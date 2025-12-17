@@ -854,8 +854,8 @@ export default function IncomingShipments() {
       return;
     }
 
-    // Parse sender address from address object (API returns camelCase properties)
-    const senderAddress = selectedShipmentDetails.senderAddress || {};
+    // Parse sender address from address object (handle both camelCase and PascalCase)
+    const senderAddress = selectedShipmentDetails.senderAddress || selectedShipmentDetails.SenderAddress || {};
 
     setEditForm({
       id: selectedShipmentDetails.id,
@@ -870,12 +870,12 @@ export default function IncomingShipments() {
       weight: selectedShipmentDetails.weight || "",
       senderName: selectedShipmentDetails.senderName || "",
       senderTaxId: selectedShipmentDetails.senderTaxId || "",
-      senderStreet: senderAddress.street || "",
-      senderBuilding: senderAddress.building || "",
-      senderPremises: senderAddress.premises || "",
-      senderPostalCode: senderAddress.postalCode || "",
-      senderCity: senderAddress.city || "",
-      senderCountry: senderAddress.country || "Poland",
+      senderStreet: senderAddress.street || senderAddress.Street || "",
+      senderBuilding: senderAddress.building || senderAddress.Building || "",
+      senderPremises: senderAddress.premises || senderAddress.Premises || "",
+      senderPostalCode: senderAddress.postalCode || senderAddress.PostalCode || "",
+      senderCity: senderAddress.city || senderAddress.City || "",
+      senderCountry: senderAddress.country || senderAddress.Country || "Poland",
       senderAddressId: selectedShipmentDetails.senderAddressId,
       receiverName: selectedShipmentDetails.receiverName || "",
       receiverTaxId: selectedShipmentDetails.receiverTaxId || "",
@@ -1402,16 +1402,17 @@ export default function IncomingShipments() {
     }
   };
 
-  // Handle toggle location view for a product
+  // Handle toggle location view for a product (accordion behavior - only one open at a time)
   const handleToggleProductLocations = async (productId) => {
     if (expandedProductLocations[productId]) {
-      // Collapse
-      setExpandedProductLocations(prev => ({ ...prev, [productId]: null }));
+      // Collapse - close all
+      setExpandedProductLocations({});
     } else {
-      // Expand - fetch locations
+      // Expand - close all others and fetch locations for this product
       try {
         const locations = await api.get(`/products-in-warehouse/product/${productId}`);
-        setExpandedProductLocations(prev => ({ ...prev, [productId]: locations }));
+        // Close all other products and open only this one
+        setExpandedProductLocations({ [productId]: locations });
       } catch (err) {
         console.error("Failed to fetch locations for product", productId, err);
         setToast({
@@ -2429,7 +2430,6 @@ export default function IncomingShipments() {
                           <tr>
                             <td colSpan="5" style={{ backgroundColor: "#f9f9f9", padding: "10px" }}>
                               <div className="locations-list">
-                                <strong>Storage Locations:</strong>
                                 {expandedProductLocations[product.productId].length > 0 ? (
                                   <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
                                     <thead>
