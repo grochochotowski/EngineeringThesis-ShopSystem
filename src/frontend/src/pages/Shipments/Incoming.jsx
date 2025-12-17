@@ -804,36 +804,38 @@ export default function IncomingShipments() {
 
       // Step 2: Get or create main company address for receiver
       let receiverAddressId = null;
+
+      // Define main company address details
+      const mainCompanyAddress = {
+        street: "Main Street",
+        building: "123",
+        postalCode: "00-950",
+        city: "Warszawa",
+        country: 141, // Poland enum value
+        premises: null,
+      };
+
       try {
         // Check if main company address exists
         const addressExistsResponse = await api.get("/Addresses/exists", {
-          params: {
-            street: "Main Street",
-            building: "123",
-            postalCode: "00-950",
-            city: "Warszawa",
-            country: 141, // Poland
-          },
+          params: mainCompanyAddress,
         });
 
         if (addressExistsResponse.exists && addressExistsResponse.id) {
           receiverAddressId = addressExistsResponse.id;
         } else {
           // Create main company address
-          const receiverAddressPayload = {
-            country: 141, // Poland
-            city: "Warszawa",
-            street: "Main Street",
-            building: "123",
-            premises: null,
-            postalCode: "00-950",
-          };
-          const receiverAddressResponse = await api.post("/Addresses", receiverAddressPayload);
+          const receiverAddressResponse = await api.post("/Addresses", mainCompanyAddress);
           receiverAddressId = receiverAddressResponse.id;
         }
+
+        if (!receiverAddressId) {
+          throw new Error("Receiver address ID is null after creation/retrieval");
+        }
       } catch (err) {
-        // If checking/creating receiver address fails, continue without it (will be caught by validation later)
         console.error("Failed to get/create receiver address:", err);
+        const errorMessage = err.response?.data?.message || err.response?.data || err.message;
+        throw new Error(`Failed to set receiver address: ${errorMessage}`);
       }
 
       // Step 3: Create shipment
