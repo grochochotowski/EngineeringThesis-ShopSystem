@@ -197,6 +197,19 @@ namespace Backend.Api.Infrastructure
         {
             if (_db.Clients.Any()) return;
 
+            // Add main company address first (for incoming shipments receiver)
+            var mainCompanyAddress = new Address
+            {
+                Country = Country.Poland,
+                City = "Warszawa",
+                Street = "Main Street",
+                Building = "123",
+                PostalCode = "00-950"
+            };
+            _db.Addresses.Add(mainCompanyAddress);
+            _db.SaveChanges();
+            Console.WriteLine("Main company address created in example seeder.");
+
             var addrs = new List<Address>
             {
                 new() { Country = Country.Poland, City = "Gdańsk", Street = "Morska", Building = "5", PostalCode = "80-001" },
@@ -230,6 +243,10 @@ namespace Backend.Api.Infrastructure
                 return;
             }
 
+            // Get main company address for incoming shipments
+            var mainCompanyAddress = _db.Addresses.FirstOrDefault(a =>
+                a.Street == "Main Street" && a.Building == "123" && a.PostalCode == "00-950");
+
             var products = _db.Products.Take(5).ToList();
             if (products.Count == 0)
             {
@@ -237,7 +254,7 @@ namespace Backend.Api.Infrastructure
                 return;
             }
 
-            // Create 5 shipments with different statuses to demonstrate full workflow
+            // Create 5 OUTGOING shipments with different statuses to demonstrate full workflow
             var statuses = new[] {
                 ShipmentStatus.InPreparation,      // 1 - minimal data
                 ShipmentStatus.ReadyToCollect,     // 2 - complete data, no dates
@@ -320,6 +337,82 @@ namespace Backend.Api.Infrastructure
                     });
                 }
                 _db.SaveChanges();
+            }
+
+            // Create 3 INCOMING shipments using main company address as receiver
+            if (mainCompanyAddress != null)
+            {
+                var incomingStatuses = new[] {
+                    ShipmentStatus.InPreparation,
+                    ShipmentStatus.ReadyToCollect,
+                    ShipmentStatus.InTransit
+                };
+
+                for (int i = 0; i < incomingStatuses.Length; i++)
+                {
+                    var status = incomingStatuses[i];
+                    var senderAddr = addresses[_rand.Next(addresses.Count)];
+
+                    var shipment = new Shipment
+                    {
+                        Type = ShipmentType.Incoming,
+                        Status = status
+                    };
+
+                    if (status == ShipmentStatus.InPreparation)
+                    {
+                        shipment.Description = $"Incoming draft shipment #{i + 1}";
+                    }
+                    else
+                    {
+                        // Set required fields for non-InPreparation statuses
+                        shipment.Description = $"Incoming package #{i + 1} with office supplies";
+                        shipment.Weight = (decimal)(_rand.NextDouble() * 10 + 1);
+                        shipment.Length = 30 + _rand.Next(50);
+                        shipment.Width = 25 + _rand.Next(30);
+                        shipment.Height = 15 + _rand.Next(15);
+
+                        // Sender (external supplier)
+                        shipment.SenderName = i % 2 == 0 ? "Supplier A Ltd." : "Supplier B Corp.";
+                        shipment.SenderTaxId = $"PL{_rand.Next(1000000000, 1999999999)}";
+                        shipment.SenderAddressId = senderAddr.Id;
+                        shipment.SenderDetails = "Supplier warehouse";
+
+                        // Receiver (main company)
+                        shipment.ReceiverName = "Main Company";
+                        shipment.ReceiverTaxId = "PL9999999999";
+                        shipment.ReceiverAddressId = mainCompanyAddress.Id;
+                        shipment.ReceiverDetails = "Receiving dock B";
+
+                        if (status >= ShipmentStatus.Collected)
+                        {
+                            shipment.SendDate = DateTimeOffset.UtcNow.AddDays(-_rand.Next(3, 10));
+                        }
+
+                        if (status == ShipmentStatus.Delivered)
+                        {
+                            shipment.DeliveryDate = shipment.SendDate!.Value.AddDays(_rand.Next(1, 5));
+                        }
+                    }
+
+                    _db.Shipments.Add(shipment);
+                    _db.SaveChanges();
+
+                    // Assign products to incoming shipment
+                    int productCount = _rand.Next(2, Math.Min(4, products.Count + 1));
+                    foreach (var p in products.Take(productCount))
+                    {
+                        _db.ShipmentProducts.Add(new ShipmentProduct
+                        {
+                            ShipmentId = shipment.Id,
+                            ProductId = p.Id,
+                            Quantity = _rand.Next(5, 20) // Higher quantities for incoming stock
+                        });
+                    }
+                    _db.SaveChanges();
+                }
+
+                Console.WriteLine($"Created {incomingStatuses.Length} incoming shipments with main company as receiver.");
             }
         }
 

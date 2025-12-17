@@ -115,6 +115,34 @@ namespace Backend.Api.Infrastructure
                 Console.WriteLine("Root user already exists — skipping seeding.");
             }
 
+            // --- ADD MAIN COMPANY ADDRESS (for incoming shipments receiver) ---
+            Address mainCompanyAddress;
+            var existingMainCompanyAddress = _db.Addresses.FirstOrDefault(a =>
+                a.Street == "Main Street" &&
+                a.Building == "123" &&
+                a.PostalCode == "00-950" &&
+                a.City == "Warszawa");
+
+            if (existingMainCompanyAddress == null)
+            {
+                mainCompanyAddress = new Address
+                {
+                    Country = Country.Poland,
+                    City = "Warszawa",
+                    Street = "Main Street",
+                    Building = "123",
+                    PostalCode = "00-950"
+                };
+                _db.Addresses.Add(mainCompanyAddress);
+                _db.SaveChanges();
+                Console.WriteLine("Main company address created.");
+            }
+            else
+            {
+                mainCompanyAddress = existingMainCompanyAddress;
+                Console.WriteLine("Main company address already exists.");
+            }
+
             // --- ADD EXAMPLE SHIPMENTS ---
             if (!_db.Shipments.Any())
             {
@@ -129,16 +157,8 @@ namespace Backend.Api.Infrastructure
                 _db.Addresses.Add(senderAddress);
                 _db.SaveChanges();
 
-                var receiverAddress = new Address
-                {
-                    Country = Country.Poland,
-                    City = "Warszawa",
-                    Street = "Warehouse Street",
-                    Building = "5",
-                    PostalCode = "00-001"
-                };
-                _db.Addresses.Add(receiverAddress);
-                _db.SaveChanges();
+                // Use main company address as receiver for incoming shipments
+                var receiverAddress = mainCompanyAddress;
 
                 var product1 = _db.Products.FirstOrDefault(x => x.SKU == "SKU-0001");
                 var product2 = _db.Products.FirstOrDefault(x => x.SKU == "SKU-0002");
