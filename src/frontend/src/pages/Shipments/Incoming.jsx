@@ -111,7 +111,7 @@ export default function IncomingShipments() {
 
   // Collection workflow state
   const [collectedProducts, setCollectedProducts] = useState([]);
-  const [locationAssignments, setLocationAssignments] = useState({});
+  const [collectedQuantities, setCollectedQuantities] = useState({}); // { productId: [{ quantity: 5, locationId: 123 }] }
   const [scanInput, setScanInput] = useState("");
   const [locations, setLocations] = useState([]);
 
@@ -1162,13 +1162,18 @@ export default function IncomingShipments() {
       productSKU: sp.productSKU,
       productName: sp.productName,
       shipmentQuantity: sp.quantity,
-      collectedQuantity: 0,
       warehouseQuantity: 0, // Will be fetched
-      locationId: null,
     }));
 
     setCollectedProducts(initialCollected);
-    setLocationAssignments({});
+
+    // Initialize collectedQuantities with one empty row per product
+    const initialQuantities = {};
+    initialCollected.forEach(product => {
+      initialQuantities[product.productId] = [{ quantity: 0, locationId: null }];
+    });
+    setCollectedQuantities(initialQuantities);
+
     setShowCollectModal(true);
 
     // Fetch warehouse quantities
@@ -1178,14 +1183,23 @@ export default function IncomingShipments() {
   // Fetch current warehouse quantities
   const fetchWarehouseQuantities = async (products) => {
     try {
-      for (const product of products) {
-        const warehouseData = await api.get(`/ProductsInWarehouse/product/${product.productId}`);
-        const totalQty = warehouseData.reduce((sum, w) => sum + w.quantity, 0);
+      const promises = products.map(async (product) => {
+        try {
+          const warehouseData = await api.get(`/ProductsInWarehouse/product/${product.productId}`);
+          const totalQty = Array.isArray(warehouseData) ? warehouseData.reduce((sum, w) => sum + w.quantity, 0) : 0;
+          return { productId: product.productId, totalQty };
+        } catch (err) {
+          console.error(`Failed to fetch warehouse quantity for product ${product.productId}`, err);
+          return { productId: product.productId, totalQty: 0 };
+        }
+      });
 
-        setCollectedProducts(prev => prev.map(p =>
-          p.productId === product.productId ? { ...p, warehouseQuantity: totalQty } : p
-        ));
-      }
+      const results = await Promise.all(promises);
+
+      setCollectedProducts(prev => prev.map(p => {
+        const result = results.find(r => r.productId === p.productId);
+        return result ? { ...p, warehouseQuantity: result.totalQty } : p;
+      }));
     } catch (err) {
       console.error("Failed to fetch warehouse quantities", err);
     }
@@ -1201,7 +1215,29 @@ export default function IncomingShipments() {
     );
 
     if (matchedProduct) {
-      handleCollectedChange(matchedProduct.productId, matchedProduct.collectedQuantity + 1);
+      // Add 1 to the first location row with available quantity
+      const currentRows = collectedQuantities[matchedProduct.productId] || [];
+      const totalCollected = currentRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
+
+      if (totalCollected >= matchedProduct.shipmentQuantity) {
+        setToast({
+          message: "All items from shipment already collected",
+          type: "error",
+        });
+        return;
+      }
+
+      // Add 1 to the first row
+      const updatedRows = [...currentRows];
+      if (updatedRows.length > 0) {
+        updatedRows[0] = { ...updatedRows[0], quantity: (parseInt(updatedRows[0].quantity) || 0) + 1 };
+      }
+
+      setCollectedQuantities(prev => ({
+        ...prev,
+        [matchedProduct.productId]: updatedRows,
+      }));
+
       setScanInput("");
     } else {
       setToast({
@@ -1211,55 +1247,130 @@ export default function IncomingShipments() {
     }
   };
 
-  // Handle manual quantity change
-  const handleCollectedChange = (productId, newQuantity) => {
+  // Handle quantity change for a specific location row
+  const handleLocationQuantityChange = (productId, rowIndex, newQuantity) => {
     const product = collectedProducts.find(p => p.productId === productId);
     if (!product) return;
 
-    const oldQuantity = product.collectedQuantity;
-    const difference = newQuantity - oldQuantity;
+    const currentRows = collectedQuantities[productId] || [];
+    const updatedRows = [...currentRows];
 
-    if (difference > 0) {
-      // Ask for location assignment for added products
-      setLocationAssignments(prev => ({
-        ...prev,
-        [productId]: prev[productId] || null,
-      }));
-    }
+    // Update the quantity for this specific row
+    updatedRows[rowIndex] = { ...updatedRows[rowIndex], quantity: Math.max(0, parseInt(newQuantity) || 0) };
 
-    setCollectedProducts(prev => prev.map(p =>
-      p.productId === productId ? { ...p, collectedQuantity: newQuantity } : p
-    ));
-  };
+    // Calculate total collected across all rows
+    const totalCollected = updatedRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
 
-  // Handle location assignment
-  const handleLocationChange = (productId, locationId) => {
-    setLocationAssignments(prev => ({
-      ...prev,
-      [productId]: locationId,
-    }));
-  };
-
-  // Finish collection
-  const handleFinishCollection = async () => {
-    // Validate all collected
-    const incomplete = collectedProducts.filter(p => p.collectedQuantity !== p.shipmentQuantity);
-    if (incomplete.length > 0) {
+    // Don't allow total to exceed shipment quantity
+    if (totalCollected > product.shipmentQuantity) {
       setToast({
-        message: "Some products are not fully collected. Please verify quantities.",
+        message: `Cannot collect more than ${product.shipmentQuantity} items`,
         type: "error",
       });
       return;
     }
 
-    // Validate all have locations
+    setCollectedQuantities(prev => ({
+      ...prev,
+      [productId]: updatedRows,
+    }));
+  };
+
+  // Handle location selection for a specific row
+  const handleLocationChange = (productId, rowIndex, locationId) => {
+    const currentRows = collectedQuantities[productId] || [];
+    const updatedRows = [...currentRows];
+
+    // Check if this location is already selected for this product (in another row)
+    const isDuplicate = updatedRows.some((row, idx) => idx !== rowIndex && row.locationId === parseInt(locationId));
+
+    if (isDuplicate && locationId) {
+      setToast({
+        message: "This location is already selected for this product",
+        type: "error",
+      });
+      return;
+    }
+
+    updatedRows[rowIndex] = { ...updatedRows[rowIndex], locationId: locationId ? parseInt(locationId) : null };
+
+    setCollectedQuantities(prev => ({
+      ...prev,
+      [productId]: updatedRows,
+    }));
+  };
+
+  // Add a new location row for a product
+  const handleAddLocationRow = (productId) => {
+    const currentRows = collectedQuantities[productId] || [];
+
+    // Check if current total equals shipment quantity
+    const product = collectedProducts.find(p => p.productId === productId);
+    if (!product) return;
+
+    const totalCollected = currentRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
+
+    if (totalCollected >= product.shipmentQuantity) {
+      setToast({
+        message: "All items from shipment already allocated",
+        type: "error",
+      });
+      return;
+    }
+
+    // Add new row
+    const updatedRows = [...currentRows, { quantity: 0, locationId: null }];
+
+    setCollectedQuantities(prev => ({
+      ...prev,
+      [productId]: updatedRows,
+    }));
+  };
+
+  // Remove a location row (only if more than one row exists)
+  const handleRemoveLocationRow = (productId, rowIndex) => {
+    const currentRows = collectedQuantities[productId] || [];
+
+    if (currentRows.length <= 1) {
+      setToast({
+        message: "Cannot remove the last location row",
+        type: "error",
+      });
+      return;
+    }
+
+    const updatedRows = currentRows.filter((_, idx) => idx !== rowIndex);
+
+    setCollectedQuantities(prev => ({
+      ...prev,
+      [productId]: updatedRows,
+    }));
+  };
+
+  // Finish collection
+  const handleFinishCollection = async () => {
+    // Validate all products have correct total quantities
     for (const product of collectedProducts) {
-      if (product.collectedQuantity > 0 && !locationAssignments[product.productId]) {
+      const rows = collectedQuantities[product.productId] || [];
+      const totalCollected = rows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
+
+      if (totalCollected !== product.shipmentQuantity) {
         setToast({
-          message: `Please assign a location for ${product.productName}`,
+          message: `Product "${product.productName}" has incorrect quantity. Expected: ${product.shipmentQuantity}, Got: ${totalCollected}`,
           type: "error",
         });
         return;
+      }
+
+      // Validate all rows with quantity > 0 have locations
+      for (const row of rows) {
+        if ((parseInt(row.quantity) || 0) > 0 && !row.locationId) {
+          setToast({
+            message: `Please assign a location for all quantities of "${product.productName}"`,
+            type: "error",
+          });
+          return;
+        }
       }
     }
 
@@ -1271,14 +1382,19 @@ export default function IncomingShipments() {
     try {
       setLoading(true);
 
-      // Add products to warehouse locations
+      // Add products to warehouse locations (now supports multiple locations per product)
       for (const product of collectedProducts) {
-        if (product.collectedQuantity > 0) {
-          await api.post("/ProductsInWarehouse", {
-            productId: product.productId,
-            locationId: locationAssignments[product.productId],
-            quantity: product.collectedQuantity,
-          });
+        const rows = collectedQuantities[product.productId] || [];
+
+        for (const row of rows) {
+          const quantity = parseInt(row.quantity) || 0;
+          if (quantity > 0 && row.locationId) {
+            await api.post("/ProductsInWarehouse", {
+              productId: product.productId,
+              locationId: row.locationId,
+              quantity: quantity,
+            });
+          }
         }
       }
 
@@ -2399,55 +2515,100 @@ export default function IncomingShipments() {
               </button>
             </div>
 
-            <table className="collection-table">
-              <thead>
-                <tr>
-                  <th>Product (SKU)</th>
-                  <th>Shipment Qty</th>
-                  <th>Collected</th>
-                  <th>In Store</th>
-                  <th>Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                {collectedProducts.map(product => {
-                  const isComplete = product.collectedQuantity === product.shipmentQuantity;
-                  const isError = product.collectedQuantity !== product.shipmentQuantity;
-                  const rowClass = isComplete ? "row-success" : (isError ? "row-error" : "");
+            <div className="collection-products-wrapper">
+              {collectedProducts.map(product => {
+                const rows = collectedQuantities[product.productId] || [];
+                const totalCollected = rows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
+                const isComplete = totalCollected === product.shipmentQuantity;
+                const isError = totalCollected !== product.shipmentQuantity;
 
-                  return (
-                    <tr key={product.productId} className={rowClass}>
-                      <td>{product.productName} ({product.productSKU})</td>
-                      <td>{product.shipmentQuantity}</td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          value={product.collectedQuantity}
-                          onChange={(e) => handleCollectedChange(product.productId, parseInt(e.target.value) || 0)}
-                          className="collected-input"
-                        />
-                      </td>
-                      <td>{product.warehouseQuantity}</td>
-                      <td>
-                        <select
-                          value={locationAssignments[product.productId] || ""}
-                          onChange={(e) => handleLocationChange(product.productId, parseInt(e.target.value))}
-                          disabled={product.collectedQuantity === 0}
-                        >
-                          <option value="">Select location</option>
-                          {locations.map(loc => (
-                            <option key={loc.id} value={loc.id}>
-                              {loc.zone}-{loc.col}-{loc.shelf}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                return (
+                  <div key={product.productId} className={`collection-product-section ${isComplete ? "section-success" : (isError ? "section-error" : "")}`}>
+                    <div className="product-header">
+                      <div className="product-info">
+                        <strong>{product.productName}</strong>
+                        <span className="product-sku-badge">{product.productSKU}</span>
+                      </div>
+                      <div className="product-quantities">
+                        <div className="quantity-badge shipment-qty">
+                          <span className="qty-label">Shipment Qty</span>
+                          <span className="qty-value">{product.shipmentQuantity}</span>
+                        </div>
+                        <div className="quantity-badge in-store-qty">
+                          <span className="qty-label">In Store</span>
+                          <span className="qty-value">{product.warehouseQuantity}</span>
+                        </div>
+                        <div className={`quantity-badge collected-qty ${isComplete ? "complete" : ""}`}>
+                          <span className="qty-label">Collected</span>
+                          <span className="qty-value">{totalCollected} / {product.shipmentQuantity}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="location-rows">
+                      {rows.map((row, rowIndex) => (
+                        <div key={rowIndex} className="location-row">
+                          <div className="location-row-content">
+                            <div className="quantity-input-wrapper">
+                              <label>Quantity</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={row.quantity || 0}
+                                onChange={(e) => handleLocationQuantityChange(product.productId, rowIndex, e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddLocationRow(product.productId);
+                                  }
+                                }}
+                                className="location-quantity-input"
+                                placeholder="0"
+                              />
+                            </div>
+                            <span className="location-at">@</span>
+                            <div className="location-select-wrapper">
+                              <label>Location</label>
+                              <select
+                                value={row.locationId || ""}
+                                onChange={(e) => handleLocationChange(product.productId, rowIndex, e.target.value)}
+                                className="location-select"
+                              >
+                                <option value="">Select location</option>
+                                {locations.map(loc => (
+                                  <option key={loc.id} value={loc.id}>
+                                    {loc.zone}-{loc.col}-{loc.shelf}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {rows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLocationRow(product.productId, rowIndex)}
+                                className="btn-remove-location"
+                                title="Remove this location"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddLocationRow(product.productId)}
+                      className="btn-add-location"
+                      disabled={totalCollected >= product.shipmentQuantity}
+                    >
+                      + Add Another Location
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
 
             <button onClick={handleFinishCollection} className="btn-action btn-success finish-btn">
               Finish Collection
