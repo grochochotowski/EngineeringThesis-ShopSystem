@@ -114,6 +114,7 @@ export default function IncomingShipments() {
   const [collectedQuantities, setCollectedQuantities] = useState({}); // { productId: [{ quantity: 5, locationId: 123 }] }
   const [scanInput, setScanInput] = useState("");
   const [locations, setLocations] = useState([]);
+  const [isCollectionValid, setIsCollectionValid] = useState(false);
 
   const observerRef = useRef(null);
   const filtersRef = useRef(null);
@@ -244,6 +245,20 @@ export default function IncomingShipments() {
   // Get status label
   const getStatusLabel = (statusId) => {
     return shipmentStatusesData.find(s => s.id === statusId)?.value || "Unknown";
+  };
+
+  // Helper to get status badge class
+  const getStatusBadgeClass = (statusId) => {
+    switch (statusId) {
+      case 0: return "badge-unspecified"; // gray
+      case 1: return "badge-in-preparation"; // blue
+      case 2: return "badge-ready-to-collect"; // yellow
+      case 3: return "badge-in-transit"; // purple
+      case 4: return "badge-delivered"; // green
+      case 5: return "badge-cancelled"; // red
+      case 6: return "badge-returned"; // brown
+      default: return "badge-unspecified";
+    }
   };
 
   // Table columns
@@ -1185,7 +1200,7 @@ export default function IncomingShipments() {
     try {
       const promises = products.map(async (product) => {
         try {
-          const warehouseData = await api.get(`/ProductsInWarehouse/product/${product.productId}`);
+          const warehouseData = await api.get(`/products-in-warehouse/product/${product.productId}`);
           const totalQty = Array.isArray(warehouseData) ? warehouseData.reduce((sum, w) => sum + w.quantity, 0) : 0;
           return { productId: product.productId, totalQty };
         } catch (err) {
@@ -1206,7 +1221,7 @@ export default function IncomingShipments() {
   };
 
   // Handle scan input (SKU/name search)
-  const handleScanApply = () => {
+  const handleScanApply = async () => {
     if (!scanInput.trim()) return;
 
     const term = scanInput.trim().toLowerCase();
@@ -1215,17 +1230,8 @@ export default function IncomingShipments() {
     );
 
     if (matchedProduct) {
-      // Add 1 to the first location row with available quantity
+      // Add 1 to the first location row (overage is allowed)
       const currentRows = collectedQuantities[matchedProduct.productId] || [];
-      const totalCollected = currentRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
-
-      if (totalCollected >= matchedProduct.shipmentQuantity) {
-        setToast({
-          message: "All items from shipment already collected",
-          type: "error",
-        });
-        return;
-      }
 
       // Add 1 to the first row
       const updatedRows = [...currentRows];
@@ -1240,10 +1246,83 @@ export default function IncomingShipments() {
 
       setScanInput("");
     } else {
-      setToast({
-        message: "Product not found in shipment",
-        type: "error",
-      });
+      // Product not in shipment - try to lookup in database
+      try {
+        const response = await api.get("/products-in-warehouse/search-product", {
+          params: {
+            pageNumber: 1,
+            pageSize: 1,
+            searchTerm: term,
+          },
+        });
+
+        const products = response.items || [];
+        // Check if we found a matching product
+        if (products.length > 0 && products[0].sku.toLowerCase() === term) {
+          const foundProduct = products[0];
+          const productId = foundProduct.productId || foundProduct.id;
+
+          // Check if this product is already in collected products
+          const alreadyCollected = collectedProducts.find(p => p.productId === productId);
+          if (alreadyCollected) {
+            // Already exists, just add 1
+            const currentRows = collectedQuantities[productId] || [];
+            const updatedRows = [...currentRows];
+            if (updatedRows.length > 0) {
+              updatedRows[0] = { ...updatedRows[0], quantity: (parseInt(updatedRows[0].quantity) || 0) + 1 };
+            } else {
+              updatedRows.push({ quantity: 1, locationId: null });
+            }
+
+            setCollectedQuantities(prev => ({
+              ...prev,
+              [productId]: updatedRows,
+            }));
+
+            setScanInput("");
+            setToast({
+              message: `+1 added to ${foundProduct.name}`,
+              type: "success",
+            });
+            return;
+          }
+
+          // Add new product to collection (not in original shipment)
+          const newProduct = {
+            productId: productId,
+            productSKU: foundProduct.sku,
+            productName: foundProduct.name,
+            shipmentQuantity: 0, // Not in original shipment
+            warehouseQuantity: foundProduct.totalQuantity || 0,
+            isExtraProduct: true, // Flag to indicate this wasn't in the shipment
+          };
+
+          setCollectedProducts(prev => [...prev, newProduct]);
+
+          // Initialize with 1 quantity in first row
+          setCollectedQuantities(prev => ({
+            ...prev,
+            [productId]: [{ quantity: 1, locationId: null }],
+          }));
+
+          setScanInput("");
+          setToast({
+            message: `Added "${foundProduct.name}" to collection (not in shipment)`,
+            type: "success",
+          });
+        } else {
+          setToast({
+            message: "Product not found in shipment or database",
+            type: "error",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to search for product", err);
+        setToast({
+          message: "Product not found in shipment",
+          type: "error",
+        });
+      }
     }
   };
 
@@ -1255,20 +1334,8 @@ export default function IncomingShipments() {
     const currentRows = collectedQuantities[productId] || [];
     const updatedRows = [...currentRows];
 
-    // Update the quantity for this specific row
+    // Update the quantity for this specific row - allow any positive number (overage is allowed)
     updatedRows[rowIndex] = { ...updatedRows[rowIndex], quantity: Math.max(0, parseInt(newQuantity) || 0) };
-
-    // Calculate total collected across all rows
-    const totalCollected = updatedRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
-
-    // Don't allow total to exceed shipment quantity
-    if (totalCollected > product.shipmentQuantity) {
-      setToast({
-        message: `Cannot collect more than ${product.shipmentQuantity} items`,
-        type: "error",
-      });
-      return;
-    }
 
     setCollectedQuantities(prev => ({
       ...prev,
@@ -1304,21 +1371,7 @@ export default function IncomingShipments() {
   const handleAddLocationRow = (productId) => {
     const currentRows = collectedQuantities[productId] || [];
 
-    // Check if current total equals shipment quantity
-    const product = collectedProducts.find(p => p.productId === productId);
-    if (!product) return;
-
-    const totalCollected = currentRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
-
-    if (totalCollected >= product.shipmentQuantity) {
-      setToast({
-        message: "All items from shipment already allocated",
-        type: "error",
-      });
-      return;
-    }
-
-    // Add new row
+    // Add new row (overage is allowed, so no quantity restriction)
     const updatedRows = [...currentRows, { quantity: 0, locationId: null }];
 
     setCollectedQuantities(prev => ({
@@ -1347,20 +1400,38 @@ export default function IncomingShipments() {
     }));
   };
 
-  // Finish collection
-  const handleFinishCollection = async () => {
-    // Validate all products have correct total quantities
+  useEffect(() => {
+    // Validate that all rows with quantity > 0 have locations assigned
+    // Allow finishing collection even when all quantities are 0 (empty parcel scenario)
+    let allProductsValid = true;
+
     for (const product of collectedProducts) {
       const rows = collectedQuantities[product.productId] || [];
-      const totalCollected = rows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
 
-      if (totalCollected !== product.shipmentQuantity) {
-        setToast({
-          message: `Product "${product.productName}" has incorrect quantity. Expected: ${product.shipmentQuantity}, Got: ${totalCollected}`,
-          type: "error",
-        });
-        return;
+      // Check each row for validation
+      for (const row of rows) {
+        const qty = parseInt(row.quantity) || 0;
+
+        // Only validate location if quantity > 0
+        if (qty > 0 && !row.locationId) {
+          allProductsValid = false;
+          break;
+        }
       }
+
+      if (!allProductsValid) break;
+    }
+
+    // Button is enabled if all quantities with qty > 0 have locations assigned
+    // Empty parcels (all quantities = 0) are allowed
+    setIsCollectionValid(allProductsValid);
+  }, [collectedProducts, collectedQuantities]);
+
+  // Finish collection
+  const handleFinishCollection = async () => {
+    // Only validate that all rows with quantity > 0 have locations assigned
+    for (const product of collectedProducts) {
+      const rows = collectedQuantities[product.productId] || [];
 
       // Validate all rows with quantity > 0 have locations
       for (const row of rows) {
@@ -1389,7 +1460,7 @@ export default function IncomingShipments() {
         for (const row of rows) {
           const quantity = parseInt(row.quantity) || 0;
           if (quantity > 0 && row.locationId) {
-            await api.post("/ProductsInWarehouse", {
+            await api.post("/products-in-warehouse/add", {
               productId: product.productId,
               locationId: row.locationId,
               quantity: quantity,
@@ -1398,8 +1469,10 @@ export default function IncomingShipments() {
         }
       }
 
-      // Note: Shipment remains in "Delivered" status - collection is about receiving goods into warehouse,
-      // not about changing shipment delivery status
+      // Update shipment status to ReadyToCollect (2) to indicate collection is complete
+      await apiRequest(`/Shipments/${selectedShipmentDetails.id}/status`, "PATCH", {
+        status: 2, // ReadyToCollect status
+      });
 
       setToast({
         message: "Collection completed successfully!",
@@ -1430,6 +1503,15 @@ export default function IncomingShipments() {
     if (!shipment) return getStatusLabel(row.statusRaw);
 
     const currentStatus = shipment.status;
+
+    // If shipment is collected (ReadyToCollect status = 2), show as read-only badge
+    if (currentStatus === 2) {
+      return (
+        <div className={`badge ${getStatusBadgeClass(currentStatus)}`}>
+          {getStatusLabel(currentStatus)}
+        </div>
+      );
+    }
 
     // All users can change status, confirmation dialog will be shown
     return (
@@ -1477,20 +1559,6 @@ export default function IncomingShipments() {
     } else {
       setSortColumn(column);
       setSortDirection("asc");
-    }
-  };
-
-  // Helper to get status badge class
-  const getStatusBadgeClass = (statusId) => {
-    switch (statusId) {
-      case 0: return "badge-unspecified"; // gray
-      case 1: return "badge-in-preparation"; // blue
-      case 2: return "badge-ready-to-collect"; // yellow
-      case 3: return "badge-in-transit"; // purple
-      case 4: return "badge-delivered"; // green
-      case 5: return "badge-cancelled"; // red
-      case 6: return "badge-returned"; // brown
-      default: return "badge-unspecified";
     }
   };
 
@@ -1630,7 +1698,7 @@ export default function IncomingShipments() {
           searchValue={searchQuery}
           hideDeleteButton={true}
           hideAddButton={false}
-          disableEdit={!selectedRow}
+          disableEdit={!selectedRow || selectedRow.statusRaw === 2}
           changePasswordButtonLabel="Collect"
           changePasswordButtonClass="btn-go-to"
           changePasswordDisabled={!selectedRow || selectedRow.statusRaw !== 4}
@@ -2497,6 +2565,7 @@ export default function IncomingShipments() {
       {/* Collection Modal */}
       {showCollectModal && (
         <Modal
+          key={`collect-modal-${selectedShipmentDetails?.id || 'new'}`}
           title="Collect Shipment Products"
           onClose={() => setShowCollectModal(false)}
           wide
@@ -2519,15 +2588,54 @@ export default function IncomingShipments() {
               {collectedProducts.map(product => {
                 const rows = collectedQuantities[product.productId] || [];
                 const totalCollected = rows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
-                const isComplete = totalCollected === product.shipmentQuantity;
-                const isError = totalCollected !== product.shipmentQuantity;
+                const shipmentQty = parseInt(product.shipmentQuantity) || 0;
+                const isComplete = totalCollected === shipmentQty;
+                const isExtraProduct = product.isExtraProduct === true;
+
+                // Determine section class based on priority order
+                let productSectionClass = 'section-error';
+
+                if (isExtraProduct) {
+                  // Extra products (not in shipment) - auto assign colors based on location count
+                  if (rows.length === 0 || totalCollected === 0) {
+                    productSectionClass = 'section-error';
+                  } else if (rows.some(row => (parseInt(row.quantity) || 0) > 0 && !row.locationId)) {
+                    productSectionClass = 'section-error';
+                  } else if (rows.length === 1) {
+                    productSectionClass = 'section-warning'; // Yellow for first location
+                  } else if (rows.length >= 2) {
+                    productSectionClass = 'section-error'; // Red for second location
+                  }
+                } else {
+                  // Original shipment products - normal logic
+                  if (totalCollected === 0) {
+                    productSectionClass = 'section-error';
+                  }
+                  // Priority 2: Any locations not set (has quantity > 0 but no location)
+                  else if (rows.some(row => (parseInt(row.quantity) || 0) > 0 && !row.locationId)) {
+                    productSectionClass = 'section-error';
+                  }
+                  // Priority 3: Collected < Shipment Qty
+                  else if (totalCollected < shipmentQty) {
+                    productSectionClass = 'section-error';
+                  }
+                  // Priority 4: All locations set AND Collected = Shipment Qty
+                  else if (totalCollected === shipmentQty && shipmentQty > 0) {
+                    productSectionClass = 'section-success';
+                  }
+                  // Priority 5: All locations set AND Collected > Shipment Qty
+                  else if (totalCollected > shipmentQty) {
+                    productSectionClass = 'section-warning';
+                  }
+                }
 
                 return (
-                  <div key={product.productId} className={`collection-product-section ${isComplete ? "section-success" : (isError ? "section-error" : "")}`}>
+                  <div key={`${product.productId}-${totalCollected}-${rows.length}`} className={`collection-product-section ${productSectionClass}`}>
                     <div className="product-header">
                       <div className="product-info">
                         <strong>{product.productName}</strong>
                         <span className="product-sku-badge">{product.productSKU}</span>
+                        {isExtraProduct && <span className="extra-product-badge">Not in Shipment</span>}
                       </div>
                       <div className="product-quantities">
                         <div className="quantity-badge shipment-qty">
@@ -2540,7 +2648,7 @@ export default function IncomingShipments() {
                         </div>
                         <div className={`quantity-badge collected-qty ${isComplete ? "complete" : ""}`}>
                           <span className="qty-label">Collected</span>
-                          <span className="qty-value">{totalCollected} / {product.shipmentQuantity}</span>
+                          <span className="qty-value">{totalCollected}{!isExtraProduct ? ` / ${product.shipmentQuantity}` : ''}</span>
                         </div>
                       </div>
                     </div>
@@ -2601,18 +2709,21 @@ export default function IncomingShipments() {
                       type="button"
                       onClick={() => handleAddLocationRow(product.productId)}
                       className="btn-add-location"
-                      disabled={totalCollected >= product.shipmentQuantity}
                     >
-                      + Add Another Location
+                      Add
                     </button>
                   </div>
                 );
               })}
             </div>
 
-            <button onClick={handleFinishCollection} className="btn-action btn-success finish-btn">
-              Finish Collection
-            </button>
+                <button
+                  onClick={handleFinishCollection}
+                  className="btn-action btn-primary"
+                  disabled={!isCollectionValid}
+                >
+                  Finish Collection
+                </button>
           </div>
         </Modal>
       )}
