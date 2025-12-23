@@ -9,7 +9,7 @@ namespace Backend.Api.Api.Services
         Task<PagedResult<GetShipmentListItemDto>> GetAllAsync(
             string? q = null,
             ShipmentType? type = null,
-            ShipmentStatus? status = null,
+            List<ShipmentStatus>? statuses = null,
             DateTimeOffset? sendDateFrom = null,
             DateTimeOffset? sendDateTo = null,
             DateTimeOffset? deliveryDateFrom = null,

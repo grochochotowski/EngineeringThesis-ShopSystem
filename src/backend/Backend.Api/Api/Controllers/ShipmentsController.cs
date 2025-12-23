@@ -21,7 +21,7 @@ namespace Backend.Api.Api.Controllers
         public async Task<ActionResult<PagedResult<GetShipmentListItemDto>>> GetAll(
             [FromQuery] string? q,
             [FromQuery] ShipmentType? type,
-            [FromQuery] ShipmentStatus? status,
+            [FromQuery] List<ShipmentStatus>? statuses,
             [FromQuery] DateTimeOffset? sendDateFrom,
             [FromQuery] DateTimeOffset? sendDateTo,
             [FromQuery] DateTimeOffset? deliveryDateFrom,
@@ -34,7 +34,7 @@ namespace Backend.Api.Api.Controllers
         {
             var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
             var result = await _service.GetAllAsync(
-                q, type, status, sendDateFrom, sendDateTo, deliveryDateFrom, deliveryDateTo,
+                q, type, statuses, sendDateFrom, sendDateTo, deliveryDateFrom, deliveryDateTo,
                 orderBy, sortDirection, pagination, ct);
             return Ok(result);
         }

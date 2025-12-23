@@ -15,7 +15,7 @@ namespace Backend.Api.Api.Services
         public async Task<PagedResult<GetShipmentListItemDto>> GetAllAsync(
             string? q = null,
             ShipmentType? type = null,
-            ShipmentStatus? status = null,
+            List<ShipmentStatus>? statuses = null,
             DateTimeOffset? sendDateFrom = null,
             DateTimeOffset? sendDateTo = null,
             DateTimeOffset? deliveryDateFrom = null,
@@ -50,9 +50,9 @@ namespace Backend.Api.Api.Services
             if (type.HasValue)
                 qry = qry.Where(s => s.Type == type.Value);
 
-            // Status filter
-            if (status.HasValue)
-                qry = qry.Where(s => s.Status == status.Value);
+            // Status filter - support multiple statuses
+            if (statuses != null && statuses.Any())
+                qry = qry.Where(s => statuses.Contains(s.Status));
 
             // Date filters
             if (sendDateFrom.HasValue)
