@@ -29,7 +29,6 @@ namespace Backend.Api.Objects.Entities
         // --- Relation DbSets ---
         public DbSet<ProductsInWarehouse>        ProductsInWarehouse        => Set<ProductsInWarehouse>();
         public DbSet<ShipmentProduct>            ShipmentProducts           => Set<ShipmentProduct>();
-        public DbSet<ShipmentProductCollection>  ShipmentProductCollections => Set<ShipmentProductCollection>();
 
 
 
@@ -372,44 +371,11 @@ namespace Backend.Api.Objects.Entities
 
                 b.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
-                });
-            });
-
-            // shipment-product-collection
-            modelBuilder.Entity<ShipmentProductCollection>(b =>
-            {
-                b.HasKey(x => x.Id);
-
-                b.HasIndex(x => x.ShipmentId);
-                b.HasIndex(x => x.ProductId);
-                b.HasIndex(x => x.LocationId);
-                b.HasIndex(x => x.CollectedByUserId);
-
-                b.HasOne(x => x.Shipment)
-                 .WithMany()
-                 .HasForeignKey(x => x.ShipmentId)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                b.HasOne(x => x.Product)
-                 .WithMany()
-                 .HasForeignKey(x => x.ProductId)
-                 .OnDelete(DeleteBehavior.Restrict);
-
-                b.HasOne(x => x.Location)
-                 .WithMany()
-                 .HasForeignKey(x => x.LocationId)
-                 .OnDelete(DeleteBehavior.Restrict);
-
-                b.HasOne(x => x.CollectedByUser)
-                 .WithMany()
-                 .HasForeignKey(x => x.CollectedByUserId)
-                 .OnDelete(DeleteBehavior.SetNull);
-
-                b.ToTable(t =>
-                {
-                    t.HasCheckConstraint("CK_ShipmentProductCollection_Quantities_NonNegative",
-                        "[DeclaredQuantity] >= 0 AND [CollectedQuantity] >= 0");
+                    // Declared quantity can be 0 for extra products collected during incoming shipment
+                    t.HasCheckConstraint("CK_ShipmentProduct_Qty_NonNegative", "[Quantity] >= 0");
+                    // CollectedQuantity can be NULL (not collected), 0 (collected but not received), or positive
+                    t.HasCheckConstraint("CK_ShipmentProduct_CollectedQty_NonNegative",
+                        "[CollectedQuantity] IS NULL OR [CollectedQuantity] >= 0");
                 });
             });
         }

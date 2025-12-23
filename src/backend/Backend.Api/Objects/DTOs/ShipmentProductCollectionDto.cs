@@ -4,6 +4,7 @@ namespace Backend.Api.Objects.DTOs
 {
     /// <summary>
     /// DTO for creating a new shipment product collection record
+    /// Simplified - locations handled via ProductsInWarehouse separately
     /// </summary>
     public class CreateShipmentProductCollectionDto
     {
@@ -11,15 +12,15 @@ namespace Backend.Api.Objects.DTOs
         public int ProductId { get; set; }
 
         [Required]
-        public int LocationId { get; set; }
-
-        [Required]
-        [Range(0, int.MaxValue)]
-        public int DeclaredQuantity { get; set; }
-
-        [Required]
         [Range(0, int.MaxValue)]
         public int CollectedQuantity { get; set; }
+
+        /// <summary>
+        /// Locations where product was placed (multiple locations allowed)
+        /// </summary>
+        [Required]
+        [MinLength(1)]
+        public List<int> LocationIds { get; set; } = new();
     }
 
     /// <summary>

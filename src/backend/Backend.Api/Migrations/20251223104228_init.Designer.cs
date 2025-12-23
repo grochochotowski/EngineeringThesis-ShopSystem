@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251223091505_save_shipment")]
-    partial class save_shipment
+    [Migration("20251223104228_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -320,6 +320,9 @@ namespace Backend.Api.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CollectedQuantity")
+                        .HasColumnType("int");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
@@ -329,52 +332,9 @@ namespace Backend.Api.Migrations
 
                     b.ToTable("ShipmentProducts", t =>
                         {
-                            t.HasCheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
-                        });
-                });
+                            t.HasCheckConstraint("CK_ShipmentProduct_CollectedQty_NonNegative", "[CollectedQuantity] IS NULL OR [CollectedQuantity] >= 0");
 
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ShipmentProductCollection", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("CollectedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int?>("CollectedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CollectedQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DeclaredQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LocationId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ShipmentId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CollectedByUserId");
-
-                    b.HasIndex("LocationId");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ShipmentId");
-
-                    b.ToTable("ShipmentProductCollections", t =>
-                        {
-                            t.HasCheckConstraint("CK_ShipmentProductCollection_Quantities_NonNegative", "[DeclaredQuantity] >= 0 AND [CollectedQuantity] >= 0");
+                            t.HasCheckConstraint("CK_ShipmentProduct_Qty_NonNegative", "[Quantity] >= 0");
                         });
                 });
 
@@ -810,40 +770,6 @@ namespace Backend.Api.Migrations
                         .HasForeignKey("ShipmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("Shipment");
-                });
-
-            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ShipmentProductCollection", b =>
-                {
-                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "CollectedByUser")
-                        .WithMany()
-                        .HasForeignKey("CollectedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "Location")
-                        .WithMany()
-                        .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Backend.Api.Objects.Entities.Models.Shipment", "Shipment")
-                        .WithMany()
-                        .HasForeignKey("ShipmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CollectedByUser");
-
-                    b.Navigation("Location");
 
                     b.Navigation("Product");
 

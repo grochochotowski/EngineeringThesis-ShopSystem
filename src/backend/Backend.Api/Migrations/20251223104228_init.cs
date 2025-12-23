@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Backend.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -134,7 +134,7 @@ namespace Backend.Api.Migrations
                     table.CheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [SendDate] IS NULL OR [DeliveryDate] >= [SendDate]");
                     table.CheckConstraint("CK_Shipment_Dims_Positive", "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR ([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
                     table.CheckConstraint("CK_Shipment_Status_Delivered_Date", "[Status] != 'Delivered' OR [DeliveryDate] IS NOT NULL");
-                    table.CheckConstraint("CK_Shipment_Status_Ready_Fields", "[Status] IN ('Unspecified', 'InPreparation') OR ([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND [SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND [SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
+                    table.CheckConstraint("CK_Shipment_Status_Ready_Fields", "[Status] IN ('Unspecified', 'InPreparation', 'Collected') OR ([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND [SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND [SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
                     table.CheckConstraint("CK_Shipment_Status_Sent_Date", "[Status] NOT IN ('InTransit', 'Delivered') OR [SendDate] IS NOT NULL");
                     table.ForeignKey(
                         name: "FK_Shipments_Addresses_ReceiverAddressId",
@@ -314,12 +314,14 @@ namespace Backend.Api.Migrations
                 {
                     ShipmentId = table.Column<int>(type: "int", nullable: false),
                     ProductId = table.Column<int>(type: "int", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false)
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    CollectedQuantity = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ShipmentProducts", x => new { x.ShipmentId, x.ProductId });
-                    table.CheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
+                    table.CheckConstraint("CK_ShipmentProduct_CollectedQty_NonNegative", "[CollectedQuantity] IS NULL OR [CollectedQuantity] >= 0");
+                    table.CheckConstraint("CK_ShipmentProduct_Qty_NonNegative", "[Quantity] >= 0");
                     table.ForeignKey(
                         name: "FK_ShipmentProducts_Products_ProductId",
                         column: x => x.ProductId,

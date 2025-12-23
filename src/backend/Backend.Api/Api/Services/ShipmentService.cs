@@ -167,6 +167,7 @@ namespace Backend.Api.Api.Services
                     ShipmentId = sp.ShipmentId,
                     ProductId = sp.ProductId,
                     Quantity = sp.Quantity,
+                    CollectedQuantity = sp.CollectedQuantity,
                     ProductSKU = sp.Product.SKU,
                     ProductName = sp.Product.Name,
                     ProductPrice = sp.Product.Price
@@ -413,59 +414,78 @@ namespace Backend.Api.Api.Services
             if (shipment.Status != ShipmentStatus.Delivered)
                 throw new InvalidOperationException($"Cannot collect shipment with status {shipment.Status}. Only delivered shipments can be collected.");
 
-            // Validate that all locations exist
-            var locationIds = dto.CollectedProducts.Select(cp => cp.LocationId).Distinct().ToList();
+            // Validate all locations exist (flatten all location IDs from all products)
+            var allLocationIds = dto.CollectedProducts
+                .SelectMany(cp => cp.LocationIds)
+                .Distinct()
+                .ToList();
+
             var existingLocations = await _db.Locations
-                .Where(l => locationIds.Contains(l.Id))
+                .Where(l => allLocationIds.Contains(l.Id))
                 .Select(l => l.Id)
                 .ToListAsync(ct);
 
-            var missingLocations = locationIds.Except(existingLocations).ToList();
+            var missingLocations = allLocationIds.Except(existingLocations).ToList();
             if (missingLocations.Any())
                 throw new InvalidOperationException($"Locations not found: {string.Join(", ", missingLocations)}");
 
-            // Create collection records
-            var now = DateTimeOffset.UtcNow;
+            // Process each collected product
             foreach (var collectedProduct in dto.CollectedProducts)
             {
-                // Get declared quantity from ShipmentProduct
                 var shipmentProduct = shipment.ShipmentProducts
                     .FirstOrDefault(sp => sp.ProductId == collectedProduct.ProductId);
 
-                var declaredQty = shipmentProduct?.Quantity ?? 0;
-
-                var collectionRecord = new ShipmentProductCollection
+                if (shipmentProduct != null)
                 {
-                    ShipmentId = shipmentId,
-                    ProductId = collectedProduct.ProductId,
-                    LocationId = collectedProduct.LocationId,
-                    DeclaredQuantity = declaredQty,
-                    CollectedQuantity = collectedProduct.CollectedQuantity,
-                    CollectedAt = now,
-                    CollectedByUserId = userId
-                };
+                    // Product was in manifest - update collected quantity
+                    shipmentProduct.CollectedQuantity = collectedProduct.CollectedQuantity;
+                }
+                else
+                {
+                    // Extra product not in manifest - create new ShipmentProduct record
+                    _db.ShipmentProducts.Add(new ShipmentProduct
+                    {
+                        ShipmentId = shipmentId,
+                        ProductId = collectedProduct.ProductId,
+                        Quantity = 0, // No declared quantity (extra product)
+                        CollectedQuantity = collectedProduct.CollectedQuantity
+                    });
+                }
 
-                _db.ShipmentProductCollections.Add(collectionRecord);
-
-                // Update warehouse inventory if quantity > 0
+                // Update warehouse inventory for each location
                 if (collectedProduct.CollectedQuantity > 0)
                 {
-                    var warehouseEntry = await _db.ProductsInWarehouse
-                        .FirstOrDefaultAsync(pw => pw.ProductId == collectedProduct.ProductId
-                            && pw.LocationId == collectedProduct.LocationId, ct);
+                    // Distribute collected quantity across locations
+                    // Simple strategy: divide quantity equally, remainder to first location
+                    var locationsCount = collectedProduct.LocationIds.Count;
+                    var qtyPerLocation = collectedProduct.CollectedQuantity / locationsCount;
+                    var remainder = collectedProduct.CollectedQuantity % locationsCount;
 
-                    if (warehouseEntry != null)
+                    for (int i = 0; i < collectedProduct.LocationIds.Count; i++)
                     {
-                        warehouseEntry.Quantity += collectedProduct.CollectedQuantity;
-                    }
-                    else
-                    {
-                        _db.ProductsInWarehouse.Add(new ProductsInWarehouse
+                        var locationId = collectedProduct.LocationIds[i];
+                        var qtyForThisLocation = qtyPerLocation + (i == 0 ? remainder : 0);
+
+                        if (qtyForThisLocation > 0)
                         {
-                            ProductId = collectedProduct.ProductId,
-                            LocationId = collectedProduct.LocationId,
-                            Quantity = collectedProduct.CollectedQuantity
-                        });
+                            var warehouseEntry = await _db.ProductsInWarehouse
+                                .FirstOrDefaultAsync(pw => pw.ProductId == collectedProduct.ProductId
+                                    && pw.LocationId == locationId, ct);
+
+                            if (warehouseEntry != null)
+                            {
+                                warehouseEntry.Quantity += qtyForThisLocation;
+                            }
+                            else
+                            {
+                                _db.ProductsInWarehouse.Add(new ProductsInWarehouse
+                                {
+                                    ProductId = collectedProduct.ProductId,
+                                    LocationId = locationId,
+                                    Quantity = qtyForThisLocation
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -479,39 +499,46 @@ namespace Backend.Api.Api.Services
         // --- GET SHIPMENT PRODUCT COLLECTION (grouped by product) ---
         public async Task<List<GetShipmentProductCollectionGroupedDto>> GetShipmentProductCollectionAsync(int shipmentId, CancellationToken ct = default)
         {
-            var collections = await _db.ShipmentProductCollections
+            // Query ShipmentProduct for collection data
+            var shipmentProducts = await _db.ShipmentProducts
                 .AsNoTracking()
-                .Where(spc => spc.ShipmentId == shipmentId)
-                .Include(spc => spc.Product)
-                .Include(spc => spc.Location)
-                .Include(spc => spc.CollectedByUser)
-                .OrderBy(spc => spc.Product.Name)
-                .ThenBy(spc => spc.Location.LocationCode)
+                .Where(sp => sp.ShipmentId == shipmentId && sp.CollectedQuantity.HasValue)
+                .Include(sp => sp.Product)
+                .OrderBy(sp => sp.Product.Name)
                 .ToListAsync(ct);
 
-            if (!collections.Any())
+            if (!shipmentProducts.Any())
                 return new List<GetShipmentProductCollectionGroupedDto>();
 
-            // Group by product
-            var grouped = collections
-                .GroupBy(c => new { c.ProductId, c.Product.Name, c.Product.SKU })
-                .Select(g => new GetShipmentProductCollectionGroupedDto
-                {
-                    ProductId = g.Key.ProductId,
-                    ProductName = g.Key.Name,
-                    ProductSku = g.Key.SKU,
-                    TotalDeclaredQuantity = g.Sum(c => c.DeclaredQuantity),
-                    TotalCollectedQuantity = g.Sum(c => c.CollectedQuantity),
-                    Locations = g.Select(c => new CollectionLocationDto
+            // For each product with collected quantity, find warehouse locations where it was stored
+            var result = new List<GetShipmentProductCollectionGroupedDto>();
+            foreach (var sp in shipmentProducts)
+            {
+                // Get warehouse locations for this product
+                var warehouseLocations = await _db.ProductsInWarehouse
+                    .AsNoTracking()
+                    .Where(pw => pw.ProductId == sp.ProductId)
+                    .Include(pw => pw.Location)
+                    .Select(pw => new CollectionLocationDto
                     {
-                        LocationId = c.LocationId,
-                        LocationCode = c.Location.LocationCode,
-                        Quantity = c.CollectedQuantity
-                    }).ToList()
-                })
-                .ToList();
+                        LocationId = pw.LocationId,
+                        LocationCode = pw.Location.LocationCode,
+                        Quantity = pw.Quantity
+                    })
+                    .ToListAsync(ct);
 
-            return grouped;
+                result.Add(new GetShipmentProductCollectionGroupedDto
+                {
+                    ProductId = sp.ProductId,
+                    ProductName = sp.Product.Name,
+                    ProductSku = sp.Product.SKU,
+                    TotalDeclaredQuantity = sp.Quantity,
+                    TotalCollectedQuantity = sp.CollectedQuantity ?? 0,
+                    Locations = warehouseLocations
+                });
+            }
+
+            return result;
         }
 
         // --- HELPER: Apply sorting ---

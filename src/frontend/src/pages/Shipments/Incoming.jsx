@@ -1453,7 +1453,7 @@ export default function IncomingShipments() {
     try {
       setLoading(true);
 
-      // Build collection data for backend
+      // Build collection data for backend (new simplified API)
       const collectedProductsData = [];
 
       // Get first available location as fallback for missing products
@@ -1470,39 +1470,35 @@ export default function IncomingShipments() {
 
       for (const product of collectedProducts) {
         const rows = collectedQuantities[product.productId] || [];
-        let productHasData = false;
 
-        // Process all rows with locations assigned
-        for (const row of rows) {
-          const collectedQty = parseInt(row.quantity) || 0;
-          if (row.locationId) {
-            collectedProductsData.push({
-              productId: product.productId,
-              locationId: row.locationId,
-              declaredQuantity: product.quantity, // from shipment manifest
-              collectedQuantity: collectedQty
-            });
-            productHasData = true;
-          }
+        // Calculate total collected quantity for this product
+        const totalCollected = rows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
+
+        // Collect all location IDs where quantity > 0
+        const locationIds = rows
+          .filter(row => row.locationId && (parseInt(row.quantity) || 0) > 0)
+          .map(row => row.locationId);
+
+        // If no locations with quantity, but we want to record a 0-quantity collection
+        if (locationIds.length === 0 && totalCollected === 0) {
+          locationIds.push(fallbackLocationId);
         }
 
-        // If product has no collection data at all (not received), add a 0 quantity record
-        // This ensures missing products appear in the collection summary for audit purposes
-        if (!productHasData) {
+        // Only add product if it has at least one location
+        if (locationIds.length > 0) {
           collectedProductsData.push({
             productId: product.productId,
-            locationId: fallbackLocationId, // Use fallback location for audit trail
-            declaredQuantity: product.quantity, // from shipment manifest
-            collectedQuantity: 0 // Not received
+            collectedQuantity: totalCollected,
+            locationIds: locationIds
           });
         }
       }
 
-      // Call the new complete-collection endpoint
+      // Call the simplified complete-collection endpoint
       // This will:
-      // 1. Create ShipmentProductCollection records
-      // 2. Update ProductsInWarehouse inventory (only for quantity > 0)
-      // 3. Change shipment status to Collected (5)
+      // 1. Update ShipmentProduct.CollectedQuantity (or create new record for extra products)
+      // 2. Update ProductsInWarehouse inventory across multiple locations
+      // 3. Change shipment status to Collected
       await api.post(`/Shipments/${selectedShipmentDetails.id}/complete-collection`, {
         collectedProducts: collectedProductsData
       });
@@ -2690,7 +2686,7 @@ export default function IncomingShipments() {
                 }
 
                 return (
-                  <div key={`${product.productId}-${totalCollected}-${rows.length}`} className={`collection-product-section ${productSectionClass}`}>
+                  <div key={product.productId} className={`collection-product-section ${productSectionClass}`}>
                     <div className="product-header">
                       <div className="product-info">
                         <strong>{product.productName}</strong>

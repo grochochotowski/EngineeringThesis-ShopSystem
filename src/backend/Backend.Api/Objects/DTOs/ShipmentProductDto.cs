@@ -8,6 +8,7 @@ namespace Backend.Api.Objects.DTOs
                                     public int ShipmentId                       { get; set; }
                                     public int ProductId                        { get; set; }
                                     public int Quantity                         { get; set; }
+                                    public int? CollectedQuantity               { get; set; }
 
         // Product details
                                     public string ProductSKU                    { get; set; } = default!;
