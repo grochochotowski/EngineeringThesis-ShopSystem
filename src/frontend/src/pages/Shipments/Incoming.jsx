@@ -68,8 +68,8 @@ export default function IncomingShipments() {
 
   // Search and filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState([1, 2, 3, 4]); // Default: InPreparation, AwaitingPickup, InTransit, Delivered
   const [filters, setFilters] = useState({
-    status: "",
     sendDateFrom: "",
     sendDateTo: "",
     deliveryDateFrom: "",
@@ -130,24 +130,35 @@ export default function IncomingShipments() {
   const [expandedProductLocations, setExpandedProductLocations] = useState({});
 
   // Fetch shipments data
-  const fetchShipmentsData = async (page, currentFilters, currentSearchQuery, currentSortColumn, currentSortDirection) => {
+  const fetchShipmentsData = async (page, currentFilters, currentSearchQuery, currentSortColumn, currentSortDirection, currentSelectedStatuses) => {
     try {
       setLoading(true);
-      const { items, totalPages } = await api.get("/Shipments", {
-        params: {
-          PageNumber: page,
-          PageSize: 50,
-          type: 1, // Incoming type
-          ...(currentSearchQuery && { q: currentSearchQuery }),
-          ...(currentFilters.status && { status: currentFilters.status }),
-          ...(currentFilters.sendDateFrom && { sendDateFrom: currentFilters.sendDateFrom }),
-          ...(currentFilters.sendDateTo && { sendDateTo: currentFilters.sendDateTo }),
-          ...(currentFilters.deliveryDateFrom && { deliveryDateFrom: currentFilters.deliveryDateFrom }),
-          ...(currentFilters.deliveryDateTo && { deliveryDateTo: currentFilters.deliveryDateTo }),
-          ...(currentSortColumn && { orderBy: currentSortColumn }),
-          ...(currentSortDirection && { sortDirection: currentSortDirection }),
-        },
-      });
+
+      // Build params object with multiple statuses
+      const params = {
+        PageNumber: page,
+        PageSize: 50,
+        type: 1, // Incoming type
+        ...(currentSearchQuery && { q: currentSearchQuery }),
+        ...(currentFilters.sendDateFrom && { sendDateFrom: currentFilters.sendDateFrom }),
+        ...(currentFilters.sendDateTo && { sendDateTo: currentFilters.sendDateTo }),
+        ...(currentFilters.deliveryDateFrom && { deliveryDateFrom: currentFilters.deliveryDateFrom }),
+        ...(currentFilters.deliveryDateTo && { deliveryDateTo: currentFilters.deliveryDateTo }),
+        ...(currentSortColumn && { orderBy: currentSortColumn }),
+        ...(currentSortDirection && { sortDirection: currentSortDirection }),
+      };
+
+      // Add multiple status parameters if any are selected
+      if (currentSelectedStatuses && currentSelectedStatuses.length > 0) {
+        currentSelectedStatuses.forEach(statusId => {
+          if (!params.statuses) {
+            params.statuses = [];
+          }
+          params.statuses.push(statusId);
+        });
+      }
+
+      const { items, totalPages } = await api.get("/Shipments", { params });
 
       if (items?.length) {
         setShipments(items);
@@ -181,7 +192,7 @@ export default function IncomingShipments() {
   };
 
   useEffect(() => {
-    fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+    fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     fetchLocations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -191,10 +202,10 @@ export default function IncomingShipments() {
     const delay = setTimeout(() => {
       setShipments([]);
       setPageNumber(1);
-      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     }, 1000);
     return () => clearTimeout(delay);
-  }, [filters, searchQuery, sortColumn, sortDirection]);
+  }, [filters, searchQuery, sortColumn, sortDirection, selectedStatuses]);
 
   // Infinite scroll
   useEffect(() => {
@@ -211,9 +222,9 @@ export default function IncomingShipments() {
   // Load next page
   useEffect(() => {
     if (pageNumber > 1) {
-      fetchShipmentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection);
+      fetchShipmentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     }
-  }, [pageNumber, filters, searchQuery, sortColumn, sortDirection]);
+  }, [pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses]);
 
   // Close filters when clicking outside
   useEffect(() => {
@@ -333,7 +344,7 @@ export default function IncomingShipments() {
       setShipments(prev => prev.map(s => s.id === shipmentId ? { ...s, status: newStatus } : s));
 
       // Reload the main list to get updated dates and other fields
-      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
 
       setToast({
         message: "Status updated successfully!",
@@ -903,7 +914,7 @@ export default function IncomingShipments() {
       });
 
       setShowAddModal(false);
-      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     } catch (err) {
       console.error(err);
       setToast({
@@ -1140,7 +1151,7 @@ export default function IncomingShipments() {
       // Refresh the shipment details and list
       const updated = await api.get(`/Shipments/${editForm.id}`);
       setSelectedShipmentDetails(updated);
-      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     } catch (err) {
       console.error(err);
 
@@ -1512,7 +1523,7 @@ export default function IncomingShipments() {
       setShowConfirmFinish(false);
 
       // Refresh the shipment list
-      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection);
+      fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
       setSelectedRow(null);
       setSelectedShipmentDetails(null);
     } catch (err) {
@@ -1589,6 +1600,15 @@ export default function IncomingShipments() {
     } else {
       setSortColumn(column);
       setSortDirection("asc");
+    }
+  };
+
+  // Handle status checkbox toggle
+  const handleStatusToggle = (statusId, checked) => {
+    if (checked) {
+      setSelectedStatuses(prev => [...prev, statusId]);
+    } else {
+      setSelectedStatuses(prev => prev.filter(id => id !== statusId));
     }
   };
 
@@ -1780,18 +1800,21 @@ export default function IncomingShipments() {
           <div className="filters-panel" ref={filtersRef}>
             <h4>Filters</h4>
             <div className="filter-group">
-              <select
-                id="status-filter"
-                name="status"
-                value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                className="filter-input"
-              >
-                <option value="">All Statuses</option>
-                {shipmentStatusesData.map(s => (
-                  <option key={s.id} value={s.id}>{s.value}</option>
-                ))}
-              </select>
+              <label>Filter by Status:</label>
+              <div className="status-checkbox-group">
+                {shipmentStatusesData
+                  .filter(s => s.id !== 0) // Exclude Unspecified
+                  .map(s => (
+                    <label key={s.id} className="status-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={selectedStatuses.includes(s.id)}
+                        onChange={(e) => handleStatusToggle(s.id, e.target.checked)}
+                      />
+                      <span>{s.value}</span>
+                    </label>
+                  ))}
+              </div>
             </div>
 
             <div className="filter-date-group">

@@ -203,7 +203,8 @@ textarea:focus {
 }
 
 .btn-action.btn-go-to:hover,
-.btn-action.btn-view-details:hover {
+.btn-action.btn-view-details:hover,
+.btn-action.btn-view:hover {
     background-color: #007bff;
     color: white;
 }
