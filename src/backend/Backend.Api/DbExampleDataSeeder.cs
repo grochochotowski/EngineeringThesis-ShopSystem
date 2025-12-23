@@ -258,7 +258,7 @@ namespace Backend.Api.Infrastructure
             // Create 4 OUTGOING shipments with different statuses to demonstrate full workflow
             var statuses = new[] {
                 ShipmentStatus.InPreparation,      // 1 - minimal data
-                ShipmentStatus.ReadyToCollect,     // 2 - complete data, no dates
+                ShipmentStatus.AwaitingPickup,     // 2 - complete data, no dates
                 ShipmentStatus.InTransit,          // 3 - complete data + SendDate (auto-set)
                 ShipmentStatus.Delivered           // 4 - complete data + both dates (auto-set)
             };
@@ -344,7 +344,7 @@ namespace Backend.Api.Infrastructure
             {
                 var incomingStatuses = new[] {
                     ShipmentStatus.InPreparation,
-                    ShipmentStatus.ReadyToCollect,
+                    ShipmentStatus.AwaitingPickup,
                     ShipmentStatus.InTransit
                 };
 

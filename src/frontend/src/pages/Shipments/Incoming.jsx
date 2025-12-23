@@ -1453,25 +1453,58 @@ export default function IncomingShipments() {
     try {
       setLoading(true);
 
-      // Add products to warehouse locations (now supports multiple locations per product)
+      // Build collection data for backend
+      const collectedProductsData = [];
+
+      // Get first available location as fallback for missing products
+      const fallbackLocationId = locations.length > 0 ? locations[0].id : null;
+
+      if (!fallbackLocationId) {
+        setToast({
+          message: "No locations available. Please create at least one warehouse location first.",
+          type: "error",
+        });
+        setLoading(false);
+        return;
+      }
+
       for (const product of collectedProducts) {
         const rows = collectedQuantities[product.productId] || [];
+        let productHasData = false;
 
+        // Process all rows with locations assigned
         for (const row of rows) {
-          const quantity = parseInt(row.quantity) || 0;
-          if (quantity > 0 && row.locationId) {
-            await api.post("/products-in-warehouse/add", {
+          const collectedQty = parseInt(row.quantity) || 0;
+          if (row.locationId) {
+            collectedProductsData.push({
               productId: product.productId,
               locationId: row.locationId,
-              quantity: quantity,
+              declaredQuantity: product.quantity, // from shipment manifest
+              collectedQuantity: collectedQty
             });
+            productHasData = true;
           }
+        }
+
+        // If product has no collection data at all (not received), add a 0 quantity record
+        // This ensures missing products appear in the collection summary for audit purposes
+        if (!productHasData) {
+          collectedProductsData.push({
+            productId: product.productId,
+            locationId: fallbackLocationId, // Use fallback location for audit trail
+            declaredQuantity: product.quantity, // from shipment manifest
+            collectedQuantity: 0 // Not received
+          });
         }
       }
 
-      // Update shipment status to ReadyToCollect (2) to indicate collection is complete
-      await apiRequest(`/Shipments/${selectedShipmentDetails.id}/status`, "PATCH", {
-        status: 2, // ReadyToCollect status
+      // Call the new complete-collection endpoint
+      // This will:
+      // 1. Create ShipmentProductCollection records
+      // 2. Update ProductsInWarehouse inventory (only for quantity > 0)
+      // 3. Change shipment status to Collected (5)
+      await api.post(`/Shipments/${selectedShipmentDetails.id}/complete-collection`, {
+        collectedProducts: collectedProductsData
       });
 
       setToast({
@@ -1504,8 +1537,9 @@ export default function IncomingShipments() {
 
     const currentStatus = shipment.status;
 
-    // If shipment is collected (ReadyToCollect status = 2), show as read-only badge
-    if (currentStatus === 2) {
+    // If shipment is collected (status = 5), show as read-only badge
+    // Collection is complete and shipment should progress via status dropdown only
+    if (currentStatus === 5) {
       return (
         <div className={`badge ${getStatusBadgeClass(currentStatus)}`}>
           {getStatusLabel(currentStatus)}
@@ -1606,42 +1640,68 @@ export default function IncomingShipments() {
       return;
     }
 
-    // Fetch warehouse stock for each product
     try {
-      const productsWithStock = await Promise.all(
-        (selectedShipmentDetails.shipmentProducts || []).map(async (sp) => {
-          try {
-            const response = await api.get("/products-in-warehouse/search-product", {
-              params: {
-                pageNumber: 1,
-                pageSize: 1,
-                searchTerm: sp.productSKU,
-              },
-            });
-            const productData = response.items?.[0];
-            return {
-              ...sp,
-              warehouseStock: productData?.totalQuantity || 0,
-              productId: sp.productId,
-            };
-          } catch (err) {
-            console.error("Failed to fetch stock for product", sp.productSKU, err);
-            return {
-              ...sp,
-              warehouseStock: 0,
-              productId: sp.productId,
-            };
-          }
-        })
-      );
+      // Check if shipment is collected (status 5) - if so, fetch collection data
+      if (selectedShipmentDetails.status === 5) {
+        // Fetch collection data from new endpoint
+        const collectionData = await api.get(`/Shipments/${selectedShipmentDetails.id}/collection`);
 
-      setViewProductsData(productsWithStock);
-      setExpandedProductLocations({});
-      setShowViewProductsModal(true);
+        // collectionData is array of GetShipmentProductCollectionGroupedDto
+        // Transform to include variance info for color coding
+        const productsWithCollection = collectionData.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          productSKU: item.productSku,
+          declaredQuantity: item.totalDeclaredQuantity,
+          collectedQuantity: item.totalCollectedQuantity,
+          variance: item.variance,
+          varianceType: item.varianceType,
+          locations: item.locations, // Array of { locationId, locationCode, quantity }
+          isCollectionData: true, // Flag to differentiate from regular product data
+        }));
+
+        setViewProductsData(productsWithCollection);
+        setExpandedProductLocations({});
+        setShowViewProductsModal(true);
+      } else {
+        // For non-collected shipments, show regular product list with warehouse stock
+        const productsWithStock = await Promise.all(
+          (selectedShipmentDetails.shipmentProducts || []).map(async (sp) => {
+            try {
+              const response = await api.get("/products-in-warehouse/search-product", {
+                params: {
+                  pageNumber: 1,
+                  pageSize: 1,
+                  searchTerm: sp.productSKU,
+                },
+              });
+              const productData = response.items?.[0];
+              return {
+                ...sp,
+                warehouseStock: productData?.totalQuantity || 0,
+                productId: sp.productId,
+                isCollectionData: false,
+              };
+            } catch (err) {
+              console.error("Failed to fetch stock for product", sp.productSKU, err);
+              return {
+                ...sp,
+                warehouseStock: 0,
+                productId: sp.productId,
+                isCollectionData: false,
+              };
+            }
+          })
+        );
+
+        setViewProductsData(productsWithStock);
+        setExpandedProductLocations({});
+        setShowViewProductsModal(true);
+      }
     } catch (err) {
-      console.error("Failed to fetch product warehouse data", err);
+      console.error("Failed to fetch product data", err);
       setToast({
-        message: "Failed to load product warehouse information.",
+        message: "Failed to load product information.",
         type: "error",
       });
     }
@@ -1698,7 +1758,7 @@ export default function IncomingShipments() {
           searchValue={searchQuery}
           hideDeleteButton={true}
           hideAddButton={false}
-          disableEdit={!selectedRow || selectedRow.statusRaw === 2}
+          disableEdit={!selectedRow || selectedRow.statusRaw === 5}
           changePasswordButtonLabel="Collect"
           changePasswordButtonClass="btn-go-to"
           changePasswordDisabled={!selectedRow || selectedRow.statusRaw !== 4}
@@ -2731,7 +2791,7 @@ export default function IncomingShipments() {
       {/* View Products Modal */}
       {showViewProductsModal && (
         <Modal
-          title="Products in Shipment"
+          title={viewProductsData[0]?.isCollectionData ? "Collection Summary" : "Products in Shipment"}
           onClose={() => setShowViewProductsModal(false)}
           wide
         >
@@ -2741,68 +2801,143 @@ export default function IncomingShipments() {
                 <table className="products-table">
                   <thead>
                     <tr>
-                      <th>Product Name</th>
-                      <th>SKU</th>
-                      <th>Quantity in Shipment</th>
-                      <th>Number in Storage</th>
-                      <th>Actions</th>
+                      <th>Product Name (SKU)</th>
+                      {viewProductsData[0]?.isCollectionData ? (
+                        <>
+                          <th>Declared Qty</th>
+                          <th>Collected Qty</th>
+                          <th>Locations</th>
+                        </>
+                      ) : (
+                        <>
+                          <th>Quantity in Shipment</th>
+                          <th>Number in Storage</th>
+                          <th>Actions</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
-                    {viewProductsData.map((product, index) => (
-                      <React.Fragment key={index}>
-                        <tr>
-                          <td>{product.productName}</td>
-                          <td>{product.productSKU}</td>
-                          <td>{product.quantity}</td>
-                          <td>{product.warehouseStock}</td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleProductLocations(product.productId)}
-                              className="btn-action btn-view"
-                              style={{ padding: "4px 8px", fontSize: "12px" }}
-                            >
-                              {expandedProductLocations[product.productId] ? "Hide Locations" : "View Locations"}
-                            </button>
-                          </td>
-                        </tr>
-                        {expandedProductLocations[product.productId] && (
-                          <tr>
-                            <td colSpan="5" style={{ backgroundColor: "#f9f9f9", padding: "10px" }}>
-                              <div className="locations-list">
-                                {expandedProductLocations[product.productId].length > 0 ? (
-                                  <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
-                                    <thead>
-                                      <tr>
-                                        <th>Zone</th>
-                                        <th>Column</th>
-                                        <th>Shelf</th>
-                                        <th>Quantity</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {expandedProductLocations[product.productId].map((loc, idx) => (
-                                        <tr key={idx}>
-                                          <td>{loc.zone}</td>
-                                          <td>{loc.col}</td>
-                                          <td>{loc.shelf}</td>
-                                          <td>{loc.quantity}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                ) : (
-                                  <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
-                                    No locations found for this product.
-                                  </p>
-                                )}
-                              </div>
-                            </td>
+                    {viewProductsData.map((product, index) => {
+                      // Determine row color based on variance
+                      let rowStyle = {};
+                      if (product.isCollectionData) {
+                        if (product.varianceType === "exact") {
+                          rowStyle = { backgroundColor: "#d4edda" }; // Green
+                        } else if (product.varianceType === "over") {
+                          rowStyle = { backgroundColor: "#fff3cd" }; // Yellow
+                        } else if (product.varianceType === "under") {
+                          rowStyle = { backgroundColor: "#f8d7da" }; // Red
+                        }
+                      }
+
+                      return (
+                        <React.Fragment key={index}>
+                          <tr style={rowStyle}>
+                            <td>{product.productName} ({product.productSKU})</td>
+                            {product.isCollectionData ? (
+                              <>
+                                <td>{product.declaredQuantity}</td>
+                                <td>{product.collectedQuantity}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExpandedProductLocations(prev => ({
+                                        ...prev,
+                                        [product.productId]: prev[product.productId] ? null : product.locations
+                                      }));
+                                    }}
+                                    className="btn-action btn-view"
+                                    style={{ padding: "4px 8px", fontSize: "12px" }}
+                                  >
+                                    {expandedProductLocations[product.productId] ? "Hide Locations" : "View Locations"}
+                                  </button>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td>{product.quantity}</td>
+                                <td>{product.warehouseStock}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleToggleProductLocations(product.productId);
+                                    }}
+                                    className="btn-action btn-view"
+                                    style={{ padding: "4px 8px", fontSize: "12px" }}
+                                  >
+                                    {expandedProductLocations[product.productId] ? "Hide Locations" : "View Locations"}
+                                  </button>
+                                </td>
+                              </>
+                            )}
                           </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
+                          {expandedProductLocations[product.productId] && (
+                            <tr>
+                              <td colSpan="4" style={{ backgroundColor: "#f9f9f9", padding: "10px" }}>
+                                <div className="locations-list">
+                                  {product.isCollectionData ? (
+                                    // Show collection locations directly
+                                    product.locations && product.locations.length > 0 ? (
+                                      <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
+                                        <thead>
+                                          <tr>
+                                            <th>Location Code</th>
+                                            <th>Quantity</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {product.locations.map((loc, idx) => (
+                                            <tr key={idx}>
+                                              <td>{loc.locationCode}</td>
+                                              <td>{loc.quantity}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    ) : (
+                                      <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
+                                        No locations found for this product.
+                                      </p>
+                                    )
+                                  ) : (
+                                    // Show fetched warehouse locations
+                                    expandedProductLocations[product.productId].length > 0 ? (
+                                      <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
+                                        <thead>
+                                          <tr>
+                                            <th>Zone</th>
+                                            <th>Column</th>
+                                            <th>Shelf</th>
+                                            <th>Quantity</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {expandedProductLocations[product.productId].map((loc, idx) => (
+                                            <tr key={idx}>
+                                              <td>{loc.zone}</td>
+                                              <td>{loc.col}</td>
+                                              <td>{loc.shelf}</td>
+                                              <td>{loc.quantity}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    ) : (
+                                      <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
+                                        No locations found for this product.
+                                      </p>
+                                    )
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
                 <div style={{ marginBottom: "2rem" }}></div>

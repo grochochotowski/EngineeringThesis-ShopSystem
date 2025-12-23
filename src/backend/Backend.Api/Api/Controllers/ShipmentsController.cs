@@ -4,6 +4,7 @@ using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend.Api.Api.Controllers
 {
@@ -156,6 +157,48 @@ namespace Backend.Api.Api.Controllers
             {
                 await _service.DeleteAsync(id, ct);
                 return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        // --- COMPLETE COLLECTION (incoming shipments) ---
+        [HttpPost("{id:int}/complete-collection")]
+        public async Task<IActionResult> CompleteCollection(int id, [FromBody] CompleteCollectionDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
+            try
+            {
+                // Get userId from JWT claims
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+                    return Unauthorized(new { message = "User ID not found in token" });
+
+                await _service.CompleteCollectionAsync(id, dto, userId, ct);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        // --- GET SHIPMENT PRODUCT COLLECTION DATA ---
+        [HttpGet("{id:int}/collection")]
+        public async Task<ActionResult<List<GetShipmentProductCollectionGroupedDto>>> GetCollection(int id, CancellationToken ct)
+        {
+            try
+            {
+                var data = await _service.GetShipmentProductCollectionAsync(id, ct);
+                return Ok(data);
             }
             catch (KeyNotFoundException)
             {

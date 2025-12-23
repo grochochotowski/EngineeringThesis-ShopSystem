@@ -268,8 +268,10 @@ namespace Backend.Api.Api.Services
             var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
 
-            // Validate required fields when changing to ReadyToCollect (2) or higher status
-            if (dto.Status >= ShipmentStatus.ReadyToCollect)
+            // Validate required fields when changing to AwaitingPickup (2) or higher status
+            // Note: InPreparation (1) does not require these fields yet
+            // Note: Collected (5) comes after Delivered (4) for incoming shipments
+            if (dto.Status >= ShipmentStatus.AwaitingPickup && dto.Status != ShipmentStatus.Collected)
             {
                 // Check dimensions - provide specific error for each missing field
                 if (s.Weight == null)
@@ -393,6 +395,123 @@ namespace Backend.Api.Api.Services
 
             _db.Shipments.Remove(s);
             await _db.SaveChangesAsync(ct);
+        }
+
+        // --- COMPLETE COLLECTION (incoming shipments only) ---
+        public async Task CompleteCollectionAsync(int shipmentId, CompleteCollectionDto dto, int userId, CancellationToken ct = default)
+        {
+            var shipment = await _db.Shipments
+                .Include(s => s.ShipmentProducts)
+                .FirstOrDefaultAsync(s => s.Id == shipmentId, ct);
+
+            if (shipment is null)
+                throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
+
+            if (shipment.Type != ShipmentType.Incoming)
+                throw new InvalidOperationException("Only incoming shipments can be collected.");
+
+            if (shipment.Status != ShipmentStatus.Delivered)
+                throw new InvalidOperationException($"Cannot collect shipment with status {shipment.Status}. Only delivered shipments can be collected.");
+
+            // Validate that all locations exist
+            var locationIds = dto.CollectedProducts.Select(cp => cp.LocationId).Distinct().ToList();
+            var existingLocations = await _db.Locations
+                .Where(l => locationIds.Contains(l.Id))
+                .Select(l => l.Id)
+                .ToListAsync(ct);
+
+            var missingLocations = locationIds.Except(existingLocations).ToList();
+            if (missingLocations.Any())
+                throw new InvalidOperationException($"Locations not found: {string.Join(", ", missingLocations)}");
+
+            // Create collection records
+            var now = DateTimeOffset.UtcNow;
+            foreach (var collectedProduct in dto.CollectedProducts)
+            {
+                // Get declared quantity from ShipmentProduct
+                var shipmentProduct = shipment.ShipmentProducts
+                    .FirstOrDefault(sp => sp.ProductId == collectedProduct.ProductId);
+
+                var declaredQty = shipmentProduct?.Quantity ?? 0;
+
+                var collectionRecord = new ShipmentProductCollection
+                {
+                    ShipmentId = shipmentId,
+                    ProductId = collectedProduct.ProductId,
+                    LocationId = collectedProduct.LocationId,
+                    DeclaredQuantity = declaredQty,
+                    CollectedQuantity = collectedProduct.CollectedQuantity,
+                    CollectedAt = now,
+                    CollectedByUserId = userId
+                };
+
+                _db.ShipmentProductCollections.Add(collectionRecord);
+
+                // Update warehouse inventory if quantity > 0
+                if (collectedProduct.CollectedQuantity > 0)
+                {
+                    var warehouseEntry = await _db.ProductsInWarehouse
+                        .FirstOrDefaultAsync(pw => pw.ProductId == collectedProduct.ProductId
+                            && pw.LocationId == collectedProduct.LocationId, ct);
+
+                    if (warehouseEntry != null)
+                    {
+                        warehouseEntry.Quantity += collectedProduct.CollectedQuantity;
+                    }
+                    else
+                    {
+                        _db.ProductsInWarehouse.Add(new ProductsInWarehouse
+                        {
+                            ProductId = collectedProduct.ProductId,
+                            LocationId = collectedProduct.LocationId,
+                            Quantity = collectedProduct.CollectedQuantity
+                        });
+                    }
+                }
+            }
+
+            // Update shipment status to Collected
+            shipment.Status = ShipmentStatus.Collected;
+
+            await _db.SaveChangesAsync(ct);
+        }
+
+        // --- GET SHIPMENT PRODUCT COLLECTION (grouped by product) ---
+        public async Task<List<GetShipmentProductCollectionGroupedDto>> GetShipmentProductCollectionAsync(int shipmentId, CancellationToken ct = default)
+        {
+            var collections = await _db.ShipmentProductCollections
+                .AsNoTracking()
+                .Where(spc => spc.ShipmentId == shipmentId)
+                .Include(spc => spc.Product)
+                .Include(spc => spc.Location)
+                .Include(spc => spc.CollectedByUser)
+                .OrderBy(spc => spc.Product.Name)
+                .ThenBy(spc => spc.Location.LocationCode)
+                .ToListAsync(ct);
+
+            if (!collections.Any())
+                return new List<GetShipmentProductCollectionGroupedDto>();
+
+            // Group by product
+            var grouped = collections
+                .GroupBy(c => new { c.ProductId, c.Product.Name, c.Product.SKU })
+                .Select(g => new GetShipmentProductCollectionGroupedDto
+                {
+                    ProductId = g.Key.ProductId,
+                    ProductName = g.Key.Name,
+                    ProductSku = g.Key.SKU,
+                    TotalDeclaredQuantity = g.Sum(c => c.DeclaredQuantity),
+                    TotalCollectedQuantity = g.Sum(c => c.CollectedQuantity),
+                    Locations = g.Select(c => new CollectionLocationDto
+                    {
+                        LocationId = c.LocationId,
+                        LocationCode = c.Location.LocationCode,
+                        Quantity = c.CollectedQuantity
+                    }).ToList()
+                })
+                .ToList();
+
+            return grouped;
         }
 
         // --- HELPER: Apply sorting ---

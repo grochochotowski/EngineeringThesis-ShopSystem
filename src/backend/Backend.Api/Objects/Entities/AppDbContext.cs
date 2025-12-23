@@ -27,8 +27,9 @@ namespace Backend.Api.Objects.Entities
         public DbSet<UserCredential>    UserCredentials     => Set<UserCredential>();
 
         // --- Relation DbSets ---
-        public DbSet<ProductsInWarehouse> ProductsInWarehouse => Set<ProductsInWarehouse>();
-        public DbSet<ShipmentProduct>     ShipmentProducts    => Set<ShipmentProduct>();
+        public DbSet<ProductsInWarehouse>        ProductsInWarehouse        => Set<ProductsInWarehouse>();
+        public DbSet<ShipmentProduct>            ShipmentProducts           => Set<ShipmentProduct>();
+        public DbSet<ShipmentProductCollection>  ShipmentProductCollections => Set<ShipmentProductCollection>();
 
 
 
@@ -247,10 +248,11 @@ namespace Backend.Api.Objects.Entities
                         "[Weight] IS NULL OR [Length] IS NULL OR [Width] IS NULL OR [Height] IS NULL OR " +
                         "([Weight] > 0 AND [Length] > 0 AND [Width] > 0 AND [Height] > 0)");
 
-                    // status-based validations for InPreparation and Unspecified
-                    // When status is NOT InPreparation or Unspecified, certain fields are required
+                    // status-based validations for InPreparation, Collected, and Unspecified
+                    // When status is AwaitingPickup or higher (except Collected), certain fields are required
+                    // Collected (incoming only) does not require these fields yet
                     t.HasCheckConstraint("CK_Shipment_Status_Ready_Fields",
-                        "[Status] IN ('Unspecified', 'InPreparation') OR " +
+                        "[Status] IN ('Unspecified', 'InPreparation', 'Collected') OR " +
                         "([Weight] IS NOT NULL AND [Length] IS NOT NULL AND [Width] IS NOT NULL AND [Height] IS NOT NULL AND " +
                         "[SenderName] IS NOT NULL AND [ReceiverName] IS NOT NULL AND " +
                         "[SenderAddressId] IS NOT NULL AND [ReceiverAddressId] IS NOT NULL)");
@@ -371,6 +373,43 @@ namespace Backend.Api.Objects.Entities
                 b.ToTable(t =>
                 {
                     t.HasCheckConstraint("CK_ShipmentProduct_Qty_Positive", "[Quantity] >= 1");
+                });
+            });
+
+            // shipment-product-collection
+            modelBuilder.Entity<ShipmentProductCollection>(b =>
+            {
+                b.HasKey(x => x.Id);
+
+                b.HasIndex(x => x.ShipmentId);
+                b.HasIndex(x => x.ProductId);
+                b.HasIndex(x => x.LocationId);
+                b.HasIndex(x => x.CollectedByUserId);
+
+                b.HasOne(x => x.Shipment)
+                 .WithMany()
+                 .HasForeignKey(x => x.ShipmentId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(x => x.Product)
+                 .WithMany()
+                 .HasForeignKey(x => x.ProductId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.Location)
+                 .WithMany()
+                 .HasForeignKey(x => x.LocationId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.CollectedByUser)
+                 .WithMany()
+                 .HasForeignKey(x => x.CollectedByUserId)
+                 .OnDelete(DeleteBehavior.SetNull);
+
+                b.ToTable(t =>
+                {
+                    t.HasCheckConstraint("CK_ShipmentProductCollection_Quantities_NonNegative",
+                        "[DeclaredQuantity] >= 0 AND [CollectedQuantity] >= 0");
                 });
             });
         }
