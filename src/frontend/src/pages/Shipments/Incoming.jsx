@@ -274,12 +274,13 @@ export default function IncomingShipments() {
 
   // Table columns
   const columns = [
-    { key: "from", label: "From", width: "25%", sortable: false },
-    { key: "size", label: "Size", width: "15%", sortable: false },
-    { key: "totalQuantity", label: "Total Qty", width: "15%", sortable: false },
-    { key: "sendDate", label: "Send Date", width: "15%", sortable: true },
-    { key: "deliveryDate", label: "Delivery Date", width: "15%", sortable: true },
-    { key: "status", label: "Status", width: "15%", sortable: false },
+    { key: "id", label: "ID", width: "8%", sortable: true },
+    { key: "from", label: "From", width: "22%", sortable: false },
+    { key: "size", label: "Size", width: "13%", sortable: false },
+    { key: "totalQuantity", label: "Total Qty", width: "12%", sortable: false },
+    { key: "sendDate", label: "Send Date", width: "13%", sortable: true },
+    { key: "deliveryDate", label: "Delivery Date", width: "13%", sortable: true },
+    { key: "status", label: "Status", width: "13%", sortable: false },
   ];
 
   const rows = shipments.map((s) => {
