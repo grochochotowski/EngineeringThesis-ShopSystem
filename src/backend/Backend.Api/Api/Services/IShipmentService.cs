@@ -27,8 +27,12 @@ namespace Backend.Api.Api.Services
         Task RemoveProductsAsync(int shipmentId, List<int> productIds, CancellationToken ct = default);
         Task DeleteAsync(int id, CancellationToken ct = default);
 
-        // Collection tracking methods
+        // Collection tracking methods (incoming shipments)
         Task CompleteCollectionAsync(int shipmentId, CompleteCollectionDto dto, int userId, CancellationToken ct = default);
         Task<List<GetShipmentProductCollectionGroupedDto>> GetShipmentProductCollectionAsync(int shipmentId, CancellationToken ct = default);
+
+        // Preparation tracking methods (outgoing shipments)
+        Task CompletePreparationAsync(int shipmentId, CompletePreparationDto dto, int userId, CancellationToken ct = default);
+        Task<List<GetShipmentProductPreparationGroupedDto>> GetShipmentProductPreparationAsync(int shipmentId, CancellationToken ct = default);
     }
 }

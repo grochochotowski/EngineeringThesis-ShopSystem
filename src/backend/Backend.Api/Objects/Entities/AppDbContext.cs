@@ -29,6 +29,7 @@ namespace Backend.Api.Objects.Entities
         // --- Relation DbSets ---
         public DbSet<ProductsInWarehouse>        ProductsInWarehouse        => Set<ProductsInWarehouse>();
         public DbSet<ShipmentProduct>            ShipmentProducts           => Set<ShipmentProduct>();
+        public DbSet<ShipmentProductLocation>    ShipmentProductLocations   => Set<ShipmentProductLocation>();
 
 
 
@@ -376,6 +377,41 @@ namespace Backend.Api.Objects.Entities
                     // CollectedQuantity can be NULL (not collected), 0 (collected but not received), or positive
                     t.HasCheckConstraint("CK_ShipmentProduct_CollectedQty_NonNegative",
                         "[CollectedQuantity] IS NULL OR [CollectedQuantity] >= 0");
+                });
+            });
+
+            // shipment-product-location
+            modelBuilder.Entity<ShipmentProductLocation>(b =>
+            {
+                b.HasKey(x => x.Id);
+
+                b.HasIndex(x => new { x.ShipmentId, x.ProductId, x.LocationId });
+
+                b.HasOne(x => x.Shipment)
+                 .WithMany()
+                 .HasForeignKey(x => x.ShipmentId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(x => x.Product)
+                 .WithMany()
+                 .HasForeignKey(x => x.ProductId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.Location)
+                 .WithMany()
+                 .HasForeignKey(x => x.LocationId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.ProcessedByUser)
+                 .WithMany()
+                 .HasForeignKey(x => x.ProcessedByUserId)
+                 .OnDelete(DeleteBehavior.SetNull);
+
+                b.Property(x => x.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                b.ToTable(t =>
+                {
+                    t.HasCheckConstraint("CK_ShipmentProductLocation_Qty_Positive", "[Quantity] > 0");
                 });
             });
         }

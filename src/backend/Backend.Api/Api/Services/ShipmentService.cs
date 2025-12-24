@@ -541,6 +541,155 @@ namespace Backend.Api.Api.Services
             return result;
         }
 
+        // --- COMPLETE PREPARATION (outgoing shipments) ---
+        public async Task CompletePreparationAsync(int shipmentId, CompletePreparationDto dto, int userId, CancellationToken ct = default)
+        {
+            var shipment = await _db.Shipments
+                .Include(s => s.ShipmentProducts)
+                .FirstOrDefaultAsync(s => s.Id == shipmentId, ct);
+
+            if (shipment is null)
+                throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
+
+            if (shipment.Type != ShipmentType.Outgoing)
+                throw new InvalidOperationException("Only outgoing shipments can be prepared.");
+
+            if (shipment.Status != ShipmentStatus.InPreparation)
+                throw new InvalidOperationException($"Cannot prepare shipment with status {shipment.Status}. Only shipments in preparation can be prepared.");
+
+            // Validate all locations exist and have sufficient inventory
+            foreach (var preparedProduct in dto.PreparedProducts)
+            {
+                var totalPreparedQty = preparedProduct.SourceLocations.Sum(sl => sl.Quantity);
+
+                // Check if product exists in shipment manifest
+                var shipmentProduct = shipment.ShipmentProducts
+                    .FirstOrDefault(sp => sp.ProductId == preparedProduct.ProductId);
+
+                if (shipmentProduct == null)
+                    throw new InvalidOperationException($"Product {preparedProduct.ProductId} not found in shipment manifest.");
+
+                // Validate total prepared quantity matches manifest
+                if (totalPreparedQty != shipmentProduct.Quantity)
+                    throw new InvalidOperationException(
+                        $"Total prepared quantity ({totalPreparedQty}) for product {preparedProduct.ProductId} " +
+                        $"does not match manifest quantity ({shipmentProduct.Quantity}).");
+
+                // Validate each source location
+                foreach (var sourceLocation in preparedProduct.SourceLocations)
+                {
+                    var warehouseEntry = await _db.ProductsInWarehouse
+                        .FirstOrDefaultAsync(pw => pw.ProductId == preparedProduct.ProductId
+                            && pw.LocationId == sourceLocation.LocationId, ct);
+
+                    if (warehouseEntry == null || warehouseEntry.Quantity < sourceLocation.Quantity)
+                    {
+                        var availableQty = warehouseEntry?.Quantity ?? 0;
+                        throw new InvalidOperationException(
+                            $"Insufficient inventory for product {preparedProduct.ProductId} at location {sourceLocation.LocationId}. " +
+                            $"Available: {availableQty}, Requested: {sourceLocation.Quantity}");
+                    }
+                }
+            }
+
+            // Process each prepared product
+            foreach (var preparedProduct in dto.PreparedProducts)
+            {
+                foreach (var sourceLocation in preparedProduct.SourceLocations)
+                {
+                    // Decrease warehouse inventory
+                    var warehouseEntry = await _db.ProductsInWarehouse
+                        .FirstOrDefaultAsync(pw => pw.ProductId == preparedProduct.ProductId
+                            && pw.LocationId == sourceLocation.LocationId, ct);
+
+                    if (warehouseEntry != null)
+                    {
+                        warehouseEntry.Quantity -= sourceLocation.Quantity;
+
+                        // Remove entry if quantity reaches 0
+                        if (warehouseEntry.Quantity == 0)
+                        {
+                            _db.ProductsInWarehouse.Remove(warehouseEntry);
+                        }
+                    }
+
+                    // Track source location in ShipmentProductLocation
+                    _db.ShipmentProductLocations.Add(new ShipmentProductLocation
+                    {
+                        ShipmentId = shipmentId,
+                        ProductId = preparedProduct.ProductId,
+                        LocationId = sourceLocation.LocationId,
+                        Quantity = sourceLocation.Quantity,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ProcessedByUserId = userId
+                    });
+                }
+            }
+
+            // Update shipment dimensions and status
+            if (dto.Weight.HasValue) shipment.Weight = dto.Weight.Value;
+            if (dto.Length.HasValue) shipment.Length = dto.Length.Value;
+            if (dto.Width.HasValue) shipment.Width = dto.Width.Value;
+            if (dto.Height.HasValue) shipment.Height = dto.Height.Value;
+
+            shipment.Status = ShipmentStatus.AwaitingPickup;
+
+            await _db.SaveChangesAsync(ct);
+        }
+
+        // --- GET SHIPMENT PRODUCT PREPARATION (grouped by product) ---
+        public async Task<List<GetShipmentProductPreparationGroupedDto>> GetShipmentProductPreparationAsync(int shipmentId, CancellationToken ct = default)
+        {
+            // Query ShipmentProductLocation for preparation data
+            var preparationData = await _db.ShipmentProductLocations
+                .AsNoTracking()
+                .Where(spl => spl.ShipmentId == shipmentId)
+                .Include(spl => spl.Product)
+                .Include(spl => spl.Location)
+                .OrderBy(spl => spl.Product.Name)
+                .ToListAsync(ct);
+
+            if (!preparationData.Any())
+                return new List<GetShipmentProductPreparationGroupedDto>();
+
+            // Group by product
+            var grouped = preparationData
+                .GroupBy(spl => new { spl.ProductId, spl.Product.Name, spl.Product.SKU })
+                .Select(g => new GetShipmentProductPreparationGroupedDto
+                {
+                    ProductId = g.Key.ProductId,
+                    ProductName = g.Key.Name,
+                    ProductSku = g.Key.SKU,
+                    TotalDeclaredQuantity = 0, // We'll need to query ShipmentProduct for this
+                    TotalPreparedQuantity = g.Sum(spl => spl.Quantity),
+                    SourceLocations = g.Select(spl => new PreparationLocationDto
+                    {
+                        LocationId = spl.LocationId,
+                        LocationCode = spl.Location.LocationCode,
+                        Quantity = spl.Quantity
+                    }).ToList()
+                })
+                .ToList();
+
+            // Get declared quantities from ShipmentProduct
+            var productIds = grouped.Select(g => g.ProductId).ToList();
+            var shipmentProducts = await _db.ShipmentProducts
+                .AsNoTracking()
+                .Where(sp => sp.ShipmentId == shipmentId && productIds.Contains(sp.ProductId))
+                .ToDictionaryAsync(sp => sp.ProductId, sp => sp.Quantity, ct);
+
+            // Fill in declared quantities
+            foreach (var item in grouped)
+            {
+                if (shipmentProducts.TryGetValue(item.ProductId, out var declaredQty))
+                {
+                    item.TotalDeclaredQuantity = declaredQty;
+                }
+            }
+
+            return grouped;
+        }
+
         // --- HELPER: Apply sorting ---
         private IQueryable<Shipment> ApplySorting(IQueryable<Shipment> query, string? orderBy, string? sortDirection)
         {

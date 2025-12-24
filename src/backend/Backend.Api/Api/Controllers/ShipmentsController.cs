@@ -205,5 +205,47 @@ namespace Backend.Api.Api.Controllers
                 return NotFound();
             }
         }
+
+        // --- COMPLETE PREPARATION (outgoing shipments) ---
+        [HttpPost("{id:int}/complete-preparation")]
+        public async Task<IActionResult> CompletePreparation(int id, [FromBody] CompletePreparationDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
+            try
+            {
+                // Get userId from JWT claims
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+                    return Unauthorized(new { message = "User ID not found in token" });
+
+                await _service.CompletePreparationAsync(id, dto, userId, ct);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        // --- GET SHIPMENT PRODUCT PREPARATION DATA ---
+        [HttpGet("{id:int}/preparation")]
+        public async Task<ActionResult<List<GetShipmentProductPreparationGroupedDto>>> GetPreparation(int id, CancellationToken ct)
+        {
+            try
+            {
+                var data = await _service.GetShipmentProductPreparationAsync(id, ct);
+                return Ok(data);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
     }
 }

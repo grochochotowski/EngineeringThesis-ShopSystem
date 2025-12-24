@@ -335,6 +335,50 @@ namespace Backend.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ShipmentProductLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProcessedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ShipmentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("ProcessedByUserId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ShipmentId", "ProductId", "LocationId");
+
+                    b.ToTable("ShipmentProductLocations", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShipmentProductLocation_Qty_Positive", "[Quantity] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocument", b =>
                 {
                     b.Property<int>("Id")
@@ -767,6 +811,40 @@ namespace Backend.Api.Migrations
                         .HasForeignKey("ShipmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Shipment");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ShipmentProductLocation", b =>
+                {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "ProcessedByUser")
+                        .WithMany()
+                        .HasForeignKey("ProcessedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Shipment", "Shipment")
+                        .WithMany()
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+
+                    b.Navigation("ProcessedByUser");
 
                     b.Navigation("Product");
 
