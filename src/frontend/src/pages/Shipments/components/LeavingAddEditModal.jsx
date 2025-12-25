@@ -14,9 +14,6 @@ export default function LeavingAddEditModal({
 }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    status: 1, // InPreparation
-    sendDate: "",
-    deliveryDate: "",
     description: "",
     // Receiver info (user enters)
     receiverName: "",
@@ -43,9 +40,6 @@ export default function LeavingAddEditModal({
       const countryId = getCountryValue(countryName);
 
       setForm({
-        status: shipmentDetails.status,
-        sendDate: shipmentDetails.sendDate ? shipmentDetails.sendDate.split('T')[0] : "",
-        deliveryDate: shipmentDetails.deliveryDate ? shipmentDetails.deliveryDate.split('T')[0] : "",
         description: shipmentDetails.description || "",
         receiverName: shipmentDetails.receiverName || "",
         receiverTaxId: shipmentDetails.receiverTaxId || "",
@@ -163,9 +157,9 @@ export default function LeavingAddEditModal({
     // Step 3: Create shipment
     const shipmentPayload = {
       type: 2, // Outgoing/Leaving
-      status: parseInt(form.status),
-      sendDate: form.sendDate || null,
-      deliveryDate: form.deliveryDate || null,
+      status: 1, // Always InPreparation
+      sendDate: null,
+      deliveryDate: null,
       description: form.description || null,
       weight: null, // Set during preparation
       length: null, // Set during preparation
@@ -215,237 +209,249 @@ export default function LeavingAddEditModal({
       }
     }
 
-    // Update shipment
+    // Get sender address ID (should already exist from creation)
+    let senderAddressId = shipmentDetails?.senderAddressId;
+
+    if (!senderAddressId) {
+      // Fallback: try to get/create sender address
+      const mainStoreAddress = {
+        street: "Main Street",
+        building: "123",
+        postalCode: "00-950",
+        city: "Warszawa",
+        country: 141, // Poland
+        premises: null,
+      };
+
+      try {
+        const addressExistsResponse = await api.get("/Addresses/exists", {
+          params: mainStoreAddress,
+        });
+
+        if (addressExistsResponse.exists && addressExistsResponse.id) {
+          senderAddressId = addressExistsResponse.id;
+        } else {
+          const senderAddressResponse = await api.post("/Addresses", mainStoreAddress);
+          senderAddressId = senderAddressResponse.id;
+        }
+      } catch (err) {
+        console.error("Failed to get/create sender address:", err);
+        throw new Error(`Failed to set sender address: ${err.message}`);
+      }
+    }
+
+    // Update shipment (requires type field per UpdateShipmentDto)
     const shipmentPayload = {
-      status: parseInt(form.status),
-      sendDate: form.sendDate || null,
-      deliveryDate: form.deliveryDate || null,
+      type: 2, // Outgoing/Leaving
+      status: 1, // Always InPreparation for editable shipments
+      sendDate: null,
+      deliveryDate: null,
       description: form.description || null,
+      weight: null, // Keep null for leaving shipments (set during preparation)
+      length: null,
+      width: null,
+      height: null,
       receiverName: form.receiverName,
       receiverTaxId: form.receiverTaxId,
       receiverDetails: form.receiverDetails || null,
       receiverAddressId: receiverAddressId,
-      // Sender info remains unchanged (store info)
+      // Sender info (store info)
       senderName: form.senderName,
       senderTaxId: form.senderTaxId,
       senderDetails: form.senderDetails,
+      senderAddressId: senderAddressId,
     };
 
     await api.put(`/Shipments/${shipmentDetails.id}`, shipmentPayload);
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={mode === "add" ? "Add Leaving Shipment" : "Edit Leaving Shipment"}>
-      <div className="modal-form">
-        {/* Shipment Details Section */}
-        <div className="form-section">
-          <h4>Shipment Details</h4>
-
-          <div className="form-group">
-            <label>Status:</label>
-            <select name="status" value={form.status} onChange={handleInputChange} disabled={mode === "edit"}>
-              <option value={1}>In Preparation</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Send Date:</label>
-            <input
-              type="date"
-              name="sendDate"
-              value={form.sendDate}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Estimated Delivery Date:</label>
-            <input
-              type="date"
-              name="deliveryDate"
-              value={form.deliveryDate}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Description:</label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleInputChange}
-              rows={3}
-              placeholder="Optional description"
-            />
-          </div>
-        </div>
-
-        {/* Receiver Information Section */}
-        <div className="form-section">
-          <h4>Receiver Information</h4>
-
-          <div className="form-group">
-            <label>Name: *</label>
-            <input
-              type="text"
-              name="receiverName"
-              value={form.receiverName}
-              onChange={handleInputChange}
-              placeholder="Receiver name"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Tax ID: *</label>
-            <input
-              type="text"
-              name="receiverTaxId"
-              value={form.receiverTaxId}
-              onChange={handleInputChange}
-              placeholder="Tax ID / VAT number"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Additional Details:</label>
-            <textarea
-              name="receiverDetails"
-              value={form.receiverDetails}
-              onChange={handleInputChange}
-              rows={2}
-              placeholder="Optional additional details"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Street: *</label>
-            <input
-              type="text"
-              name="receiverStreet"
-              value={form.receiverStreet}
-              onChange={handleInputChange}
-              placeholder="Street name"
-              required
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Building: *</label>
-              <input
-                type="text"
-                name="receiverBuilding"
-                value={form.receiverBuilding}
-                onChange={handleInputChange}
-                placeholder="Building number"
-                required
-              />
+    <Modal
+      title={mode === "add" ? "Register Leaving Shipment" : "Edit Leaving Shipment"}
+      onClose={onClose}
+      wide
+    >
+      <div className={mode === "add" ? "add-shipment-modal" : "edit-shipment-modal"}>
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <div className="form-content">
+            {/* Section A: Basic Information */}
+            <div className="form-section">
+              <h4 className="section-title">Basic Information</h4>
+              <div className="form-field">
+                <label htmlFor="description">Description</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  rows="3"
+                  placeholder="Enter shipment description..."
+                  value={form.description}
+                  onChange={handleInputChange}
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>Premises:</label>
-              <input
-                type="text"
-                name="receiverPremises"
-                value={form.receiverPremises}
-                onChange={handleInputChange}
-                placeholder="Apartment/Unit (optional)"
-              />
+            {/* Section B: Receiver Information */}
+            <div className="form-section">
+              <h4 className="section-title">Receiver Information</h4>
+              <div className="form-grid-2col">
+                <div className="form-field">
+                  <label htmlFor="receiverName">Name *</label>
+                  <input
+                    type="text"
+                    id="receiverName"
+                    name="receiverName"
+                    placeholder="Company or person name"
+                    value={form.receiverName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverTaxId">Tax ID *</label>
+                  <input
+                    type="text"
+                    id="receiverTaxId"
+                    name="receiverTaxId"
+                    placeholder="Tax identification number"
+                    value={form.receiverTaxId}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                  <label htmlFor="receiverDetails">Receiver Details</label>
+                  <textarea
+                    id="receiverDetails"
+                    name="receiverDetails"
+                    rows="2"
+                    placeholder="Additional notes about receiver (optional)"
+                    value={form.receiverDetails}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverStreet">Street *</label>
+                  <input
+                    type="text"
+                    id="receiverStreet"
+                    name="receiverStreet"
+                    placeholder="Street name"
+                    value={form.receiverStreet}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverBuilding">Building *</label>
+                  <input
+                    type="text"
+                    id="receiverBuilding"
+                    name="receiverBuilding"
+                    placeholder="Building number"
+                    value={form.receiverBuilding}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverPremises">Premises</label>
+                  <input
+                    type="text"
+                    id="receiverPremises"
+                    name="receiverPremises"
+                    placeholder="Apartment/Suite (optional)"
+                    value={form.receiverPremises}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverPostalCode">Postal Code *</label>
+                  <input
+                    type="text"
+                    id="receiverPostalCode"
+                    name="receiverPostalCode"
+                    placeholder="12-345"
+                    value={form.receiverPostalCode}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverCity">City *</label>
+                  <input
+                    type="text"
+                    id="receiverCity"
+                    name="receiverCity"
+                    placeholder="City name"
+                    value={form.receiverCity}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="receiverCountry">Country *</label>
+                  <select
+                    id="receiverCountry"
+                    name="receiverCountry"
+                    value={form.receiverCountry}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    {Object.entries(countries).map(([id, name]) => (
+                      <option key={id} value={id}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Section C: Sender Information (Display Only) */}
+            <div className="form-section">
+              <h4 className="section-title">Sender Information (Store)</h4>
+              <div className="receiver-info-display">
+                <div className="info-row">
+                  <span className="info-label">Name:</span>
+                  <span className="info-value">{form.senderName}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Tax ID:</span>
+                  <span className="info-value">{form.senderTaxId}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Address:</span>
+                  <span className="info-value">{form.senderDetails}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Postal Code: *</label>
-              <input
-                type="text"
-                name="receiverPostalCode"
-                value={form.receiverPostalCode}
-                onChange={handleInputChange}
-                placeholder="Postal code"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>City: *</label>
-              <input
-                type="text"
-                name="receiverCity"
-                value={form.receiverCity}
-                onChange={handleInputChange}
-                placeholder="City"
-                required
-              />
-            </div>
+          {/* Section D: Actions */}
+          <div className="form-actions">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-cancel"
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-confirm"
+              disabled={saving}
+            >
+              {saving ? "Saving..." : mode === "add" ? "Save Shipment" : "Save Changes"}
+            </button>
           </div>
-
-          <div className="form-group">
-            <label>Country: *</label>
-            <select name="receiverCountry" value={form.receiverCountry} onChange={handleInputChange} required>
-              {countries.map(country => (
-                <option key={country.value} value={country.value}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Sender Information Section (Read-only) */}
-        <div className="form-section">
-          <h4>Sender Information (Store)</h4>
-
-          <div className="form-group">
-            <label>Name:</label>
-            <input
-              type="text"
-              name="senderName"
-              value={form.senderName}
-              disabled
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Tax ID:</label>
-            <input
-              type="text"
-              name="senderTaxId"
-              value={form.senderTaxId}
-              disabled
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Address:</label>
-            <input
-              type="text"
-              name="senderDetails"
-              value={form.senderDetails}
-              disabled
-              readOnly
-            />
-          </div>
-        </div>
-
-        {/* Note about products and dimensions */}
-        <div className="form-note">
-          <p><strong>Note:</strong> Products and package dimensions will be set when preparing the shipment.</p>
-        </div>
-
-        {/* Modal Actions */}
-        <div className="modal-actions">
-          <button onClick={onClose} className="btn-secondary" disabled={saving}>
-            Cancel
-          </button>
-          <button onClick={handleSave} className="btn-primary" disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </button>
-        </div>
+        </form>
       </div>
     </Modal>
   );

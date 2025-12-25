@@ -504,14 +504,14 @@ export default function LeavingShipments() {
           onSort={handleSort}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
-          onAdd={isDeputyManagerOrHigher ? handleOpenAddModal : undefined}
-          onEdit={isDeputyManagerOrHigher ? handleOpenEditModal : undefined}
+          onAdd={handleOpenAddModal}
+          onEdit={handleOpenEditModal}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={setSearchQuery}
           searchValue={searchQuery}
           hideDeleteButton={true}
-          disableAdd={!isDeputyManagerOrHigher}
-          disableEdit={!isDeputyManagerOrHigher || !selectedRow || (selectedRow && selectedRow.statusRaw >= 2)}
+          disableAdd={false}
+          disableEdit={!selectedRow || (selectedRow && selectedRow.statusRaw >= 2)}
           changePasswordButtonLabel="Prepare"
           changePasswordButtonClass="btn-go-to"
           changePasswordDisabled={!selectedRow || selectedRow.statusRaw >= 2}

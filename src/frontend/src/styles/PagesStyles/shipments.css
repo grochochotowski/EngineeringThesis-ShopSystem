@@ -561,6 +561,30 @@
   margin-bottom: 0.5rem;
 }
 
+/* Edit Shipment Modal Styles */
+.edit-shipment-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(90vh - 120px);
+  padding: 0;
+}
+
+.edit-shipment-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.edit-shipment-modal .form-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0;
+  margin-bottom: 0.5rem;
+}
+
 .form-section {
   display: flex;
   flex-direction: column;
