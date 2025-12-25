@@ -590,14 +590,16 @@ namespace Backend.Api.Api.Services
                 var shipmentProduct = shipment.ShipmentProducts
                     .FirstOrDefault(sp => sp.ProductId == preparedProduct.ProductId);
 
-                if (shipmentProduct == null)
-                    throw new InvalidOperationException($"Product {preparedProduct.ProductId} not found in shipment manifest.");
-
-                // Validate total prepared quantity matches manifest
-                if (totalPreparedQty != shipmentProduct.Quantity)
+                // If product is in manifest, validate total prepared quantity matches manifest
+                if (shipmentProduct != null && totalPreparedQty != shipmentProduct.Quantity)
+                {
                     throw new InvalidOperationException(
                         $"Total prepared quantity ({totalPreparedQty}) for product {preparedProduct.ProductId} " +
                         $"does not match manifest quantity ({shipmentProduct.Quantity}).");
+                }
+
+                // Note: Products NOT in the original manifest are allowed (extra products added during preparation)
+                // These will be added to ShipmentProducts with Quantity = 0 to indicate they were not originally declared
 
                 // Validate each source location
                 foreach (var sourceLocation in preparedProduct.SourceLocations)
@@ -619,6 +621,23 @@ namespace Backend.Api.Api.Services
             // Process each prepared product
             foreach (var preparedProduct in dto.PreparedProducts)
             {
+                // Check if product exists in shipment manifest
+                var shipmentProduct = shipment.ShipmentProducts
+                    .FirstOrDefault(sp => sp.ProductId == preparedProduct.ProductId);
+
+                if (shipmentProduct == null)
+                {
+                    // Extra product not in manifest - add to ShipmentProducts
+                    var totalPreparedQty = preparedProduct.SourceLocations.Sum(sl => sl.Quantity);
+                    _db.ShipmentProducts.Add(new ShipmentProduct
+                    {
+                        ShipmentId = shipmentId,
+                        ProductId = preparedProduct.ProductId,
+                        Quantity = 0, // No declared quantity (extra product added during preparation)
+                        CollectedQuantity = totalPreparedQty // Store prepared quantity in CollectedQuantity field
+                    });
+                }
+
                 foreach (var sourceLocation in preparedProduct.SourceLocations)
                 {
                     // Decrease warehouse inventory
