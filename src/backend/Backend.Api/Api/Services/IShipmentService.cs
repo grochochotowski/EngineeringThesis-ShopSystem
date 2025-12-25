@@ -20,6 +20,7 @@ namespace Backend.Api.Api.Services
             CancellationToken ct = default);
 
         Task<GetShipmentDto?> GetByIdAsync(int id, CancellationToken ct = default);
+        Task<List<GetShipmentProductDto>> GetShipmentProductsAsync(int shipmentId, CancellationToken ct = default);
         Task<GetShipmentDto> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default);
         Task UpdateAsync(int id, UpdateShipmentDto dto, CancellationToken ct = default);
         Task UpdateStatusAsync(int id, UpdateShipmentStatusDto dto, CancellationToken ct = default);

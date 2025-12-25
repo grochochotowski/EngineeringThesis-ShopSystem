@@ -47,6 +47,21 @@ namespace Backend.Api.Api.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
+        // --- GET SHIPMENT PRODUCTS ---
+        [HttpGet("{id:int}/products")]
+        public async Task<ActionResult<List<GetShipmentProductDto>>> GetShipmentProducts(int id, CancellationToken ct)
+        {
+            try
+            {
+                var products = await _service.GetShipmentProductsAsync(id, ct);
+                return Ok(products);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
         // --- CREATE SHIPMENT ---
         [HttpPost]
         public async Task<ActionResult<GetShipmentDto>> Create([FromBody] CreateShipmentDto dto, CancellationToken ct)

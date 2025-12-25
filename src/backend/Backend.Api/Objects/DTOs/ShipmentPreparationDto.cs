@@ -101,5 +101,10 @@ namespace Backend.Api.Objects.DTOs
         public int LocationId { get; set; }
         public string LocationCode { get; set; } = string.Empty;
         public int Quantity { get; set; }
+
+        /// <summary>
+        /// Current quantity remaining in this location after the shipment was prepared
+        /// </summary>
+        public int QuantityLeft { get; set; }
     }
 }

@@ -175,6 +175,30 @@ namespace Backend.Api.Api.Services
             };
         }
 
+        // --- GET SHIPMENT PRODUCTS ---
+        public async Task<List<GetShipmentProductDto>> GetShipmentProductsAsync(int shipmentId, CancellationToken ct = default)
+        {
+            var shipment = await _db.Shipments
+                .AsNoTracking()
+                .Include(s => s.ShipmentProducts)
+                    .ThenInclude(sp => sp.Product)
+                .FirstOrDefaultAsync(s => s.Id == shipmentId, ct);
+
+            if (shipment == null)
+                throw new KeyNotFoundException($"Shipment {shipmentId} not found.");
+
+            return shipment.ShipmentProducts.Select(sp => new GetShipmentProductDto
+            {
+                ShipmentId = sp.ShipmentId,
+                ProductId = sp.ProductId,
+                Quantity = sp.Quantity,
+                CollectedQuantity = sp.CollectedQuantity,
+                ProductSKU = sp.Product.SKU,
+                ProductName = sp.Product.Name,
+                ProductPrice = sp.Product.Price
+            }).ToList();
+        }
+
         // --- CREATE SHIPMENT ---
         public async Task<GetShipmentDto> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default)
         {
@@ -652,6 +676,15 @@ namespace Backend.Api.Api.Services
             if (!preparationData.Any())
                 return new List<GetShipmentProductPreparationGroupedDto>();
 
+            // Get current quantities in all relevant locations
+            var locationIds = preparationData.Select(spl => spl.LocationId).Distinct().ToList();
+            var productIds = preparationData.Select(spl => spl.ProductId).Distinct().ToList();
+
+            var currentInventory = await _db.ProductsInWarehouse
+                .AsNoTracking()
+                .Where(piw => locationIds.Contains(piw.LocationId) && productIds.Contains(piw.ProductId))
+                .ToDictionaryAsync(piw => (piw.ProductId, piw.LocationId), piw => piw.Quantity, ct);
+
             // Group by product
             var grouped = preparationData
                 .GroupBy(spl => new { spl.ProductId, spl.Product.Name, spl.Product.SKU })
@@ -666,13 +699,13 @@ namespace Backend.Api.Api.Services
                     {
                         LocationId = spl.LocationId,
                         LocationCode = spl.Location.LocationCode,
-                        Quantity = spl.Quantity
+                        Quantity = spl.Quantity,
+                        QuantityLeft = currentInventory.TryGetValue((spl.ProductId, spl.LocationId), out var qty) ? qty : 0
                     }).ToList()
                 })
                 .ToList();
 
             // Get declared quantities from ShipmentProduct
-            var productIds = grouped.Select(g => g.ProductId).ToList();
             var shipmentProducts = await _db.ShipmentProducts
                 .AsNoTracking()
                 .Where(sp => sp.ShipmentId == shipmentId && productIds.Contains(sp.ProductId))
