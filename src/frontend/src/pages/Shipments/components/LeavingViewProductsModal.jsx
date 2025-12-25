@@ -82,11 +82,18 @@ export default function LeavingViewProductsModal({
                 </tr>
               </thead>
               <tbody>
-                {products.map(product => (
+                {products.map(product => {
+                  // Display CollectedQuantity if Quantity is 0 (extra product added during preparation)
+                  // Otherwise display Quantity (manifest quantity)
+                  const displayQuantity = product.quantity === 0 && product.collectedQuantity
+                    ? product.collectedQuantity
+                    : product.quantity;
+
+                  return (
                   <React.Fragment key={product.productId}>
                     <tr>
                       <td>{product.productName} ({product.productSKU || product.productSku})</td>
-                      <td>{product.quantity}</td>
+                      <td>{displayQuantity}</td>
                       <td>
                         <button
                           type="button"
@@ -131,7 +138,8 @@ export default function LeavingViewProductsModal({
                       </tr>
                     )}
                   </React.Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             <div style={{ marginBottom: "2rem" }}></div>
