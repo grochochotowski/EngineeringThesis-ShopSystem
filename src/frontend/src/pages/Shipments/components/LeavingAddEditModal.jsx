@@ -4,12 +4,10 @@ import { api } from "../../../api/apiClient";
 import { countries, getCountryValue } from "../../../data/countries";
 
 export default function LeavingAddEditModal({
-  isOpen,
   onClose,
   onSave,
   setToast,
   mode, // "add" or "edit"
-  shipment = null,
   shipmentDetails = null,
 }) {
   const [saving, setSaving] = useState(false);
@@ -110,7 +108,7 @@ export default function LeavingAddEditModal({
 
   // Create shipment
   const createShipment = async () => {
-    // Step 1: Create or get receiver address
+    // Step 1: Get or create receiver address
     const receiverAddressPayload = {
       country: parseInt(form.receiverCountry),
       city: form.receiverCity,
@@ -120,8 +118,18 @@ export default function LeavingAddEditModal({
       postalCode: form.receiverPostalCode,
     };
 
-    const receiverAddressResponse = await api.post("/Addresses", receiverAddressPayload);
-    const receiverAddressId = receiverAddressResponse.id;
+    // Check if address already exists
+    const receiverAddressExistsResponse = await api.get("/Addresses/exists", {
+      params: receiverAddressPayload,
+    });
+
+    let receiverAddressId;
+    if (receiverAddressExistsResponse.exists && receiverAddressExistsResponse.id) {
+      receiverAddressId = receiverAddressExistsResponse.id;
+    } else {
+      const receiverAddressResponse = await api.post("/Addresses", receiverAddressPayload);
+      receiverAddressId = receiverAddressResponse.id;
+    }
 
     // Step 2: Get or create sender (store) address
     let senderAddressId = null;
@@ -194,7 +202,7 @@ export default function LeavingAddEditModal({
         parseInt(form.receiverCountry) !== getCountryValue(currentAddress.country || currentAddress.Country);
 
       if (addressChanged) {
-        // Create new address
+        // Get or create new address
         const receiverAddressPayload = {
           country: parseInt(form.receiverCountry),
           city: form.receiverCity,
@@ -204,8 +212,17 @@ export default function LeavingAddEditModal({
           postalCode: form.receiverPostalCode,
         };
 
-        const receiverAddressResponse = await api.post("/Addresses", receiverAddressPayload);
-        receiverAddressId = receiverAddressResponse.id;
+        // Check if address already exists
+        const receiverAddressExistsResponse = await api.get("/Addresses/exists", {
+          params: receiverAddressPayload,
+        });
+
+        if (receiverAddressExistsResponse.exists && receiverAddressExistsResponse.id) {
+          receiverAddressId = receiverAddressExistsResponse.id;
+        } else {
+          const receiverAddressResponse = await api.post("/Addresses", receiverAddressPayload);
+          receiverAddressId = receiverAddressResponse.id;
+        }
       }
     }
 
@@ -303,6 +320,7 @@ export default function LeavingAddEditModal({
                     placeholder="Company or person name"
                     value={form.receiverName}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   />
                 </div>
@@ -316,6 +334,7 @@ export default function LeavingAddEditModal({
                     placeholder="Tax identification number"
                     value={form.receiverTaxId}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   />
                 </div>
@@ -333,7 +352,7 @@ export default function LeavingAddEditModal({
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="receiverStreet">Street *</label>
+                  <label htmlFor="receiverStreet">Street * {mode === "edit" && "(Read-only)"}</label>
                   <input
                     type="text"
                     id="receiverStreet"
@@ -341,12 +360,13 @@ export default function LeavingAddEditModal({
                     placeholder="Street name"
                     value={form.receiverStreet}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   />
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="receiverBuilding">Building *</label>
+                  <label htmlFor="receiverBuilding">Building * {mode === "edit" && "(Read-only)"}</label>
                   <input
                     type="text"
                     id="receiverBuilding"
@@ -354,12 +374,13 @@ export default function LeavingAddEditModal({
                     placeholder="Building number"
                     value={form.receiverBuilding}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   />
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="receiverPremises">Premises</label>
+                  <label htmlFor="receiverPremises">Premises {mode === "edit" && "(Read-only)"}</label>
                   <input
                     type="text"
                     id="receiverPremises"
@@ -367,11 +388,12 @@ export default function LeavingAddEditModal({
                     placeholder="Apartment/Suite (optional)"
                     value={form.receiverPremises}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                   />
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="receiverPostalCode">Postal Code *</label>
+                  <label htmlFor="receiverPostalCode">Postal Code * {mode === "edit" && "(Read-only)"}</label>
                   <input
                     type="text"
                     id="receiverPostalCode"
@@ -379,12 +401,13 @@ export default function LeavingAddEditModal({
                     placeholder="12-345"
                     value={form.receiverPostalCode}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   />
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="receiverCity">City *</label>
+                  <label htmlFor="receiverCity">City * {mode === "edit" && "(Read-only)"}</label>
                   <input
                     type="text"
                     id="receiverCity"
@@ -392,17 +415,19 @@ export default function LeavingAddEditModal({
                     placeholder="City name"
                     value={form.receiverCity}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   />
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="receiverCountry">Country *</label>
+                  <label htmlFor="receiverCountry">Country * {mode === "edit" && "(Read-only)"}</label>
                   <select
                     id="receiverCountry"
                     name="receiverCountry"
                     value={form.receiverCountry}
                     onChange={handleInputChange}
+                    disabled={mode === "edit"}
                     required
                   >
                     {Object.entries(countries).map(([id, name]) => (
