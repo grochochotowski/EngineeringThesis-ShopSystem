@@ -607,15 +607,15 @@ namespace Backend.Api.Api.Services
                 }
             }
 
-            // When saving progress, we need to restore previous preparation BEFORE validation
-            // This ensures we validate against the correct warehouse state
-            if (!isFinishingPreparation)
-            {
-                // For "Save Progress": First, restore inventory from previous preparation (if any)
-                var existingPreparationRecords = await _db.ShipmentProductLocations
-                    .Where(spl => spl.ShipmentId == shipmentId)
-                    .ToListAsync(ct);
+            // Handle existing preparation records differently based on operation mode
+            var existingPreparationRecords = await _db.ShipmentProductLocations
+                .Where(spl => spl.ShipmentId == shipmentId)
+                .ToListAsync(ct);
 
+            if (isFinishingPreparation)
+            {
+                // For "Finish Preparation": Restore inventory from previous preparation (if any)
+                // This is needed because we'll deduct the new allocation later
                 foreach (var record in existingPreparationRecords)
                 {
                     // Restore inventory to warehouse
@@ -637,14 +637,16 @@ namespace Backend.Api.Api.Services
                         });
                     }
                 }
-
-                // Remove existing preparation records
-                _db.ShipmentProductLocations.RemoveRange(existingPreparationRecords);
             }
+            // For "Save Progress": Don't restore inventory - just replace tracking records
+            // The warehouse quantities should remain unchanged during progress saves
+
+            // Remove existing preparation records (for both save and finish modes)
+            _db.ShipmentProductLocations.RemoveRange(existingPreparationRecords);
 
             // Validate all locations exist and have sufficient inventory
-            // NOTE: For save progress, this validation happens AFTER restoring previous preparation
-            // This ensures we validate against the correct warehouse state
+            // NOTE: For "Finish Preparation", validation happens AFTER restoring previous allocations
+            // For "Save Progress", validation uses current warehouse state (no restoration needed)
             foreach (var preparedProduct in dto.PreparedProducts)
             {
                 var totalPreparedQty = preparedProduct.SourceLocations.Sum(sl => sl.Quantity);
@@ -712,7 +714,8 @@ namespace Backend.Api.Api.Services
 
                 foreach (var sourceLocation in preparedProduct.SourceLocations)
                 {
-                    // Decrease warehouse inventory (only if finishing, already handled for save progress above)
+                    // Only deduct inventory when finishing preparation
+                    // When saving progress, we just track the allocation without deducting
                     if (isFinishingPreparation)
                     {
                         var warehouseEntry = await _db.ProductsInWarehouse
@@ -730,26 +733,9 @@ namespace Backend.Api.Api.Services
                             }
                         }
                     }
-                    else
-                    {
-                        // For save progress, reduce inventory temporarily
-                        var warehouseEntry = await _db.ProductsInWarehouse
-                            .FirstOrDefaultAsync(pw => pw.ProductId == preparedProduct.ProductId
-                                && pw.LocationId == sourceLocation.LocationId, ct);
-
-                        if (warehouseEntry != null)
-                        {
-                            warehouseEntry.Quantity -= sourceLocation.Quantity;
-
-                            // Remove entry if quantity reaches 0
-                            if (warehouseEntry.Quantity == 0)
-                            {
-                                _db.ProductsInWarehouse.Remove(warehouseEntry);
-                            }
-                        }
-                    }
 
                     // Track source location in ShipmentProductLocation
+                    // This happens for both "Save Progress" and "Finish Preparation"
                     _db.ShipmentProductLocations.Add(new ShipmentProductLocation
                     {
                         ShipmentId = shipmentId,
