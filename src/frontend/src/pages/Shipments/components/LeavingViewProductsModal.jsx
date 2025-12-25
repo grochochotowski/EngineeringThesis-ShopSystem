@@ -40,7 +40,7 @@ export default function LeavingViewProductsModal({
       const response = await api.get(`/Shipments/${shipmentId}/preparation`);
       // Find this product's location data
       const productPrep = response.find(p => p.productId === productId);
-      return productPrep?.locations || [];
+      return productPrep?.sourceLocations || [];
     } catch (err) {
       console.error("Failed to fetch product locations", err);
       setToast({ type: "error", message: "Failed to load product locations" });
@@ -61,20 +61,23 @@ export default function LeavingViewProductsModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="View Shipment Products" size="medium">
-      <div className="view-products-modal-content">
+    <Modal
+      title="Products in Shipment"
+      onClose={onClose}
+      wide
+    >
+      <div className="view-products-modal">
         {loading ? (
-          <div className="loading">Loading products...</div>
+          <p className="no-products-message">Loading products...</p>
         ) : products.length === 0 ? (
-          <div className="no-products">No products in this shipment</div>
+          <p className="no-products-message">No products in this shipment.</p>
         ) : (
-          <div className="products-list">
+          <>
             <table className="products-table">
               <thead>
                 <tr>
-                  <th>SKU</th>
-                  <th>Product Name</th>
-                  <th>Quantity</th>
+                  <th>Product Name (SKU)</th>
+                  <th>Quantity in Shipment</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -82,44 +85,46 @@ export default function LeavingViewProductsModal({
                 {products.map(product => (
                   <React.Fragment key={product.productId}>
                     <tr>
-                      <td>{product.productSKU}</td>
-                      <td>{product.productName}</td>
+                      <td>{product.productName} ({product.productSKU || product.productSku})</td>
                       <td>{product.quantity}</td>
                       <td>
                         <button
+                          type="button"
                           onClick={() => handleToggleLocations(product.productId)}
-                          className="btn-view-locations"
+                          className="btn-action btn-view"
+                          style={{ padding: "4px 8px", fontSize: "12px" }}
                         >
                           {expandedProductIds[product.productId] ? "Hide Locations" : "View Locations"}
                         </button>
                       </td>
                     </tr>
-
-                    {/* Expanded Locations Row */}
                     {expandedProductIds[product.productId] && (
-                      <tr className="locations-row">
-                        <td colSpan="4">
-                          <div className="locations-details">
-                            <h5>Source Locations:</h5>
-                            {expandedProductIds[product.productId].length === 0 ? (
-                              <p>No location information available</p>
-                            ) : (
-                              <table className="locations-table">
+                      <tr>
+                        <td colSpan="3" style={{ backgroundColor: "#f9f9f9", padding: "10px" }}>
+                          <div className="locations-list">
+                            {expandedProductIds[product.productId].length > 0 ? (
+                              <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
                                 <thead>
                                   <tr>
-                                    <th>Location Code</th>
-                                    <th>Quantity Taken</th>
+                                    <th>Location</th>
+                                    <th>Amount Taken</th>
+                                    <th>Amount Left</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {expandedProductIds[product.productId].map((loc, index) => (
-                                    <tr key={index}>
+                                  {expandedProductIds[product.productId].map((loc, idx) => (
+                                    <tr key={idx}>
                                       <td>{loc.locationCode}</td>
                                       <td>{loc.quantity}</td>
+                                      <td>{loc.quantityLeft}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                               </table>
+                            ) : (
+                              <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
+                                No locations found for this product.
+                              </p>
                             )}
                           </div>
                         </td>
@@ -129,120 +134,19 @@ export default function LeavingViewProductsModal({
                 ))}
               </tbody>
             </table>
-          </div>
+            <div style={{ marginBottom: "2rem" }}></div>
+          </>
         )}
-
-        {/* Modal Actions */}
-        <div className="modal-actions">
-          <button onClick={onClose} className="btn-primary">
+        <div className="form-actions">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-confirm"
+          >
             Close
           </button>
         </div>
       </div>
-
-      <style jsx>{`
-        .view-products-modal-content {
-          padding: 20px;
-        }
-
-        .loading,
-        .no-products {
-          text-align: center;
-          padding: 40px;
-          color: #666;
-        }
-
-        .products-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 20px;
-        }
-
-        .products-table th,
-        .products-table td {
-          padding: 12px;
-          text-align: left;
-          border-bottom: 1px solid #ddd;
-        }
-
-        .products-table th {
-          background-color: #f5f5f5;
-          font-weight: 600;
-        }
-
-        .products-table tbody tr:hover {
-          background-color: #f9f9f9;
-        }
-
-        .btn-view-locations {
-          padding: 6px 12px;
-          background-color: #007bff;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-
-        .btn-view-locations:hover {
-          background-color: #0056b3;
-        }
-
-        .locations-row {
-          background-color: #f8f9fa;
-        }
-
-        .locations-details {
-          padding: 15px;
-        }
-
-        .locations-details h5 {
-          margin: 0 0 10px 0;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .locations-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 10px;
-        }
-
-        .locations-table th,
-        .locations-table td {
-          padding: 8px;
-          text-align: left;
-          border-bottom: 1px solid #ddd;
-          font-size: 13px;
-        }
-
-        .locations-table th {
-          background-color: #e9ecef;
-          font-weight: 600;
-        }
-
-        .modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 10px;
-          padding-top: 20px;
-          border-top: 1px solid #ddd;
-        }
-
-        .btn-primary {
-          padding: 10px 20px;
-          background-color: #007bff;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-
-        .btn-primary:hover {
-          background-color: #0056b3;
-        }
-      `}</style>
     </Modal>
   );
 }
