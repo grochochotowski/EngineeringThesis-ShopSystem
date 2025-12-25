@@ -612,9 +612,15 @@ namespace Backend.Api.Api.Services
                 .Where(spl => spl.ShipmentId == shipmentId)
                 .ToListAsync(ct);
 
-            if (isFinishingPreparation)
+            // IMPORTANT: Only restore inventory if the shipment was ALREADY finished (status AwaitingPickup or higher)
+            // and we're re-preparing it. During normal flow (InPreparation → save progress → finish),
+            // we never deducted inventory yet, so there's nothing to restore.
+            bool wasAlreadyFinished = shipment.Status >= ShipmentStatus.AwaitingPickup;
+
+            if (isFinishingPreparation && wasAlreadyFinished && existingPreparationRecords.Any())
             {
-                // For "Finish Preparation": Restore inventory from previous preparation (if any)
+                // For "Re-Finish Preparation" after shipment was already completed:
+                // Restore inventory from previous preparation because it was already deducted
                 // This is needed because we'll deduct the new allocation later
                 foreach (var record in existingPreparationRecords)
                 {
@@ -638,8 +644,9 @@ namespace Backend.Api.Api.Services
                     }
                 }
             }
-            // For "Save Progress": Don't restore inventory - just replace tracking records
-            // The warehouse quantities should remain unchanged during progress saves
+            // For "Save Progress" or "First-time Finish": Don't restore inventory
+            // - Save Progress: warehouse quantities remain unchanged (no deduction yet)
+            // - First-time Finish: warehouse has full quantities (no previous deduction)
 
             // Remove existing preparation records (for both save and finish modes)
             _db.ShipmentProductLocations.RemoveRange(existingPreparationRecords);
