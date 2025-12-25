@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Modal from "../../../components/Modal";
 import { api } from "../../../api/apiClient";
-import { countries, getCountryValue } from "../../../data/countries";
+import { countries, getCountryValue, getCountryName } from "../../../data/countries";
 
 export default function LeavingAddEditModal({
   onClose,
@@ -29,6 +29,15 @@ export default function LeavingAddEditModal({
     senderTaxId: "1234567890",
     senderDetails: "Main Street 123, 00-950 Warszawa, Poland",
   });
+
+  // Address search state (for Add mode)
+  const [addressSearchInput, setAddressSearchInput] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [highlightedAddressIndex, setHighlightedAddressIndex] = useState(0);
+  const addressDropdownRef = useRef(null);
 
   // Initialize form for edit mode
   useEffect(() => {
@@ -60,6 +69,128 @@ export default function LeavingAddEditModal({
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Search addresses (for Add mode autocomplete)
+  const searchAddresses = async (searchTerm) => {
+    if (searchTerm.length < 2) {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+      return;
+    }
+
+    try {
+      const response = await api.get("/Addresses", {
+        params: {
+          pageNumber: 1,
+          pageSize: 10,
+          search: searchTerm, // Search by any field
+        },
+      });
+      setAddressSuggestions(response.data || []);
+      setShowAddressDropdown(true);
+    } catch (err) {
+      console.error("Failed to search addresses", err);
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+    }
+  };
+
+  // Handle address search input change
+  const handleAddressSearchChange = async (e) => {
+    const value = e.target.value;
+    setAddressSearchInput(value);
+    await searchAddresses(value);
+    setHighlightedAddressIndex(0);
+  };
+
+  // Handle address selection from dropdown
+  const handleSelectAddress = (address) => {
+    setSelectedAddress(address);
+    setForm(prev => ({
+      ...prev,
+      receiverAddressId: address.id,
+      receiverStreet: address.street,
+      receiverBuilding: address.building,
+      receiverPremises: address.premises || "",
+      receiverPostalCode: address.postalCode,
+      receiverCity: address.city,
+      receiverCountry: getCountryValue(address.country) || 141,
+    }));
+    setShowAddressDropdown(false);
+    setAddressSearchInput("");
+    setAddressSuggestions([]);
+  };
+
+  // Handle "Create New Address" button click
+  const handleCreateNewAddress = () => {
+    setShowAddressForm(true);
+    setShowAddressDropdown(false);
+    setSelectedAddress(null);
+    setAddressSearchInput("");
+    setAddressSuggestions([]);
+    // Reset address fields to allow user input
+    setForm(prev => ({
+      ...prev,
+      receiverStreet: "",
+      receiverBuilding: "",
+      receiverPremises: "",
+      receiverPostalCode: "",
+      receiverCity: "",
+      receiverCountry: 141,
+      receiverAddressId: null,
+    }));
+  };
+
+  // Handle "Change Address" button click (clears selection)
+  const handleChangeAddress = () => {
+    setSelectedAddress(null);
+    setShowAddressForm(false);
+    setAddressSearchInput("");
+    setForm(prev => ({
+      ...prev,
+      receiverAddressId: null,
+      receiverStreet: "",
+      receiverBuilding: "",
+      receiverPremises: "",
+      receiverPostalCode: "",
+      receiverCity: "",
+      receiverCountry: 141,
+    }));
+  };
+
+  // Handle keyboard navigation in address dropdown
+  const handleAddressKeyDown = (e) => {
+    if (!showAddressDropdown) {
+      return;
+    }
+
+    const totalOptions = addressSuggestions.length + 1; // +1 for "Create New" option
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedAddressIndex(prev => Math.min(prev + 1, totalOptions - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedAddressIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedAddressIndex < addressSuggestions.length) {
+          handleSelectAddress(addressSuggestions[highlightedAddressIndex]);
+        } else {
+          // "Create New" option selected
+          handleCreateNewAddress();
+        }
+        break;
+      case "Escape":
+        setShowAddressDropdown(false);
+        break;
+      default:
+        break;
+    }
   };
 
   // Validate form
@@ -310,135 +441,262 @@ export default function LeavingAddEditModal({
             {/* Section B: Receiver Information */}
             <div className="form-section">
               <h4 className="section-title">Receiver Information</h4>
-              <div className="form-grid-2col">
-                <div className="form-field">
-                  <label htmlFor="receiverName">Name *</label>
-                  <input
-                    type="text"
-                    id="receiverName"
-                    name="receiverName"
-                    placeholder="Company or person name"
-                    value={form.receiverName}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  />
-                </div>
 
-                <div className="form-field">
-                  <label htmlFor="receiverTaxId">Tax ID *</label>
-                  <input
-                    type="text"
-                    id="receiverTaxId"
-                    name="receiverTaxId"
-                    placeholder="Tax identification number"
-                    value={form.receiverTaxId}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  />
-                </div>
+              {mode === "add" ? (
+                // ADD MODE: Editable fields
+                <div className="form-grid-2col">
+                  <div className="form-field">
+                    <label htmlFor="receiverName">Name *</label>
+                    <input
+                      type="text"
+                      id="receiverName"
+                      name="receiverName"
+                      placeholder="Company or person name"
+                      value={form.receiverName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
 
-                <div className="form-field" style={{ gridColumn: "1 / -1" }}>
-                  <label htmlFor="receiverDetails">Receiver Details</label>
-                  <textarea
-                    id="receiverDetails"
-                    name="receiverDetails"
-                    rows="2"
-                    placeholder="Additional notes about receiver (optional)"
-                    value={form.receiverDetails}
-                    onChange={handleInputChange}
-                  />
-                </div>
+                  <div className="form-field">
+                    <label htmlFor="receiverTaxId">Tax ID *</label>
+                    <input
+                      type="text"
+                      id="receiverTaxId"
+                      name="receiverTaxId"
+                      placeholder="Tax identification number"
+                      value={form.receiverTaxId}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
 
-                <div className="form-field">
-                  <label htmlFor="receiverStreet">Street * {mode === "edit" && "(Read-only)"}</label>
-                  <input
-                    type="text"
-                    id="receiverStreet"
-                    name="receiverStreet"
-                    placeholder="Street name"
-                    value={form.receiverStreet}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  />
+                  <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                    <label htmlFor="receiverDetails">Receiver Details</label>
+                    <textarea
+                      id="receiverDetails"
+                      name="receiverDetails"
+                      rows="2"
+                      placeholder="Additional notes about receiver (optional)"
+                      value={form.receiverDetails}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                 </div>
+              ) : (
+                // EDIT MODE: Plain text Address FIRST, then Editable Name/TaxId, Editable Details
+                <div className="form-grid-2col">
+                  <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                    <label>Address</label>
+                    <p style={{ margin: "0.5rem 0", color: "#374151" }}>
+                      {form.receiverStreet} {form.receiverBuilding}
+                      {form.receiverPremises ? `, ${form.receiverPremises}` : ""}, {form.receiverPostalCode} {form.receiverCity}, {getCountryName(form.receiverCountry) || countries[form.receiverCountry] || "N/A"}
+                    </p>
+                  </div>
 
-                <div className="form-field">
-                  <label htmlFor="receiverBuilding">Building * {mode === "edit" && "(Read-only)"}</label>
-                  <input
-                    type="text"
-                    id="receiverBuilding"
-                    name="receiverBuilding"
-                    placeholder="Building number"
-                    value={form.receiverBuilding}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  />
-                </div>
+                  <div className="form-field">
+                    <label htmlFor="receiverName">Receiver Name *</label>
+                    <input
+                      type="text"
+                      id="receiverName"
+                      name="receiverName"
+                      placeholder="Company or person name"
+                      value={form.receiverName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
 
-                <div className="form-field">
-                  <label htmlFor="receiverPremises">Premises {mode === "edit" && "(Read-only)"}</label>
-                  <input
-                    type="text"
-                    id="receiverPremises"
-                    name="receiverPremises"
-                    placeholder="Apartment/Suite (optional)"
-                    value={form.receiverPremises}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                  />
-                </div>
+                  <div className="form-field">
+                    <label htmlFor="receiverTaxId">Receiver Tax ID *</label>
+                    <input
+                      type="text"
+                      id="receiverTaxId"
+                      name="receiverTaxId"
+                      placeholder="Tax identification number"
+                      value={form.receiverTaxId}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
 
-                <div className="form-field">
-                  <label htmlFor="receiverPostalCode">Postal Code * {mode === "edit" && "(Read-only)"}</label>
-                  <input
-                    type="text"
-                    id="receiverPostalCode"
-                    name="receiverPostalCode"
-                    placeholder="12-345"
-                    value={form.receiverPostalCode}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  />
+                  <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                    <label htmlFor="receiverDetails">Receiver Details</label>
+                    <textarea
+                      id="receiverDetails"
+                      name="receiverDetails"
+                      rows="2"
+                      placeholder="Additional notes about receiver (optional)"
+                      value={form.receiverDetails}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                 </div>
-
-                <div className="form-field">
-                  <label htmlFor="receiverCity">City * {mode === "edit" && "(Read-only)"}</label>
-                  <input
-                    type="text"
-                    id="receiverCity"
-                    name="receiverCity"
-                    placeholder="City name"
-                    value={form.receiverCity}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="receiverCountry">Country * {mode === "edit" && "(Read-only)"}</label>
-                  <select
-                    id="receiverCountry"
-                    name="receiverCountry"
-                    value={form.receiverCountry}
-                    onChange={handleInputChange}
-                    disabled={mode === "edit"}
-                    required
-                  >
-                    {Object.entries(countries).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Section C: Sender Information (Display Only) */}
+            {/* Section C: Receiver Address */}
+            {mode === "add" && (
+            <div className="form-section">
+              <h4 className="section-title">Receiver Address</h4>
+
+              {/* ADD MODE: Address autocomplete search */}
+              <>
+                {!selectedAddress && !showAddressForm && (
+                  <div className="address-search-container">
+                    <label>Search Address *</label>
+                    <input
+                      type="text"
+                      placeholder="Search existing address or create new..."
+                      value={addressSearchInput}
+                      onChange={handleAddressSearchChange}
+                      onKeyDown={handleAddressKeyDown}
+                      className="product-search-input"
+                    />
+
+                    {/* Address Suggestions Dropdown */}
+                    {showAddressDropdown && (
+                      <div className="address-suggestions" ref={addressDropdownRef}>
+                        {addressSuggestions.map((addr, index) => (
+                          <div
+                            key={addr.id}
+                            className={`address-suggestion-item ${index === highlightedAddressIndex ? "highlighted" : ""}`}
+                            onClick={() => handleSelectAddress(addr)}
+                          >
+                            <div className="address-suggestion-main">
+                              <strong>{addr.street} {addr.building}</strong>
+                              {addr.premises && <span>, {addr.premises}</span>}
+                            </div>
+                            <span className="address-suggestion-details">
+                              {addr.city}, {addr.postalCode} • {addr.country}
+                            </span>
+                          </div>
+                        ))}
+
+                        {/* "Create New" option */}
+                        <div
+                          className={`address-suggestion-item create-new ${highlightedAddressIndex === addressSuggestions.length ? "highlighted" : ""}`}
+                          onClick={handleCreateNewAddress}
+                        >
+                          + Create New Address
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Selected Address Display (Read-Only) */}
+                {selectedAddress && !showAddressForm && (
+                  <div className="selected-address-display">
+                    <label>Selected Address</label>
+                    <div className="address-display-box">
+                      <strong>{selectedAddress.street} {selectedAddress.building}</strong>
+                      {selectedAddress.premises && <span>, {selectedAddress.premises}</span>}
+                      <br />
+                      {selectedAddress.postalCode} {selectedAddress.city}
+                      <br />
+                      {selectedAddress.country}
+                    </div>
+                    <button type="button" onClick={handleChangeAddress} className="btn-change-address">
+                      Change Address
+                    </button>
+                  </div>
+                )}
+
+                {/* Address Input Form (Only for "Create New") */}
+                {showAddressForm && (
+                  <div className="address-form-fields">
+                    <div className="form-grid-2col">
+                      <div className="form-field">
+                        <label htmlFor="receiverCountry">Country *</label>
+                        <select
+                          id="receiverCountry"
+                          name="receiverCountry"
+                          value={form.receiverCountry}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          {Object.entries(countries).map(([id, name]) => (
+                            <option key={id} value={id}>{name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="receiverCity">City *</label>
+                        <input
+                          type="text"
+                          id="receiverCity"
+                          name="receiverCity"
+                          placeholder="City name"
+                          value={form.receiverCity}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="receiverPostalCode">Postal Code *</label>
+                        <input
+                          type="text"
+                          id="receiverPostalCode"
+                          name="receiverPostalCode"
+                          placeholder="12-345"
+                          value={form.receiverPostalCode}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="receiverStreet">Street *</label>
+                        <input
+                          type="text"
+                          id="receiverStreet"
+                          name="receiverStreet"
+                          placeholder="Street name"
+                          value={form.receiverStreet}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="receiverBuilding">Building *</label>
+                        <input
+                          type="text"
+                          id="receiverBuilding"
+                          name="receiverBuilding"
+                          placeholder="Building number"
+                          value={form.receiverBuilding}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-field">
+                        <label htmlFor="receiverPremises">Premises</label>
+                        <input
+                          type="text"
+                          id="receiverPremises"
+                          name="receiverPremises"
+                          placeholder="Apartment/Suite (optional)"
+                          value={form.receiverPremises}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+
+                    <button type="button" onClick={handleChangeAddress} className="btn-cancel-address-form">
+                      Cancel & Search Again
+                    </button>
+                  </div>
+                )}
+              </>
+            </div>
+            )}
+
+            {/* Section D: Sender Information (Display Only) */}
             <div className="form-section">
               <h4 className="section-title">Sender Information (Store)</h4>
               <div className="receiver-info-display">
