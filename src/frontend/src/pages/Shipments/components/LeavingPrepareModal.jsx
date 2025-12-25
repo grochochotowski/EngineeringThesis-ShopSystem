@@ -3,14 +3,14 @@ import Modal from "../../../components/Modal";
 import { api } from "../../../api/apiClient";
 
 export default function LeavingPrepareModal({
-  isOpen,
   onClose,
   onComplete,
   setToast,
   shipment,
-  locations,
 }) {
   const [saving, setSaving] = useState(false);
+
+  // Dimensions state
   const [dimensions, setDimensions] = useState({
     height: "",
     width: "",
@@ -25,48 +25,22 @@ export default function LeavingPrepareModal({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const dropdownRef = useRef(null);
 
-  // Selected products with location tracking
+  // Prepared products with location tracking
   const [preparedProducts, setPreparedProducts] = useState([]);
-  // Structure: [{ productId, sku, name, totalNeeded, inStore, locations: [{ locationId, quantity }] }]
+  // Structure: [{ productId, sku, name, shipmentQuantity, inStore, locationRows: [{ locationId, quantity }] }]
 
-  // Fetch shipment products (if any already added)
+  // Fetch shipment details and existing preparation data
   useEffect(() => {
     if (shipment && shipment.id) {
-      fetchShipmentProducts();
-      fetchShipmentDimensions();
+      loadShipmentData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shipment]);
 
-  // Fetch shipment products
-  const fetchShipmentProducts = async () => {
+  // Load shipment data - check for existing preparation first
+  const loadShipmentData = async () => {
     try {
-      const response = await api.get(`/Shipments/${shipment.id}/products`);
-      if (response && response.length > 0) {
-        // Load products with their stock information
-        const productsWithStock = await Promise.all(
-          response.map(async (sp) => {
-            const stockData = await fetchProductStock(sp.productId);
-            return {
-              productId: sp.productId,
-              sku: sp.productSKU,
-              name: sp.productName,
-              totalNeeded: sp.quantity,
-              inStore: stockData.totalQuantity,
-              locations: [], // Will be populated from preparation data if exists
-            };
-          })
-        );
-        setPreparedProducts(productsWithStock);
-      }
-    } catch (err) {
-      console.error("Failed to fetch shipment products", err);
-    }
-  };
-
-  // Fetch shipment dimensions if already set
-  const fetchShipmentDimensions = async () => {
-    try {
+      // Always load dimensions
       const details = await api.get(`/Shipments/${shipment.id}`);
       if (details) {
         setDimensions({
@@ -76,18 +50,73 @@ export default function LeavingPrepareModal({
           weight: details.weight || "",
         });
       }
+
+      // Check if preparation data exists
+      let hasExistingPreparation = false;
+      try {
+        const preparationData = await api.get(`/Shipments/${shipment.id}/preparation`);
+        if (preparationData && preparationData.length > 0) {
+          // Map existing preparation data to preparedProducts format
+          const productsWithPreparation = await Promise.all(
+            preparationData.map(async (prep) => {
+              const stockData = await fetchProductStock(prep.productId);
+              return {
+                productId: prep.productId,
+                sku: prep.productSku,
+                name: prep.productName,
+                shipmentQuantity: prep.totalDeclaredQuantity,
+                inStore: stockData.totalQuantity,
+                warehouseLocations: stockData.locations,
+                locationRows: prep.sourceLocations.map(loc => ({
+                  locationId: loc.locationId.toString(),
+                  quantity: loc.quantity.toString(),
+                })),
+              };
+            })
+          );
+          setPreparedProducts(productsWithPreparation);
+          hasExistingPreparation = true;
+          console.log("Loaded existing preparation data:", productsWithPreparation);
+        }
+      } catch (err) {
+        console.log("No existing preparation data found, will load from shipment products");
+      }
+
+      // If no existing preparation, load from shipment products
+      if (!hasExistingPreparation) {
+        const shipmentProducts = await api.get(`/Shipments/${shipment.id}/products`);
+        if (shipmentProducts && shipmentProducts.length > 0) {
+          const productsWithStock = await Promise.all(
+            shipmentProducts.map(async (sp) => {
+              const stockData = await fetchProductStock(sp.productId);
+              return {
+                productId: sp.productId,
+                sku: sp.productSKU,
+                name: sp.productName,
+                shipmentQuantity: sp.quantity,
+                inStore: stockData.totalQuantity,
+                warehouseLocations: stockData.locations,
+                locationRows: [{ locationId: "", quantity: "" }], // Start with one empty row
+              };
+            })
+          );
+          setPreparedProducts(productsWithStock);
+          console.log("Loaded fresh shipment products:", productsWithStock);
+        }
+      }
     } catch (err) {
-      console.error("Failed to fetch shipment dimensions", err);
+      console.error("Failed to load shipment data", err);
+      setToast({ type: "error", message: "Failed to load shipment details" });
     }
   };
 
-  // Fetch product stock
+  // Fetch product stock and locations
   const fetchProductStock = async (productId) => {
     try {
-      const response = await api.get(`/products-in-warehouse/${productId}`);
+      const response = await api.get(`/products-in-warehouse/product/${productId}`);
       return {
-        totalQuantity: response.totalQuantity || 0,
-        locations: response.locations || [],
+        totalQuantity: response.reduce((sum, loc) => sum + loc.quantity, 0),
+        locations: response, // Array of { locationId, locationCode, zone, col, shelf, quantity }
       };
     } catch (err) {
       console.error("Failed to fetch product stock", err);
@@ -101,7 +130,7 @@ export default function LeavingPrepareModal({
     setDimensions(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle scan input change
+  // Handle scan input change - search products
   const handleScanInputChange = async (e) => {
     const value = e.target.value;
     setScanInput(value);
@@ -136,24 +165,29 @@ export default function LeavingPrepareModal({
   const handleSelectProduct = async (product) => {
     // Check if product already added
     if (preparedProducts.find(p => p.productId === product.productId)) {
-      setToast({ type: "warning", message: "Product already added" });
+      setToast({ type: "warning", message: "Product already in preparation list" });
       setScanInput("");
       setShowDropdown(false);
       return;
     }
 
-    // Fetch full stock data
+    // Fetch full stock data with locations
     const stockData = await fetchProductStock(product.productId);
+    console.log("📍 Stock data for product:", stockData);
+    console.log("📍 Warehouse locations:", stockData.locations);
 
-    // Add product to prepared list
+    // Add product to prepared list (with fallback for different property names)
     const newProduct = {
       productId: product.productId,
-      sku: product.productSKU,
-      name: product.productName,
-      totalNeeded: 0, // User will set via location quantities
+      sku: product.productSKU || product.sku || product.SKU || product.productSku || "N/A",
+      name: product.productName || product.name || product.Name || "Unknown",
+      shipmentQuantity: 0, // User added product (not in original shipment)
       inStore: stockData.totalQuantity,
-      locations: [{ locationId: "", quantity: "" }], // Start with one empty location input
+      warehouseLocations: stockData.locations,
+      locationRows: [{ locationId: "", quantity: "" }], // Start with one empty row
     };
+
+    console.log("📍 New product created:", newProduct);
 
     setPreparedProducts(prev => [...prev, newProduct]);
     setScanInput("");
@@ -164,10 +198,11 @@ export default function LeavingPrepareModal({
   const handleKeyDown = (e) => {
     if (!showDropdown || productSuggestions.length === 0) {
       if (e.key === "Enter" && scanInput) {
-        // Try to find exact SKU match
-        const exactMatch = productSuggestions.find(p =>
-          p.productSKU.toLowerCase() === scanInput.toLowerCase()
-        );
+        // Try to find exact SKU match and auto-add
+        const exactMatch = productSuggestions.find(p => {
+          const sku = p.productSKU || p.sku || p.SKU || p.productSku || "";
+          return sku.toLowerCase() === scanInput.toLowerCase();
+        });
         if (exactMatch) {
           handleSelectProduct(exactMatch);
         }
@@ -198,40 +233,43 @@ export default function LeavingPrepareModal({
     }
   };
 
-  // Add location input for a product
-  const handleAddLocationInput = (productId) => {
+  // Add location row for a product
+  const handleAddLocationRow = (productId) => {
     setPreparedProducts(prev => prev.map(p => {
       if (p.productId === productId) {
         return {
           ...p,
-          locations: [...p.locations, { locationId: "", quantity: "" }],
+          locationRows: [...p.locationRows, { locationId: "", quantity: "" }],
         };
       }
       return p;
     }));
   };
 
-  // Remove location input for a product
-  const handleRemoveLocationInput = (productId, index) => {
+  // Remove location row for a product
+  const handleRemoveLocationRow = (productId, index) => {
     setPreparedProducts(prev => prev.map(p => {
       if (p.productId === productId) {
-        const newLocations = p.locations.filter((_, i) => i !== index);
+        const newRows = p.locationRows.filter((_, i) => i !== index);
         return {
           ...p,
-          locations: newLocations.length > 0 ? newLocations : [{ locationId: "", quantity: "" }],
+          locationRows: newRows.length > 0 ? newRows : [{ locationId: "", quantity: "" }],
         };
       }
       return p;
     }));
   };
 
-  // Handle location change for a product
-  const handleLocationChange = (productId, index, field, value) => {
+  // Handle location or quantity change
+  const handleLocationRowChange = (productId, index, field, value) => {
+    console.log(`🔄 Location row change: productId=${productId}, index=${index}, field=${field}, value=${value}, valueType=${typeof value}`);
+
     setPreparedProducts(prev => prev.map(p => {
       if (p.productId === productId) {
-        const newLocations = [...p.locations];
-        newLocations[index] = { ...newLocations[index], [field]: value };
-        return { ...p, locations: newLocations };
+        const newRows = [...p.locationRows];
+        newRows[index] = { ...newRows[index], [field]: value };
+        console.log(`🔄 Updated row:`, newRows[index]);
+        return { ...p, locationRows: newRows };
       }
       return p;
     }));
@@ -242,68 +280,120 @@ export default function LeavingPrepareModal({
     setPreparedProducts(prev => prev.filter(p => p.productId !== productId));
   };
 
-  // Calculate total quantity from locations for a product
-  const calculateTotalFromLocations = (product) => {
-    return product.locations.reduce((sum, loc) => {
-      const qty = parseInt(loc.quantity) || 0;
+  // Calculate total quantity from location rows
+  const calculateTotalFromRows = (product) => {
+    return product.locationRows.reduce((sum, row) => {
+      const qty = parseInt(row.quantity) || 0;
       return sum + qty;
     }, 0);
   };
 
-  // Get available quantity at a location (total - what's being prepared)
-  const getAvailableAtLocation = (productId, locationId) => {
-    if (!locationId) return 0;
+  // Get available quantity at a specific location for a product
+  // excludeRowIndex: optional parameter to exclude a specific row from the calculation (when validating that row itself)
+  const getAvailableAtLocation = (product, locationId, excludeRowIndex = null) => {
+    console.log("🔍 getAvailableAtLocation called:");
+    console.log("  Product:", product.name, product.sku);
+    console.log("  Location ID:", locationId, "Type:", typeof locationId);
+    console.log("  Exclude row index:", excludeRowIndex);
 
-    const product = preparedProducts.find(p => p.productId === productId);
-    if (!product) return 0;
+    if (!locationId) {
+      console.log("  ❌ No locationId, returning 0");
+      return 0;
+    }
 
-    // Find location stock
-    const location = locations.find(l => l.id === parseInt(locationId));
-    if (!location) return 0;
+    const warehouseLoc = product.warehouseLocations.find(l => l.locationId === parseInt(locationId));
+    console.log("  Warehouse Location found:", warehouseLoc);
 
-    // Calculate how much is already allocated to this product from this location
-    const allocatedFromThisLocation = product.locations
-      .filter(l => l.locationId === locationId)
-      .reduce((sum, l) => sum + (parseInt(l.quantity) || 0), 0);
+    if (!warehouseLoc) {
+      console.log("  ❌ No warehouse location found, returning 0");
+      return 0;
+    }
 
-    // Get product quantity at this location
-    // TODO: This would need a proper endpoint to get product quantity per location
-    // For now, using a simplified approach
-    return product.inStore; // Simplified - should be location-specific
+    console.log("  Total in warehouse at this location:", warehouseLoc.quantity);
+
+    // Calculate how much is already allocated from this location in OTHER rows
+    // Exclude the current row being validated (excludeRowIndex) to avoid counting it against itself
+    console.log("  All location rows for this product:", product.locationRows);
+
+    const matchingRows = product.locationRows.filter((row, index) => {
+      const isExcluded = excludeRowIndex !== null && index === excludeRowIndex;
+      const match = String(row.locationId) === String(locationId) && !isExcluded;
+      console.log(`    Row[${index}] locationId: ${row.locationId} (${typeof row.locationId}), comparing to ${locationId} (${typeof locationId}), excluded: ${isExcluded}, match: ${match}, quantity: ${row.quantity}`);
+      return match;
+    });
+
+    const allocatedFromThisLocation = matchingRows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
+
+    console.log("  Matching rows (excluding current):", matchingRows);
+    console.log("  Allocated from this location (in other rows):", allocatedFromThisLocation);
+
+    const available = warehouseLoc.quantity - allocatedFromThisLocation;
+    console.log("  ✅ Available:", available, "(", warehouseLoc.quantity, "-", allocatedFromThisLocation, ")");
+
+    return available;
   };
 
-  // Validate preparation
+  // Validate preparation before saving/finishing
   const validatePreparation = () => {
     // Check dimensions
     if (!dimensions.height || !dimensions.width || !dimensions.length || !dimensions.weight) {
-      setToast({ type: "error", message: "All package dimensions are required" });
+      setToast({ type: "error", message: "All package dimensions are required (Height, Width, Length, Weight)" });
       return false;
     }
 
     if (preparedProducts.length === 0) {
-      setToast({ type: "error", message: "At least one product must be added" });
+      setToast({ type: "error", message: "At least one product must be added to the preparation" });
       return false;
     }
 
     // Validate each product
     for (const product of preparedProducts) {
-      const total = calculateTotalFromLocations(product);
+      const totalPrepared = calculateTotalFromRows(product);
 
-      if (total <= 0) {
-        setToast({ type: "error", message: `Product ${product.sku}: quantity must be greater than 0` });
+      // Check if any quantity was entered
+      if (totalPrepared <= 0) {
+        setToast({ type: "error", message: `Product "${product.sku}": Total quantity must be greater than 0` });
         return false;
       }
 
-      if (total > product.inStore) {
-        setToast({ type: "error", message: `Product ${product.sku}: quantity (${total}) exceeds in-store stock (${product.inStore})` });
+      // Check if total doesn't exceed in-store stock
+      if (totalPrepared > product.inStore) {
+        setToast({ type: "error", message: `Product "${product.sku}": Prepared quantity (${totalPrepared}) exceeds available stock (${product.inStore})` });
         return false;
       }
 
-      // Check if all locations are filled
-      for (const loc of product.locations) {
-        if (!loc.locationId || !loc.quantity) {
-          setToast({ type: "error", message: `Product ${product.sku}: all location fields must be filled` });
+      // Check that all rows with quantity > 0 have a location selected
+      console.log("📦 Validating product:", product.name, product.sku);
+      console.log("   Location rows:", product.locationRows);
+
+      for (let rowIndex = 0; rowIndex < product.locationRows.length; rowIndex++) {
+        const row = product.locationRows[rowIndex];
+        const qty = parseInt(row.quantity) || 0;
+        console.log(`   Checking row[${rowIndex}]: locationId=${row.locationId}, quantity=${row.quantity}, parsed=${qty}`);
+
+        if (qty > 0 && !row.locationId) {
+          console.log("   ❌ ERROR: Quantity entered but no location selected");
+          setToast({ type: "error", message: `Product "${product.sku}": Please select a location for all quantities` });
           return false;
+        }
+
+        // Check that quantity doesn't exceed available at location
+        // Pass rowIndex to exclude this row from "already allocated" calculation
+        if (qty > 0 && row.locationId) {
+          console.log(`   Checking if qty ${qty} exceeds available at location ${row.locationId} (excluding row ${rowIndex})`);
+          const available = getAvailableAtLocation(product, row.locationId, rowIndex);
+          console.log(`   qty (${qty}) > available (${available})? ${qty > available}`);
+
+          if (qty > available) {
+            const loc = product.warehouseLocations.find(l => l.locationId === parseInt(row.locationId));
+            const locCode = loc ? `${loc.zone}-${loc.col}-${loc.shelf}` : row.locationId;
+            console.log(`   ❌ ERROR: Quantity ${qty} exceeds available ${available} at location ${locCode}`);
+            console.log(`   Location details:`, loc);
+            setToast({ type: "error", message: `Product "${product.sku}": Quantity at location ${locCode} exceeds available stock (${available} available)` });
+            return false;
+          } else {
+            console.log(`   ✅ OK: Quantity ${qty} is within available ${available}`);
+          }
         }
       }
     }
@@ -311,60 +401,120 @@ export default function LeavingPrepareModal({
     return true;
   };
 
-  // Handle Save (keep in preparation)
+  // Handle Save (keep status as "In Preparation")
   const handleSave = async () => {
-    if (!validatePreparation()) return;
+    // For "Save Progress", we don't require dimensions - only validate products
+    if (preparedProducts.length === 0) {
+      setToast({ type: "error", message: "At least one product must be added to the preparation" });
+      return false;
+    }
+
+    // Validate each product (same as validatePreparation but without dimension check)
+    for (const product of preparedProducts) {
+      const totalPrepared = calculateTotalFromRows(product);
+
+      if (totalPrepared <= 0) {
+        setToast({ type: "error", message: `Product "${product.sku}": Total quantity must be greater than 0` });
+        return false;
+      }
+
+      if (totalPrepared > product.inStore) {
+        setToast({ type: "error", message: `Product "${product.sku}": Prepared quantity (${totalPrepared}) exceeds available stock (${product.inStore})` });
+        return false;
+      }
+
+      for (let rowIndex = 0; rowIndex < product.locationRows.length; rowIndex++) {
+        const row = product.locationRows[rowIndex];
+        const qty = parseInt(row.quantity) || 0;
+
+        if (qty > 0 && !row.locationId) {
+          setToast({ type: "error", message: `Product "${product.sku}": Please select a location for all quantities` });
+          return false;
+        }
+
+        if (qty > 0 && row.locationId) {
+          // Pass rowIndex to exclude this row from "already allocated" calculation
+          const available = getAvailableAtLocation(product, row.locationId, rowIndex);
+
+          if (qty > available) {
+            const loc = product.warehouseLocations.find(l => l.locationId === parseInt(row.locationId));
+            const locCode = loc ? `${loc.zone}-${loc.col}-${loc.shelf}` : row.locationId;
+            setToast({ type: "error", message: `Product "${product.sku}": Quantity at location ${locCode} exceeds available stock (${available} available)` });
+            return false;
+          }
+        }
+      }
+    }
 
     try {
       setSaving(true);
 
-      // Update shipment dimensions
-      await api.put(`/Shipments/${shipment.id}`, {
-        height: parseFloat(dimensions.height),
-        width: parseFloat(dimensions.width),
-        length: parseFloat(dimensions.length),
-        weight: parseFloat(dimensions.weight),
-      });
+      // Build payload for save progress
+      // isFinishing: false -> allows partial quantities, no strict validation, status stays InPreparation
+      const payload = {
+        isFinishing: false,
+        preparedProducts: preparedProducts.map(p => ({
+          productId: p.productId,
+          sourceLocations: p.locationRows
+            .filter(row => parseInt(row.quantity) > 0 && row.locationId)
+            .map(row => ({
+              locationId: parseInt(row.locationId),
+              quantity: parseInt(row.quantity),
+            })),
+        })),
+        // Include dimensions if user has entered them (optional for "Save Progress")
+        ...(dimensions.weight !== "" && { weight: parseFloat(dimensions.weight) }),
+        ...(dimensions.length !== "" && { length: parseFloat(dimensions.length) }),
+        ...(dimensions.width !== "" && { width: parseFloat(dimensions.width) }),
+        ...(dimensions.height !== "" && { height: parseFloat(dimensions.height) }),
+      };
 
-      // Save product preparation data (without completing)
-      // Note: This may require a custom endpoint or storing in local state
-      setToast({ type: "success", message: "Preparation saved successfully" });
+      await api.post(`/Shipments/${shipment.id}/complete-preparation`, payload);
+
+      setToast({ type: "success", message: "Preparation progress saved successfully" });
       onComplete();
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({ type: "error", message: "Failed to save preparation" });
+      setToast({
+        type: "error",
+        message: err.response?.data?.message || "Failed to save preparation",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle Finish Preparation
+  // Handle Finish Preparation (save and change status to "Awaiting Pickup")
   const handleFinishPreparation = async () => {
     if (!validatePreparation()) return;
 
     try {
       setSaving(true);
 
-      // Prepare payload for complete preparation endpoint
+      // Build payload for complete preparation
+      // isFinishing: true -> strict validation, requires all dimensions, changes status to AwaitingPickup
       const payload = {
-        height: parseFloat(dimensions.height),
-        width: parseFloat(dimensions.width),
-        length: parseFloat(dimensions.length),
-        weight: parseFloat(dimensions.weight),
-        products: preparedProducts.map(p => ({
+        isFinishing: true,
+        preparedProducts: preparedProducts.map(p => ({
           productId: p.productId,
-          locationQuantities: p.locations.map(loc => ({
-            locationId: parseInt(loc.locationId),
-            quantity: parseInt(loc.quantity),
-          })),
+          sourceLocations: p.locationRows
+            .filter(row => parseInt(row.quantity) > 0 && row.locationId)
+            .map(row => ({
+              locationId: parseInt(row.locationId),
+              quantity: parseInt(row.quantity),
+            })),
         })),
+        weight: parseFloat(dimensions.weight),
+        length: parseFloat(dimensions.length),
+        width: parseFloat(dimensions.width),
+        height: parseFloat(dimensions.height),
       };
 
-      // Call the complete preparation endpoint
+      // Call complete preparation endpoint
       await api.post(`/Shipments/${shipment.id}/complete-preparation`, payload);
 
-      setToast({ type: "success", message: "Shipment preparation completed successfully" });
+      setToast({ type: "success", message: "Shipment preparation completed successfully! Status changed to Awaiting Pickup." });
       onComplete();
       onClose();
     } catch (err) {
@@ -379,196 +529,263 @@ export default function LeavingPrepareModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Prepare Shipment" size="large">
-      <div className="prepare-modal-content">
-        {/* Package Dimensions Section */}
-        <div className="dimensions-section">
-          <h4>Package Dimensions</h4>
-          <div className="dimensions-inputs">
-            <div className="form-group">
-              <label>Height (cm): *</label>
+    <Modal
+      title="Prepare Shipment for Delivery"
+      onClose={onClose}
+      wide
+    >
+      <div className="collection-modal">
+        {/* Section 1: Dimensions */}
+        <div className="scan-panel">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", width: "100%" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                Height (cm) *
+              </label>
               <input
                 type="number"
                 name="height"
                 value={dimensions.height}
                 onChange={handleDimensionChange}
-                placeholder="Height"
+                placeholder="0.0"
                 min="0"
                 step="0.1"
+                style={{ width: "100%" }}
               />
             </div>
-            <div className="form-group">
-              <label>Width (cm): *</label>
+            <div>
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                Width (cm) *
+              </label>
               <input
                 type="number"
                 name="width"
                 value={dimensions.width}
                 onChange={handleDimensionChange}
-                placeholder="Width"
+                placeholder="0.0"
                 min="0"
                 step="0.1"
+                style={{ width: "100%" }}
               />
             </div>
-            <div className="form-group">
-              <label>Length (cm): *</label>
+            <div>
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                Length (cm) *
+              </label>
               <input
                 type="number"
                 name="length"
                 value={dimensions.length}
                 onChange={handleDimensionChange}
-                placeholder="Length"
+                placeholder="0.0"
                 min="0"
                 step="0.1"
+                style={{ width: "100%" }}
               />
             </div>
-            <div className="form-group">
-              <label>Weight (kg): *</label>
+            <div>
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px", fontWeight: 500 }}>
+                Weight (kg) *
+              </label>
               <input
                 type="number"
                 name="weight"
                 value={dimensions.weight}
                 onChange={handleDimensionChange}
-                placeholder="Weight"
+                placeholder="0.0"
                 min="0"
                 step="0.1"
+                style={{ width: "100%" }}
               />
             </div>
           </div>
         </div>
 
-        {/* Product Scanning Section */}
-        <div className="scanning-section">
-          <h4>Add Products</h4>
-          <div className="scan-input-wrapper" ref={dropdownRef}>
-            <input
-              type="text"
-              value={scanInput}
-              onChange={handleScanInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Enter product name or SKU code..."
-              className="scan-input"
-            />
+        {/* Section 2: Product Scanning */}
+        <div className="scan-panel" style={{ position: "relative" }}>
+          <input
+            type="text"
+            placeholder="Scan or type product SKU/name (press Enter for exact SKU match)"
+            value={scanInput}
+            onChange={handleScanInputChange}
+            onKeyDown={handleKeyDown}
+            style={{ flex: 1 }}
+          />
 
-            {/* Dropdown for suggestions */}
-            {showDropdown && productSuggestions.length > 0 && (
-              <div className="product-dropdown">
-                {productSuggestions.map((product, index) => (
-                  <div
-                    key={product.productId}
-                    className={`dropdown-item ${index === highlightedIndex ? "highlighted" : ""}`}
-                    onClick={() => handleSelectProduct(product)}
-                  >
-                    <span className="product-sku">{product.productSKU}</span>
-                    <span className="product-name">{product.productName}</span>
-                    <span className="product-stock">Stock: {product.totalQuantity}</span>
+          {/* Dropdown for product suggestions */}
+          {showDropdown && productSuggestions.length > 0 && (
+            <div className="product-suggestions" ref={dropdownRef}>
+              {productSuggestions.map((product, index) => (
+                <div
+                  key={product.productId}
+                  className={`product-suggestion-item ${index === highlightedIndex ? "highlighted" : ""}`}
+                  onClick={() => handleSelectProduct(product)}
+                >
+                  <div className="product-suggestion-main">
+                    <strong>{product.productName || product.name || product.Name || "Unknown"}</strong>
+                    <span className="product-sku">{product.productSKU || product.sku || product.SKU || product.productSku || "N/A"}</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Prepared Products List */}
-        <div className="prepared-products-section">
-          <h4>Products to Pack</h4>
-          {preparedProducts.length === 0 ? (
-            <p className="no-products">No products added yet. Search and select products above.</p>
-          ) : (
-            <div className="products-list">
-              {preparedProducts.map(product => {
-                const totalQty = calculateTotalFromLocations(product);
-                const isValid = totalQty > 0 && totalQty <= product.inStore;
-
-                return (
-                  <div key={product.productId} className="product-card">
-                    <div className="product-header">
-                      <div className="product-info">
-                        <span className="product-name">{product.name}</span>
-                        <span className="product-sku">{product.sku}</span>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveProduct(product.productId)}
-                        className="btn-remove"
-                      >
-                        ×
-                      </button>
-                    </div>
-
-                    <div className="product-quantities">
-                      <span>Shipment Qty: <strong>{totalQty}</strong></span>
-                      <span className={totalQty > product.inStore ? "error" : ""}>
-                        In Store: <strong>{product.inStore}</strong>
-                      </span>
-                    </div>
-
-                    {/* Location Inputs */}
-                    <div className="location-inputs">
-                      {product.locations.map((loc, index) => (
-                        <div key={index} className="location-row">
-                          <div className="form-group">
-                            <label>Quantity:</label>
-                            <input
-                              type="number"
-                              value={loc.quantity}
-                              onChange={(e) => handleLocationChange(product.productId, index, "quantity", e.target.value)}
-                              placeholder="Qty"
-                              min="1"
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>From Location:</label>
-                            <select
-                              value={loc.locationId}
-                              onChange={(e) => handleLocationChange(product.productId, index, "locationId", e.target.value)}
-                            >
-                              <option value="">Select location</option>
-                              {locations.map(location => (
-                                <option key={location.id} value={location.id}>
-                                  {location.locationCode} [{location.availableQuantity || "N/A"}]
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          {product.locations.length > 1 && (
-                            <button
-                              onClick={() => handleRemoveLocationInput(product.productId, index)}
-                              className="btn-remove-location"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      ))}
-
-                      <button
-                        onClick={() => handleAddLocationInput(product.productId)}
-                        className="btn-add-location"
-                      >
-                        + Add Another Location
-                      </button>
-                    </div>
-
-                    {!isValid && totalQty > 0 && (
-                      <div className="validation-error">
-                        Quantity exceeds available stock!
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  <span className="product-stock">Stock: {product.totalQuantity || product.quantity || 0}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Modal Actions */}
-        <div className="modal-actions">
-          <button onClick={onClose} className="btn-secondary" disabled={saving}>
-            Cancel
+        {/* Section 3: Product List */}
+        <div className="collection-products-wrapper">
+          {preparedProducts.length === 0 ? (
+            <p style={{ textAlign: "center", color: "#666", fontStyle: "italic", padding: "2rem" }}>
+              No products added yet. Scan or search for products above to begin preparation.
+            </p>
+          ) : (
+            preparedProducts.map(product => {
+              const totalPrepared = calculateTotalFromRows(product);
+
+              return (
+                <div key={product.productId} className="collection-product-section" style={{ backgroundColor: "#f8f9fa" }}>
+                  <div className="product-header">
+                    <div className="product-info">
+                      <strong>{product.name}</strong>
+                      <span className="product-sku-badge">{product.sku}</span>
+                    </div>
+                    <div className="product-quantities">
+                      {product.shipmentQuantity > 0 && (
+                        <div className="quantity-badge shipment-qty">
+                          <span className="qty-label">Shipment Qty</span>
+                          <span className="qty-value">{product.shipmentQuantity}</span>
+                        </div>
+                      )}
+                      <div className="quantity-badge in-store-qty">
+                        <span className="qty-label">In Store</span>
+                        <span className="qty-value">{product.inStore}</span>
+                      </div>
+                      <div className="quantity-badge collected-qty">
+                        <span className="qty-label">To Pack</span>
+                        <span className="qty-value">{totalPrepared}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveProduct(product.productId)}
+                      className="btn-remove-location"
+                      title="Remove product from preparation"
+                      style={{ marginLeft: "8px" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="location-rows">
+                    {/* Header labels shown once above all location rows */}
+                    <div className="location-rows-header">
+                      <div className="location-header-quantity">Quantity</div>
+                      <div className="location-header-at"></div>
+                      <div className="location-header-location">Location</div>
+                      <div className="location-header-remove"></div>
+                    </div>
+
+                    {product.locationRows.map((row, rowIndex) => {
+                      // Pass rowIndex to exclude this row from "already allocated" calculation
+                      const available = row.locationId ? getAvailableAtLocation(product, row.locationId, rowIndex) : 0;
+
+                      // Get already selected location IDs in other rows to filter them out
+                      const selectedLocationIds = product.locationRows
+                        .filter((_, idx) => idx !== rowIndex) // Exclude current row
+                        .map(r => r.locationId)
+                        .filter(Boolean); // Remove empty values
+
+                      return (
+                        <div key={rowIndex} className="location-row-compact">
+                          <div className="location-row-content-compact">
+                            <div className="quantity-input-wrapper-compact">
+                              <input
+                                type="number"
+                                min="0"
+                                value={row.quantity}
+                                onChange={(e) => handleLocationRowChange(product.productId, rowIndex, "quantity", e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddLocationRow(product.productId);
+                                  }
+                                }}
+                                className="location-quantity-input"
+                                placeholder="0"
+                              />
+                            </div>
+                            <span className="location-at">@</span>
+                            <div className="location-select-wrapper-compact">
+                              <select
+                                value={row.locationId || ""}
+                                onChange={(e) => {
+                                  console.log("🏪 Location select changed:", e.target.value);
+                                  console.log("🏪 Selected option:", e.target.options[e.target.selectedIndex]);
+                                  handleLocationRowChange(product.productId, rowIndex, "locationId", e.target.value);
+                                }}
+                                className="location-select"
+                              >
+                                <option value="">Select location</option>
+                                {product.warehouseLocations
+                                  .filter(loc => !selectedLocationIds.includes(String(loc.locationId)))
+                                  .map((loc, locIdx) => {
+                                    if (locIdx === 0) {
+                                      console.log("🏪 Sample location object:", loc);
+                                      console.log("🏪 loc.locationId:", loc.locationId, "type:", typeof loc.locationId);
+                                    }
+                                    return (
+                                      <option key={loc.locationId || locIdx} value={loc.locationId}>
+                                        {loc.zone}-{loc.col}-{loc.shelf} - {loc.quantity} items
+                                      </option>
+                                    );
+                                  })}
+                              </select>
+                            </div>
+                            {product.locationRows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLocationRow(product.productId, rowIndex)}
+                                className="btn-remove-location"
+                                title="Remove this location row"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddLocationRow(product.productId)}
+                    className="btn-add-location"
+                  >
+                    Add Location
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Section 4: Action Buttons */}
+        <div style={{ display: "flex", gap: "10px", paddingTop: "10px", borderTop: "1px solid #e2e8f0" }}>
+          <button
+            onClick={handleSave}
+            className="btn-action"
+            disabled={saving || preparedProducts.length === 0}
+            style={{ flex: 1, background: "#6b7280", color: "white" }}
+          >
+            {saving ? "Saving..." : "Save Progress"}
           </button>
-          <button onClick={handleSave} className="btn-secondary" disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </button>
-          <button onClick={handleFinishPreparation} className="btn-primary" disabled={saving}>
+          <button
+            onClick={handleFinishPreparation}
+            className="btn-action btn-primary"
+            disabled={saving || preparedProducts.length === 0}
+            style={{ flex: 1 }}
+          >
             {saving ? "Finishing..." : "Finish Preparation"}
           </button>
         </div>

@@ -43,7 +43,15 @@ namespace Backend.Api.Objects.DTOs
         public List<CreateShipmentProductPreparationDto> PreparedProducts { get; set; } = new();
 
         /// <summary>
-        /// Package dimensions - required when finishing preparation
+        /// Indicates if this is the final preparation (true) or saving intermediate progress (false).
+        /// When true: strict validation enforced, status changes to AwaitingPickup, dimensions required.
+        /// When false: allows partial quantities, status remains InPreparation, dimensions optional.
+        /// </summary>
+        [Required]
+        public bool IsFinishing { get; set; }
+
+        /// <summary>
+        /// Package dimensions - required when finishing preparation (IsFinishing = true)
         /// </summary>
         [Range(0.01, double.MaxValue, ErrorMessage = "Weight must be positive")]
         public decimal? Weight { get; set; }

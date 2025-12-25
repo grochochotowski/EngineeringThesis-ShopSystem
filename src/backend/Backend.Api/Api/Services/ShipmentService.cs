@@ -9,7 +9,12 @@ namespace Backend.Api.Api.Services
     public class ShipmentService : IShipmentService
     {
         private readonly AppDbContext _db;
-        public ShipmentService(AppDbContext db) => _db = db;
+        private readonly IAddressService _addressService;
+        public ShipmentService(AppDbContext db, IAddressService addressService)
+        {
+            _db = db;
+            _addressService = addressService;
+        }
 
         // --- GET ALL SHIPMENTS (pagination and filters) ---
         public async Task<PagedResult<GetShipmentListItemDto>> GetAllAsync(
@@ -95,7 +100,13 @@ namespace Backend.Api.Api.Services
                 Width = s.Width,
                 Height = s.Height,
                 ProductCount = s.ShipmentProducts?.Count ?? 0,
-                TotalQuantity = s.ShipmentProducts?.Sum(sp => sp.Quantity) ?? 0
+                // For outgoing shipments, use CollectedQuantity when Quantity is 0 (extra products added during preparation)
+                // For incoming shipments, use Quantity (declared quantity)
+                TotalQuantity = s.ShipmentProducts?.Sum(sp =>
+                    sp.Quantity == 0 && sp.CollectedQuantity.HasValue
+                        ? sp.CollectedQuantity.Value
+                        : sp.Quantity
+                ) ?? 0
             }).ToList();
 
             // Return PagedResult manually
@@ -203,6 +214,8 @@ namespace Backend.Api.Api.Services
         public async Task<GetShipmentDto> CreateAsync(CreateShipmentDto dto, CancellationToken ct = default)
         {
             // Validate addresses if provided
+            // Note: Address IDs are validated by checking if they exist in the database
+            // If the ID is not found, throw an error
             if (dto.SenderAddressId.HasValue)
             {
                 var senderExists = await _db.Addresses.AnyAsync(a => a.Id == dto.SenderAddressId.Value, ct);
@@ -581,7 +594,57 @@ namespace Backend.Api.Api.Services
             if (shipment.Status != ShipmentStatus.InPreparation)
                 throw new InvalidOperationException($"Cannot prepare shipment with status {shipment.Status}. Only shipments in preparation can be prepared.");
 
+            // Use explicit IsFinishing flag to determine operation mode
+            bool isFinishingPreparation = dto.IsFinishing;
+
+            // Validate dimensions when finishing preparation
+            if (isFinishingPreparation)
+            {
+                if (!dto.Weight.HasValue || !dto.Length.HasValue || !dto.Width.HasValue || !dto.Height.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "All dimensions (Weight, Length, Width, Height) are required when finishing preparation.");
+                }
+            }
+
+            // When saving progress, we need to restore previous preparation BEFORE validation
+            // This ensures we validate against the correct warehouse state
+            if (!isFinishingPreparation)
+            {
+                // For "Save Progress": First, restore inventory from previous preparation (if any)
+                var existingPreparationRecords = await _db.ShipmentProductLocations
+                    .Where(spl => spl.ShipmentId == shipmentId)
+                    .ToListAsync(ct);
+
+                foreach (var record in existingPreparationRecords)
+                {
+                    // Restore inventory to warehouse
+                    var warehouseEntry = await _db.ProductsInWarehouse
+                        .FirstOrDefaultAsync(pw => pw.ProductId == record.ProductId
+                            && pw.LocationId == record.LocationId, ct);
+
+                    if (warehouseEntry != null)
+                    {
+                        warehouseEntry.Quantity += record.Quantity;
+                    }
+                    else
+                    {
+                        _db.ProductsInWarehouse.Add(new ProductsInWarehouse
+                        {
+                            ProductId = record.ProductId,
+                            LocationId = record.LocationId,
+                            Quantity = record.Quantity
+                        });
+                    }
+                }
+
+                // Remove existing preparation records
+                _db.ShipmentProductLocations.RemoveRange(existingPreparationRecords);
+            }
+
             // Validate all locations exist and have sufficient inventory
+            // NOTE: For save progress, this validation happens AFTER restoring previous preparation
+            // This ensures we validate against the correct warehouse state
             foreach (var preparedProduct in dto.PreparedProducts)
             {
                 var totalPreparedQty = preparedProduct.SourceLocations.Sum(sl => sl.Quantity);
@@ -590,12 +653,15 @@ namespace Backend.Api.Api.Services
                 var shipmentProduct = shipment.ShipmentProducts
                     .FirstOrDefault(sp => sp.ProductId == preparedProduct.ProductId);
 
-                // If product is in manifest, validate total prepared quantity matches manifest
-                if (shipmentProduct != null && totalPreparedQty != shipmentProduct.Quantity)
+                // If product is in manifest and finishing preparation, validate total prepared quantity matches manifest
+                // When saving progress, allow partial quantities
+                // Only validate products that were in the original manifest (Quantity > 0)
+                if (isFinishingPreparation && shipmentProduct != null && shipmentProduct.Quantity > 0 && totalPreparedQty != shipmentProduct.Quantity)
                 {
                     throw new InvalidOperationException(
                         $"Total prepared quantity ({totalPreparedQty}) for product {preparedProduct.ProductId} " +
-                        $"does not match manifest quantity ({shipmentProduct.Quantity}).");
+                        $"does not match manifest quantity ({shipmentProduct.Quantity}). " +
+                        $"To save partial progress, set IsFinishing to false.");
                 }
 
                 // Note: Products NOT in the original manifest are allowed (extra products added during preparation)
@@ -637,22 +703,49 @@ namespace Backend.Api.Api.Services
                         CollectedQuantity = totalPreparedQty // Store prepared quantity in CollectedQuantity field
                     });
                 }
+                else if (!isFinishingPreparation)
+                {
+                    // When saving progress, update CollectedQuantity to reflect current preparation state
+                    var totalPreparedQty = preparedProduct.SourceLocations.Sum(sl => sl.Quantity);
+                    shipmentProduct.CollectedQuantity = totalPreparedQty;
+                }
 
                 foreach (var sourceLocation in preparedProduct.SourceLocations)
                 {
-                    // Decrease warehouse inventory
-                    var warehouseEntry = await _db.ProductsInWarehouse
-                        .FirstOrDefaultAsync(pw => pw.ProductId == preparedProduct.ProductId
-                            && pw.LocationId == sourceLocation.LocationId, ct);
-
-                    if (warehouseEntry != null)
+                    // Decrease warehouse inventory (only if finishing, already handled for save progress above)
+                    if (isFinishingPreparation)
                     {
-                        warehouseEntry.Quantity -= sourceLocation.Quantity;
+                        var warehouseEntry = await _db.ProductsInWarehouse
+                            .FirstOrDefaultAsync(pw => pw.ProductId == preparedProduct.ProductId
+                                && pw.LocationId == sourceLocation.LocationId, ct);
 
-                        // Remove entry if quantity reaches 0
-                        if (warehouseEntry.Quantity == 0)
+                        if (warehouseEntry != null)
                         {
-                            _db.ProductsInWarehouse.Remove(warehouseEntry);
+                            warehouseEntry.Quantity -= sourceLocation.Quantity;
+
+                            // Remove entry if quantity reaches 0
+                            if (warehouseEntry.Quantity == 0)
+                            {
+                                _db.ProductsInWarehouse.Remove(warehouseEntry);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // For save progress, reduce inventory temporarily
+                        var warehouseEntry = await _db.ProductsInWarehouse
+                            .FirstOrDefaultAsync(pw => pw.ProductId == preparedProduct.ProductId
+                                && pw.LocationId == sourceLocation.LocationId, ct);
+
+                        if (warehouseEntry != null)
+                        {
+                            warehouseEntry.Quantity -= sourceLocation.Quantity;
+
+                            // Remove entry if quantity reaches 0
+                            if (warehouseEntry.Quantity == 0)
+                            {
+                                _db.ProductsInWarehouse.Remove(warehouseEntry);
+                            }
                         }
                     }
 
@@ -669,13 +762,19 @@ namespace Backend.Api.Api.Services
                 }
             }
 
-            // Update shipment dimensions and status
+            // Update shipment dimensions
             if (dto.Weight.HasValue) shipment.Weight = dto.Weight.Value;
             if (dto.Length.HasValue) shipment.Length = dto.Length.Value;
             if (dto.Width.HasValue) shipment.Width = dto.Width.Value;
             if (dto.Height.HasValue) shipment.Height = dto.Height.Value;
 
-            shipment.Status = ShipmentStatus.AwaitingPickup;
+            // Only change status to AwaitingPickup when finishing preparation
+            // When saving progress (IsFinishing = false), status remains InPreparation
+            if (isFinishingPreparation)
+            {
+                shipment.Status = ShipmentStatus.AwaitingPickup;
+            }
+            // else: status remains InPreparation (save progress without completing)
 
             await _db.SaveChangesAsync(ct);
         }

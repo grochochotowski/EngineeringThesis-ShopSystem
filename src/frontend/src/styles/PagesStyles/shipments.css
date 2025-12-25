@@ -299,8 +299,47 @@
 .location-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.2rem;
   margin-bottom: 1rem;
+}
+
+/* Location rows header - shown once above all rows */
+.location-rows-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem 0.5rem 1rem;
+  border-bottom: 2px solid var(--border-muted);
+}
+
+.location-header-quantity {
+  max-width: 150px;
+  min-width: 120px;
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.location-header-at {
+  width: 30px;
+  flex-shrink: 0;
+}
+
+.location-header-location {
+  flex: 2;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.location-header-remove {
+  width: 35px;
+  flex-shrink: 0;
 }
 
 .location-row {
@@ -314,6 +353,17 @@
   align-items: flex-end;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+/* Compact location row - no background, minimal padding */
+.location-row-compact {
+  padding: 0.3rem 1rem;
+}
+
+.location-row-content-compact {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .quantity-input-wrapper,
@@ -338,6 +388,17 @@
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-dark);
+}
+
+/* Compact wrappers - no labels, just inputs */
+.quantity-input-wrapper-compact {
+  flex: 1;
+  max-width: 150px;
+  min-width: 120px;
+}
+
+.location-select-wrapper-compact {
+  flex: 2;
 }
 
 .location-quantity-input {
