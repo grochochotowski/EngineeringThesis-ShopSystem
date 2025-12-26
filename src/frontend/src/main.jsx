@@ -17,6 +17,7 @@ const NotFound = lazy(() => import('./pages/ErrorPages/NotFound.jsx'))
 const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const POS = lazy(() => import('./pages/POS.jsx'));
+const SalesDocuments = lazy(() => import('./pages/Sales/Documents.jsx'));
 
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
 const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
@@ -66,6 +67,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
                     <POS />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/sales/documents',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                    <SalesDocuments />
                 </ProtectedRoute>
             </PrivateRoute>
         ),
