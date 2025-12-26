@@ -1,5 +1,19 @@
 /* Sales Documents Page Styles */
 
+/* Filters content inside sidebar */
+.filters-content {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.filters-content h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+}
+
 /* Filter group styling */
 .filter-group {
   display: flex;
@@ -33,132 +47,107 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-/* Document items list in details panel */
-.document-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+/* Document Details Modal */
+.document-details-modal {
   padding: 0.5rem 0;
-  margin-top: 0.5rem;
 }
 
-.document-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.6rem 0.8rem;
-  background: var(--bg-hover);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid var(--accent-main);
-}
-
-.document-item .item-name {
-  font-weight: 600;
-  font-size: 0.95rem;
+.document-details-modal h3 {
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.8rem;
   color: var(--text-dark);
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
 }
 
-.document-item .item-details {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-family: 'Courier New', monospace;
+.document-details-modal h3:first-child {
+  margin-top: 0;
 }
 
-/* Document payments list in details panel */
-.document-payments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.document-details-modal ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.8rem;
+}
+
+.document-details-modal ul li {
   padding: 0.5rem 0;
-  margin-top: 0.5rem;
-}
-
-.document-payment {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.8rem;
-  background: var(--bg-card);
-  border-radius: var(--radius-sm);
-  border: 1px solid #e2e8f0;
-}
-
-.document-payment .payment-type {
-  font-weight: 500;
   font-size: 0.9rem;
   color: var(--text-dark);
-  text-transform: capitalize;
 }
 
-.document-payment .payment-amount {
+.document-details-modal ul li strong {
   font-weight: 600;
-  font-size: 0.95rem;
+  color: var(--text-dark);
+  margin-right: 0.5rem;
+}
+
+/* Tables in modal */
+.items-table,
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.items-table th,
+.payments-table th {
+  background: #f8fafc;
+  padding: 0.7rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dark);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.items-table td,
+.payments-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: var(--text-dark);
+}
+
+.items-table tbody tr:hover,
+.payments-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.items-table td:last-child,
+.payments-table td:last-child {
+  font-weight: 600;
   color: var(--accent-main);
-  font-family: 'Courier New', monospace;
 }
 
-/* Custom button styles for View and Print */
-.btn-view {
-  background: var(--accent-main);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-view:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.btn-view:disabled {
-  background: #cbd5e1;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
+/* Print button styling */
 .btn-print {
   background: #10b981;
   color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
-.btn-print:hover:not(:disabled) {
+.btn-print:hover:not(.disabled) {
   background: #059669;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.btn-print:disabled {
-  background: #cbd5e1;
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 /* Additional responsive styling */
 @media (max-width: 768px) {
-  .document-item {
-    padding: 0.5rem 0.6rem;
+  .document-details-modal ul {
+    grid-template-columns: 1fr;
   }
 
-  .document-payment {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
+  .items-table,
+  .payments-table {
+    font-size: 0.85rem;
+  }
+
+  .items-table th,
+  .items-table td,
+  .payments-table th,
+  .payments-table td {
+    padding: 0.5rem 0.7rem;
   }
 }

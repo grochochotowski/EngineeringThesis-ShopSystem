@@ -10,6 +10,16 @@ Accept: application/json
 # SHIPMENTS API TESTS
 # ==========================================
 
+### MIGRATION VERIFICATION: Get all shipments to verify "AwaitingPickup" status
+### After applying migration 20251223101600_FixShipmentStatusEnumValues
+### All shipments with status=2 should show "status": "AwaitingPickup" in JSON response
+### NO shipments should show "status": "ReadyToCollect"
+GET {{Backend.Api_HostAddress}}/api/Shipments?pageNumber=1&pageSize=10
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
 ### Get all shipments (with pagination and filters)
 GET {{Backend.Api_HostAddress}}/api/Shipments?pageNumber=1&pageSize=10
 Authorization: Bearer {{token}}
@@ -19,6 +29,13 @@ Accept: application/json
 
 ### Get shipment by ID
 GET {{Backend.Api_HostAddress}}/api/Shipments/11
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get products for a specific shipment
+GET {{Backend.Api_HostAddress}}/api/Shipments/2/products
 Authorization: Bearer {{token}}
 Accept: application/json
 
@@ -52,7 +69,7 @@ Content-Type: application/json
 ###
 
 ### Update shipment status - WILL FAIL if required fields missing
-### This will return 409 Conflict with error message when trying to change to ReadyToCollect
+### This will return 409 Conflict with error message when trying to change to AwaitingPickup
 PATCH {{Backend.Api_HostAddress}}/api/Shipments/11/status
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -91,12 +108,38 @@ Content-Type: application/json
 ###
 
 ### Update shipment status - NOW WILL SUCCEED after required fields are filled
+### Status transitions for OUTGOING shipments:
+### 1 (InPreparation) → 2 (AwaitingPickup) → 3 (InTransit) → 4 (Delivered)
 PATCH {{Backend.Api_HostAddress}}/api/Shipments/11/status
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "status": 2
+}
+
+###
+
+### Transition to InTransit (status 3)
+### Used by status transition button: AwaitingPickup → InTransit
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/11/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 3
+}
+
+###
+
+### Transition to Delivered (status 4)
+### Used by status transition button: InTransit → Delivered
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/11/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 4
 }
 
 ###
@@ -137,3 +180,435 @@ DELETE {{Backend.Api_HostAddress}}/api/Shipments/11
 Authorization: Bearer {{token}}
 
 ###
+
+### Complete collection (incoming shipment only)
+### This will create ShipmentProductCollection records, update inventory, and change status to Collected (2)
+POST {{Backend.Api_HostAddress}}/api/Shipments/11/complete-collection
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "collectedProducts": [
+    {
+      "productId": 1,
+      "locationId": 1,
+      "declaredQuantity": 10,
+      "collectedQuantity": 10
+    },
+    {
+      "productId": 2,
+      "locationId": 2,
+      "declaredQuantity": 5,
+      "collectedQuantity": 4
+    }
+  ]
+}
+
+###
+
+### Get shipment product collection data (for collected shipments)
+### Returns grouped collection data with declared vs collected quantities and variance
+GET {{Backend.Api_HostAddress}}/api/Shipments/11/collection
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get shipment product preparation data (for outgoing/leaving shipments)
+### Returns grouped preparation data with source locations, quantities taken, and quantities left
+GET {{Backend.Api_HostAddress}}/api/Shipments/2/preparation
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+# ==========================================
+# LEAVING SHIPMENTS (OUTGOING) - ADD/EDIT TESTS
+# ==========================================
+
+### Create a new leaving shipment (type: 2 = Outgoing/Leaving)
+### Note: Dimensions (weight, length, width, height) are null - set during preparation
+### Sender is the store, Receiver is the customer
+POST {{Backend.Api_HostAddress}}/api/Shipments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": 2,
+  "status": 1,
+  "sendDate": "2025-12-25T10:00:00Z",
+  "deliveryDate": "2025-12-28T14:00:00Z",
+  "description": "Customer order #12345 - Electronics",
+  "weight": null,
+  "length": null,
+  "width": null,
+  "height": null,
+  "senderName": "Main Store",
+  "senderTaxId": "1234567890",
+  "senderAddressId": 1,
+  "senderDetails": "Main Street 123, 00-950 Warszawa, Poland",
+  "receiverName": "John Doe",
+  "receiverTaxId": "9876543210",
+  "receiverAddressId": 2,
+  "receiverDetails": "Apartment 5B, Floor 3"
+}
+
+###
+
+### Update leaving shipment (edit mode)
+### Can only edit when status is InPreparation (status: 1)
+PUT {{Backend.Api_HostAddress}}/api/Shipments/11
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": 2,
+  "status": 1,
+  "sendDate": "2025-12-26T09:00:00Z",
+  "deliveryDate": "2025-12-29T16:00:00Z",
+  "description": "Updated customer order #12345 - Electronics + Accessories",
+  "weight": null,
+  "length": null,
+  "width": null,
+  "height": null,
+  "senderName": "Main Store",
+  "senderTaxId": "1234567890",
+  "senderAddressId": 1,
+  "senderDetails": "Main Street 123, 00-950 Warszawa, Poland",
+  "receiverName": "John Doe",
+  "receiverTaxId": "9876543210",
+  "receiverAddressId": 3,
+  "receiverDetails": "New address: Building C, Office 101"
+}
+
+###
+
+# ==========================================
+# LEAVING SHIPMENT PREPARATION API TESTS
+# ==========================================
+
+### Save preparation progress (isFinishing: false)
+### Allows partial quantities, dimensions optional, status stays InPreparation
+POST {{Backend.Api_HostAddress}}/api/Shipments/11/complete-preparation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isFinishing": false,
+  "preparedProducts": [
+    {
+      "productId": 1,
+      "sourceLocations": [
+        {
+          "locationId": 1,
+          "quantity": 5
+        }
+      ]
+    },
+    {
+      "productId": 2,
+      "sourceLocations": [
+        {
+          "locationId": 2,
+          "quantity": 3
+        },
+        {
+          "locationId": 3,
+          "quantity": 2
+        }
+      ]
+    }
+  ],
+  "weight": 2.5,
+  "length": 30.0,
+  "width": 20.0,
+  "height": 15.0
+}
+
+###
+
+### Finish preparation (isFinishing: true)
+### Requires all dimensions, validates quantities match manifest, changes status to AwaitingPickup
+POST {{Backend.Api_HostAddress}}/api/Shipments/11/complete-preparation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isFinishing": true,
+  "preparedProducts": [
+    {
+      "productId": 1,
+      "sourceLocations": [
+        {
+          "locationId": 1,
+          "quantity": 10
+        }
+      ]
+    },
+    {
+      "productId": 2,
+      "sourceLocations": [
+        {
+          "locationId": 2,
+          "quantity": 3
+        },
+        {
+          "locationId": 3,
+          "quantity": 2
+        }
+      ]
+    }
+  ],
+  "weight": 5.5,
+  "length": 50.0,
+  "width": 30.0,
+  "height": 25.0
+}
+
+###
+
+### Finish preparation - WILL FAIL if dimensions missing
+POST {{Backend.Api_HostAddress}}/api/Shipments/11/complete-preparation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isFinishing": true,
+  "preparedProducts": [
+    {
+      "productId": 1,
+      "sourceLocations": [
+        {
+          "locationId": 1,
+          "quantity": 10
+        }
+      ]
+    }
+  ],
+  "weight": 5.5
+  // Missing length, width, height - should return 400 Bad Request
+}
+
+###
+
+### Finish preparation - WILL FAIL if quantities don't match manifest
+### Assumes product 1 has manifest quantity of 10 units
+POST {{Backend.Api_HostAddress}}/api/Shipments/11/complete-preparation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "isFinishing": true,
+  "preparedProducts": [
+    {
+      "productId": 1,
+      "sourceLocations": [
+        {
+          "locationId": 1,
+          "quantity": 7
+        }
+      ]
+    }
+  ],
+  "weight": 5.5,
+  "length": 50.0,
+  "width": 30.0,
+  "height": 25.0
+  // Should return 409 Conflict: "Total prepared quantity (7) does not match manifest quantity (10)"
+}
+
+###
+
+### Get shipment product preparation data (for shipments being prepared)
+### Returns grouped preparation data with source locations
+GET {{Backend.Api_HostAddress}}/api/Shipments/11/preparation
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+# ==========================================
+# ROLE-BASED STATUS UPDATE TESTS
+# ==========================================
+
+### TEST 1: Update status with DeputyManager role (should succeed)
+### Prerequisites: 
+### - Login with DeputyManager, Manager, CEO, Admin, or Root role
+### - Get token and set it in @token variable
+### - Shipment must be in valid state for progression (e.g., InPreparation → AwaitingPickup)
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 2
+}
+
+###
+
+### TEST 2: Update status with ShopAssistant role (should return 403 Forbidden)
+### Prerequisites:
+### - Login with ShopAssistant, Marketer, or ITTechnician role
+### - Get token and set it in @token variable below
+@shopAssistantToken = your_shop_assistant_jwt_token_here
+
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{shopAssistantToken}}
+Content-Type: application/json
+
+{
+  "status": 2
+}
+# Expected: 403 Forbidden (user lacks permission)
+
+###
+
+# ==========================================
+# STATUS PROGRESSION VALIDATION TESTS
+# ==========================================
+
+### TEST 3: Valid forward progression (InPreparation → AwaitingPickup)
+### Prerequisites: Shipment must have required fields (dimensions, addresses)
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 2
+}
+# Expected: 204 No Content (success)
+
+###
+
+### TEST 4: Invalid backward progression (InTransit → InPreparation)
+### Prerequisites: Shipment must currently be at InTransit status
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 1
+}
+# Expected: 409 Conflict - "Invalid status transition from InTransit to InPreparation. Status can only progress forward in the workflow."
+
+###
+
+### TEST 5: Valid skip progression (InPreparation → InTransit)
+### Prerequisites: Shipment must have required fields
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 3
+}
+# Expected: 204 No Content (success - can skip intermediate statuses)
+
+###
+
+### TEST 6: Cancel from any status (valid)
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 6
+}
+# Expected: 204 No Content (Cancelled can be set from any non-terminal status)
+
+###
+
+### TEST 7: Returned from InTransit (valid)
+### Prerequisites: Shipment must be at InTransit or Delivered status
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 7
+}
+# Expected: 204 No Content (Returned valid from InTransit/Delivered)
+
+###
+
+### TEST 8: Returned from InPreparation (invalid)
+### Prerequisites: Shipment must be at InPreparation status
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 7
+}
+# Expected: 409 Conflict - "Invalid status transition from InPreparation to Returned. Status can only progress forward in the workflow."
+
+###
+
+### TEST 9: Collected for Incoming shipment (valid)
+### Prerequisites: 
+### - Shipment type = 1 (Incoming)
+### - Shipment status = 4 (Delivered)
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 5
+}
+# Expected: 204 No Content (Collected valid for incoming shipments after Delivered)
+
+###
+
+### TEST 10: Collected for Outgoing shipment (invalid)
+### Prerequisites:
+### - Shipment type = 2 (Outgoing)
+### - Shipment status = 4 (Delivered)
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/2/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 5
+}
+# Expected: 409 Conflict - "Invalid status transition from Delivered to Collected. Status can only progress forward in the workflow."
+
+###
+
+### TEST 11: Change from terminal status (invalid)
+### Prerequisites: Shipment must be at Cancelled, Returned, or Collected status
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 3
+}
+# Expected: 409 Conflict - "Invalid status transition from Cancelled to InTransit. Status can only progress forward in the workflow."
+
+###
+
+### TEST 12: Missing required fields (dimensions)
+### Prerequisites: Shipment at InPreparation with no dimensions set
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 2
+}
+# Expected: 409 Conflict - "Cannot update status: weight is required"
+
+###
+
+### TEST 13: Same status (no change)
+PATCH {{Backend.Api_HostAddress}}/api/Shipments/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": 1
+}
+# Expected: 204 No Content (same status is allowed, no-op)
+
+###
+
