@@ -109,6 +109,18 @@ namespace Backend.Api.Api.Controllers
             if (!ModelState.IsValid)
                 return ValidationProblem(ModelState);
 
+            // Role-based authorization: only DeputyManager (level 4) and above can update status
+            var userRoleStr = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (string.IsNullOrEmpty(userRoleStr))
+                return Unauthorized(new { message = "User role not found in token" });
+
+            if (!Enum.TryParse<UserRole>(userRoleStr, out var userRole))
+                return Unauthorized(new { message = "Invalid user role in token" });
+
+            // DeputyManager = 4, so check if role level is >= 4
+            if (userRole < UserRole.DeputyManager)
+                return Forbid(); // 403 Forbidden
+
             try
             {
                 await _service.UpdateStatusAsync(id, dto, ct);

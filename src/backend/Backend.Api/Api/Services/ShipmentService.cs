@@ -306,6 +306,14 @@ namespace Backend.Api.Api.Services
             var s = await _db.Shipments.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (s is null) throw new KeyNotFoundException($"Shipment {id} not found.");
 
+            // Validate status progression (forward only)
+            if (!IsValidStatusProgression(s.Status, dto.Status, s.Type))
+            {
+                throw new InvalidOperationException(
+                    $"Invalid status transition from {s.Status} to {dto.Status}. " +
+                    "Status can only progress forward in the workflow.");
+            }
+
             // Validate required fields when changing to AwaitingPickup (2) or higher status
             // Note: InPreparation (1) does not require these fields yet
             // Note: Collected (5) comes after Delivered (4) for incoming shipments
@@ -832,6 +840,54 @@ namespace Backend.Api.Api.Services
             }
 
             return grouped;
+        }
+
+        // --- HELPER: Validate status progression ---
+        /// <summary>
+        /// Validates if a status transition is allowed based on shipment type and current status.
+        /// Status can only progress forward in the workflow (no backward transitions).
+        ///
+        /// Valid progressions:
+        /// INCOMING: InPreparation → AwaitingPickup → InTransit → Delivered → Collected
+        /// OUTGOING: InPreparation → AwaitingPickup → InTransit → Delivered
+        /// BOTH: Any status → Cancelled or Returned (terminal states)
+        /// </summary>
+        private bool IsValidStatusProgression(ShipmentStatus currentStatus, ShipmentStatus newStatus, ShipmentType shipmentType)
+        {
+            // Allow keeping the same status (no change)
+            if (currentStatus == newStatus)
+                return true;
+
+            // Terminal states: once Cancelled or Returned, no further transitions allowed
+            if (currentStatus == ShipmentStatus.Cancelled || currentStatus == ShipmentStatus.Returned)
+                return false;
+
+            // Collected is terminal for incoming shipments
+            if (currentStatus == ShipmentStatus.Collected)
+                return false;
+
+            // Allow transition to Cancelled from any non-terminal status
+            if (newStatus == ShipmentStatus.Cancelled)
+                return true;
+
+            // Allow transition to Returned only from InTransit or Delivered
+            if (newStatus == ShipmentStatus.Returned)
+                return currentStatus == ShipmentStatus.InTransit || currentStatus == ShipmentStatus.Delivered;
+
+            // Collected is only valid for incoming shipments and only after Delivered
+            if (newStatus == ShipmentStatus.Collected)
+            {
+                return shipmentType == ShipmentType.Incoming && currentStatus == ShipmentStatus.Delivered;
+            }
+
+            // For standard forward progression: new status must be greater than current
+            // InPreparation(1) → AwaitingPickup(2) → InTransit(3) → Delivered(4) [→ Collected(5) for incoming]
+            // Note: Unspecified(0) is not a valid workflow status
+            if (newStatus > currentStatus && newStatus <= ShipmentStatus.Delivered)
+                return true;
+
+            // All other transitions are invalid
+            return false;
         }
 
         // --- HELPER: Apply sorting ---

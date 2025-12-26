@@ -8,6 +8,8 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageBox from "../../components/MessageBox";
 import { shipmentStatusesData } from "../../data/shipmentStatuses";
 import { countries, getCountryValue } from "../../data/countries";
+import { userRolesData } from "../../data/userRoles";
+import { getValidStatusOptions } from "../../utils/shipmentStatusUtils";
 import "../../styles/PagesStyles/shipments.css";
 
 export default function IncomingShipments() {
@@ -120,6 +122,17 @@ export default function IncomingShipments() {
   const filtersRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const userRole = user?.role;
+  const userRoleLevel = userRolesData.find(r => r.value === userRole)?.id || 0;
+
+  // Helper: get role level by name
+  const getRoleLevel = (roleName) => {
+    return userRolesData.find(r => r.value === roleName)?.id || 0;
+  };
+
+  // Check if user can change shipment status (DeputyManager and above = level 4+)
+  const deputyManagerLevel = getRoleLevel("DeputyManager");
+  const canChangeShipmentStatus = userRoleLevel >= deputyManagerLevel;
 
   // State for status change confirmation
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
@@ -128,6 +141,17 @@ export default function IncomingShipments() {
   const [showViewProductsModal, setShowViewProductsModal] = useState(false);
   const [viewProductsData, setViewProductsData] = useState([]);
   const [expandedProductLocations, setExpandedProductLocations] = useState({});
+
+  // Table columns - ID, From, Size, Total Qty, Send Date, Delivery Date, Status
+  const columns = [
+    { key: "id", label: "ID", width: "8%", sortable: true, sortKey: "id" },
+    { key: "senderName", label: "From", width: "22%", sortable: true, sortKey: "sendername" },
+    { key: "volume", label: "Size", width: "13%", sortable: true, clientSort: true }, // Client-side sort only
+    { key: "totalQuantity", label: "Total Qty", width: "12%", sortable: true, clientSort: true }, // Client-side sort only
+    { key: "sendDate", label: "Send Date", width: "13%", sortable: true, sortKey: "senddate" },
+    { key: "deliveryDate", label: "Delivery Date", width: "13%", sortable: true, sortKey: "deliverydate" },
+    { key: "status", label: "Status", width: "13%", sortable: true, sortKey: "status" },
+  ];
 
   // Fetch shipments data
   const fetchShipmentsData = async (page, currentFilters, currentSearchQuery, currentSortColumn, currentSortDirection, currentSelectedStatuses) => {
@@ -326,17 +350,6 @@ export default function IncomingShipments() {
       default: return "badge-unspecified";
     }
   };
-
-  // Table columns - ID, From, Size, Total Qty, Send Date, Delivery Date, Status
-  const columns = [
-    { key: "id", label: "ID", width: "8%", sortable: true, sortKey: "id" },
-    { key: "senderName", label: "From", width: "22%", sortable: true, sortKey: "sendername" },
-    { key: "volume", label: "Size", width: "13%", sortable: true, clientSort: true }, // Client-side sort only
-    { key: "totalQuantity", label: "Total Qty", width: "12%", sortable: true, clientSort: true }, // Client-side sort only
-    { key: "sendDate", label: "Send Date", width: "13%", sortable: true, sortKey: "senddate" },
-    { key: "deliveryDate", label: "Delivery Date", width: "13%", sortable: true, sortKey: "deliverydate" },
-    { key: "status", label: "Status", width: "13%", sortable: true, sortKey: "status" },
-  ];
 
   const rows = shipments.map((s) => {
     // Calculate volume (length × width × height) in cm³
@@ -1602,46 +1615,46 @@ export default function IncomingShipments() {
     }
   };
 
-  // Render status dropdown - available to all users with confirmation dialog
+  // Render status cell with select dropdown for status changes (DeputyManager and above)
   const renderStatusCell = (row) => {
     const shipment = shipments.find(s => s.id === row.id);
     if (!shipment) return getStatusLabel(row.statusRaw);
 
     const currentStatus = shipment.status;
 
-    // If shipment is collected (status = 5), show as read-only badge
-    // Collection is complete and shipment should progress via status dropdown only
-    if (currentStatus === 5) {
+    // For users with DeputyManager role and above (level 4+), show select dropdown
+    if (canChangeShipmentStatus) {
+      // Get valid status options based on current status and shipment type (1 = Incoming)
+      const validStatuses = getValidStatusOptions(currentStatus, 1, shipmentStatusesData);
+
       return (
-        <div className={`badge ${getStatusBadgeClass(currentStatus)}`}>
-          {getStatusLabel(currentStatus)}
-        </div>
+        <select
+          value={currentStatus}
+          onChange={(e) => {
+            e.stopPropagation();
+            const newStatus = e.target.value;
+            // Only trigger if actually changed
+            if (parseInt(newStatus) !== currentStatus) {
+              handleStatusChangeRequest(row.id, currentStatus, newStatus);
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="status-select"
+        >
+          {validStatuses.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.value}
+            </option>
+          ))}
+        </select>
       );
     }
 
-    // All users can change status, confirmation dialog will be shown
+    // For lower roles: show badge only (read-only)
     return (
-      <select
-        value={currentStatus}
-        onChange={(e) => {
-          e.stopPropagation();
-          const newStatus = e.target.value;
-          // Only trigger if actually changed
-          if (parseInt(newStatus) !== currentStatus) {
-            handleStatusChangeRequest(row.id, currentStatus, newStatus);
-          }
-        }}
-        onClick={(e) => e.stopPropagation()}
-        className="status-select"
-      >
-        {shipmentStatusesData.map(s => {
-          // Only show current status and higher statuses
-          if (s.id < currentStatus) {
-            return null;
-          }
-          return <option key={s.id} value={s.id}>{s.value}</option>;
-        })}
-      </select>
+      <div className={`badge ${getStatusBadgeClass(currentStatus)}`}>
+        {getStatusLabel(currentStatus)}
+      </div>
     );
   };
 
