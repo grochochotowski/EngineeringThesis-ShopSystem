@@ -50,40 +50,67 @@
 /* Document Details Modal */
 .document-details-modal {
   padding: 0.5rem 0;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
-.document-details-modal h3 {
+/* Detail Sections */
+.detail-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+}
+
+.detail-section h3 {
   font-size: 1.1rem;
-  margin-top: 1.5rem;
-  margin-bottom: 0.8rem;
-  color: var(--text-dark);
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 0.5rem;
-}
-
-.document-details-modal h3:first-child {
   margin-top: 0;
-}
-
-.document-details-modal ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 0.8rem;
-}
-
-.document-details-modal ul li {
-  padding: 0.5rem 0;
-  font-size: 0.9rem;
+  margin-bottom: 1rem;
   color: var(--text-dark);
-}
-
-.document-details-modal ul li strong {
   font-weight: 600;
+}
+
+/* Detail Grid */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-value {
+  font-size: 0.95rem;
   color: var(--text-dark);
-  margin-right: 0.5rem;
+  font-weight: 500;
+}
+
+/* Table Wrappers */
+.items-table-wrapper,
+.payments-table-wrapper {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid #e2e8f0;
 }
 
 /* Tables in modal */
@@ -91,24 +118,27 @@
 .payments-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .items-table th,
 .payments-table th {
   background: #f8fafc;
-  padding: 0.7rem 1rem;
+  padding: 0.8rem 1rem;
   text-align: left;
   font-weight: 600;
-  color: var(--text-dark);
+  color: #475569;
   border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .items-table td,
 .payments-table td {
   padding: 0.7rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #f1f5f9;
   color: var(--text-dark);
 }
 
@@ -117,10 +147,197 @@
   background: #f8fafc;
 }
 
-.items-table td:last-child,
-.payments-table td:last-child {
+/* Table Footer */
+.items-table tfoot,
+.payments-table tfoot {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.items-table tfoot td,
+.payments-table tfoot td {
+  padding: 1rem;
+  border-top: 2px solid #e2e8f0;
+  border-bottom: none;
+}
+
+.totals-label {
+  text-align: right;
+  font-weight: 700;
+  color: #475569;
+}
+
+.total-net,
+.total-tax,
+.total-gross,
+.total-paid {
+  font-weight: 700;
+  color: var(--accent-main);
+  font-size: 1rem;
+}
+
+/* Specific Column Styling */
+.product-name {
+  font-weight: 500;
+  color: var(--text-dark);
+  min-width: 150px;
+}
+
+.sku {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.location {
+  text-align: center;
+}
+
+.location-badge {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  border: 1px solid #cbd5e1;
+}
+
+.no-location {
+  color: #cbd5e1;
+  font-style: italic;
+}
+
+.quantity {
+  text-align: center;
+  font-weight: 600;
+}
+
+.price,
+.line-net,
+.line-tax,
+.line-gross {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.line-gross {
   font-weight: 600;
   color: var(--accent-main);
+}
+
+.tax-rate {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Payment Badges */
+.payment-method {
+  font-weight: 500;
+}
+
+.payment-badge {
+  color: white;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Different colors for the 3 main payment methods */
+.payment-badge.card {
+  background: #3b82f6; /* Blue */
+}
+
+.payment-badge.cash {
+  background: #10b981; /* Green */
+}
+
+.payment-badge.banktransfer {
+  background: #8b5cf6; /* Purple */
+}
+
+/* Fallback for other payment types (if any) */
+.payment-badge.giftcard,
+.payment-badge.voucher,
+.payment-badge.unspecified {
+  background: #6b7280; /* Gray */
+}
+
+.payment-amount {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: var(--accent-main);
+  font-size: 0.95rem;
+}
+
+/* Tax Summary */
+.tax-summary {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid #e2e8f0;
+}
+
+.tax-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tax-row:last-child {
+  border-bottom: none;
+}
+
+.tax-row.total {
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 2px solid #cbd5e1;
+}
+
+.tax-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.tax-row.total .tax-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.tax-value {
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  color: var(--text-dark);
+}
+
+.tax-value.tax-amount {
+  color: #f59e0b;
+}
+
+.tax-value.gross-amount {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent-main);
+}
+
+/* No Data Message */
+.no-data {
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
 }
 
 /* Print button styling */
@@ -135,19 +352,35 @@
 
 /* Additional responsive styling */
 @media (max-width: 768px) {
-  .document-details-modal ul {
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 
   .items-table,
   .payments-table {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
   }
 
   .items-table th,
   .items-table td,
   .payments-table th,
   .payments-table td {
-    padding: 0.5rem 0.7rem;
+    padding: 0.5rem 0.6rem;
+  }
+
+  .location-badge,
+  .payment-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .tax-summary {
+    padding: 1rem;
+  }
+
+  .tax-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
   }
 }

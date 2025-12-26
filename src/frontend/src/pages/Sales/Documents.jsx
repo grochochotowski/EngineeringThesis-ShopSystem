@@ -3,17 +3,19 @@ import axios from "axios";
 import { api } from "../../api/apiClient";
 import { useSearchParams } from "react-router-dom";
 import Header from "../../components/Header";
-import BaseListPage from "../BaseListPage";
+import Modal from "../../components/Modal";
 import MessageBox from "../../components/MessageBox";
 import { salesDocumentTypesData } from "../../data/salesDocumentTypes";
 import { paymentOptionsData } from "../../data/paymentOptions";
 import "../../styles/PagesStyles/salesDocuments.css";
+import "../../styles/PagesStyles/baseListPage.css";
 
 export default function SalesDocuments() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [selectedRow, setSelectedRow] = useState(null);
+    const [selectedDocument, setSelectedDocument] = useState(null);
     const [selectedDocumentDetails, setSelectedDocumentDetails] = useState(null);
     const [toast, setToast] = useState(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     const [documents, setDocuments] = useState([]);
     const [pageNumber, setPageNumber] = useState(1);
@@ -227,7 +229,7 @@ export default function SalesDocuments() {
     // Updating search query
     const handleSearchChange = (value) => {
         setSearchQuery(value);
-        setSelectedRow(null);
+        setSelectedDocument(null);
         setSelectedDocumentDetails(null);
     };
 
@@ -253,78 +255,13 @@ export default function SalesDocuments() {
         };
     }, [showFilters]);
 
-    // Handle row selection to load full document details
-    const handleRowSelect = async (row) => {
-        if (!row) {
-            setSelectedRow(null);
-            setSelectedDocumentDetails(null);
-            return;
+    // Handle row selection - just select the row, don't load details automatically
+    const handleRowSelect = (row) => {
+        if (selectedDocument && selectedDocument.id === row.id) {
+            setSelectedDocument(null);
+        } else {
+            setSelectedDocument(row);
         }
-
-        setSelectedRow(row);
-        try {
-            const full = await api.get(`/SalesDocument/${row.id}`);
-            setSelectedDocumentDetails(full);
-        } catch (err) {
-            console.error(err);
-            setToast({
-                message: err.response?.data?.message || "Failed to load document details.",
-                type: "error",
-            });
-        }
-    };
-
-    const documentDetailsConfig = {
-        status: null, // No status badge for sales documents
-        fields: [
-            { label: "ID", key: "id" },
-            { label: "Document Type", key: "documentType", render: (data) => getDocumentTypeLabel(data.documentType) },
-            { label: "Document Number", key: "documentNumber" },
-            { label: "Issue Date", key: "issueDate", render: (data) => formatDate(data.issueDate) },
-            { label: "Client", key: "clientId", render: (data) => getClientName(data.clientId) },
-            { label: "Total Net", key: "totalNet", render: (data) => `$${data.totalNet.toFixed(2)}` },
-            { label: "Total Tax", key: "totalTax", render: (data) => `$${data.totalTax.toFixed(2)}` },
-            { label: "Total Gross", key: "totalGross", render: (data) => `$${data.totalGross.toFixed(2)}` },
-            {
-                label: "Items",
-                key: "items",
-                isColumn: true,
-                render: (data) => {
-                    if (!data.items || data.items.length === 0) return "No items";
-                    return (
-                        <div className="document-items-list">
-                            {data.items.map((item, idx) => (
-                                <div key={idx} className="document-item">
-                                    <span className="item-name">{item.productName || `Product #${item.productId}`}</span>
-                                    <span className="item-details">
-                                        Qty: {item.quantity} × ${item.unitPrice.toFixed(2)} = ${item.totalGross.toFixed(2)}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    );
-                }
-            },
-            {
-                label: "Payments",
-                key: "payments",
-                isColumn: true,
-                render: (data) => {
-                    if (!data.payments || data.payments.length === 0) return "No payments";
-                    return (
-                        <div className="document-payments-list">
-                            {data.payments.map((payment, idx) => (
-                                <div key={idx} className="document-payment">
-                                    <span className="payment-type">{payment.paymentOption || "Unknown"}</span>
-                                    <span className="payment-amount">${payment.amount.toFixed(2)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    );
-                }
-            },
-            { label: "Description", key: "description", isColumn: true },
-        ],
     };
 
     const handleSort = (column) => {
@@ -344,26 +281,32 @@ export default function SalesDocuments() {
         }
     };
 
-    // Handle View Details button
-    const handleViewDetails = () => {
-        if (!selectedRow) {
+    // Handle View Details button - load details and open modal
+    const handleViewDetails = async () => {
+        if (!selectedDocument) {
             setToast({
                 message: "Please select a document to view details.",
                 type: "warning",
             });
+            return;
         }
-        // Details are already shown in the details panel, so just show a message
-        else {
+
+        try {
+            const full = await api.get(`/SalesDocument/${selectedDocument.id}`);
+            setSelectedDocumentDetails(full);
+            setShowDetailsModal(true);
+        } catch (err) {
+            console.error(err);
             setToast({
-                message: "Document details are displayed in the right panel.",
-                type: "info",
+                message: err.response?.data?.message || "Failed to load document details.",
+                type: "error",
             });
         }
     };
 
-    // Handle Print button
+    // Handle Print button - show alert
     const handlePrint = () => {
-        if (!selectedRow) {
+        if (!selectedDocument) {
             setToast({
                 message: "Please select a document to print.",
                 type: "warning",
@@ -371,12 +314,8 @@ export default function SalesDocuments() {
             return;
         }
 
-        // TODO: Implement actual print functionality
-        // For now, just show a placeholder message
-        setToast({
-            message: `Print functionality for document #${selectedRow.documentNumber} will be implemented soon.`,
-            type: "info",
-        });
+        // Show web alert
+        alert("printing");
     };
 
     // Render
@@ -390,158 +329,381 @@ export default function SalesDocuments() {
                 }}
             />
             <main className="page-content">
-                <BaseListPage
-                    title="Sales Documents"
-                    columns={columns}
-                    data={rows}
-                    loading={loading}
-                    error={error}
-                    selectedRow={selectedRow}
-                    onSelectRow={handleRowSelect}
-                    detailsData={selectedDocumentDetails}
-                    detailsConfig={initialDataLoaded ? documentDetailsConfig : null}
-                    onSort={handleSort}
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onToggleFilters={() => setShowFilters((prev) => !prev)}
-                    onSearchChange={handleSearchChange}
-                    searchValue={searchQuery}
-                    hideAddButton={true}
-                    hideEditButton={true}
-                    hideDeleteButton={true}
-                    // Custom action buttons for View Details and Print
-                    changePasswordButtonLabel="View Details"
-                    changePasswordButtonClass="btn-view"
-                    changePasswordDisabled={!selectedRow}
-                    onChangePassword={handleViewDetails}
-                    changePasswordButtonIcon={
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                            <path fill="none" stroke="currentColor" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path fill="none" stroke="currentColor" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                    }
-                    changeLoginButtonLabel="Print"
-                    changeLoginButtonClass="btn-print"
-                    changeLoginDisabled={!selectedRow}
-                    onChangeLogin={handlePrint}
-                    changeLoginButtonIcon={
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                            <path fill="none" stroke="currentColor" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                        </svg>
-                    }
-                />
+                <div className="base-list-wrapper">
+                    <div className="base-list-container">
+                        {/* === LEFT SIDEBAR === */}
+                        <aside className="sidebar">
+                            {/* Search */}
+                            <div className="search-panel">
+                                <input
+                                    type="text"
+                                    placeholder="Search documents..."
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                />
+                                <div className="search-buttons">
+                                    <button
+                                        className="btn-filter"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowFilters((prev) => !prev);
+                                        }}
+                                    >
+                                        Filters
+                                    </button>
+                                </div>
+                            </div>
 
-                {/* Sidebar filter panel */}
-                {showFilters && (
-                    <div className="filters-panel" ref={filtersRef}>
-                        <h4>Filters</h4>
+                            {/* Action Buttons */}
+                            <div className="action-buttons">
+                                <button
+                                    onClick={handleViewDetails}
+                                    className={`btn-action btn-view-details ${!selectedDocument ? "disabled" : ""}`}
+                                    disabled={!selectedDocument}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    View Details
+                                </button>
 
-                        <div className="filter-group">
-                            <label>Document Type:</label>
-                            <select
-                                name="documentType"
-                                value={filters.documentType}
-                                onChange={handleFilterChange}
-                            >
-                                <option value="">All Types</option>
-                                {salesDocumentTypesData
-                                    .filter(t => t.id !== 0)
-                                    .map(t => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.value}
-                                        </option>
-                                    ))}
-                            </select>
-                        </div>
+                                <button
+                                    onClick={handlePrint}
+                                    className={`btn-action btn-print ${!selectedDocument ? "disabled" : ""}`}
+                                    disabled={!selectedDocument}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="none" stroke="currentColor" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                    </svg>
+                                    Print
+                                </button>
+                            </div>
 
-                        <div className="filter-group">
-                            <label>Client:</label>
-                            <select
-                                name="clientId"
-                                value={filters.clientId}
-                                onChange={handleFilterChange}
-                            >
-                                <option value="">All Clients</option>
-                                {clients.map(c => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}{c.taxId ? ` (${c.taxId})` : ""}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                            {/* Filters Panel */}
+                            {showFilters && (
+                                <div className="filters-content" ref={filtersRef}>
+                                    <h4>Filters</h4>
 
-                        <div className="filter-group">
-                            <label>Payment Type:</label>
-                            <select
-                                name="paymentType"
-                                value={filters.paymentType}
-                                onChange={handleFilterChange}
-                            >
-                                <option value="">All Payment Types</option>
-                                {paymentOptionsData
-                                    .filter(p => p.id !== 0)
-                                    .map(p => (
-                                        <option key={p.id} value={p.value}>
-                                            {p.value}
-                                        </option>
-                                    ))}
-                            </select>
-                        </div>
+                                    <div className="filter-group">
+                                        <label>Document Type:</label>
+                                        <select
+                                            name="documentType"
+                                            value={filters.documentType}
+                                            onChange={handleFilterChange}
+                                        >
+                                            <option value="">All Types</option>
+                                            {salesDocumentTypesData
+                                                .filter(t => t.id !== 0)
+                                                .map(t => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.value}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </div>
 
-                        <div className="filter-group">
-                            <label>Issue Date From:</label>
-                            <input
-                                type="date"
-                                name="from"
-                                value={filters.from}
-                                onChange={handleFilterChange}
-                            />
-                        </div>
+                                    <div className="filter-group">
+                                        <label>Client:</label>
+                                        <select
+                                            name="clientId"
+                                            value={filters.clientId}
+                                            onChange={handleFilterChange}
+                                        >
+                                            <option value="">All Clients</option>
+                                            {clients.map(c => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.name}{c.taxId ? ` (${c.taxId})` : ""}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                        <div className="filter-group">
-                            <label>Issue Date To:</label>
-                            <input
-                                type="date"
-                                name="to"
-                                value={filters.to}
-                                onChange={handleFilterChange}
-                            />
-                        </div>
+                                    <div className="filter-group">
+                                        <label>Payment Type:</label>
+                                        <select
+                                            name="paymentType"
+                                            value={filters.paymentType}
+                                            onChange={handleFilterChange}
+                                        >
+                                            <option value="">All Payment Types</option>
+                                            {paymentOptionsData
+                                                .filter(p => p.id !== 0)
+                                                .map(p => (
+                                                    <option key={p.id} value={p.value}>
+                                                        {p.value}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </div>
 
-                        <div className="filter-group">
-                            <label>Min Amount ($):</label>
-                            <input
-                                type="number"
-                                name="minAmount"
-                                placeholder="Min amount"
-                                value={filters.minAmount}
-                                onChange={handleFilterChange}
-                                step="0.01"
-                                min="0"
-                            />
-                        </div>
+                                    <div className="filter-group">
+                                        <label>Issue Date From:</label>
+                                        <input
+                                            type="date"
+                                            name="from"
+                                            value={filters.from}
+                                            onChange={handleFilterChange}
+                                        />
+                                    </div>
 
-                        <div className="filter-group">
-                            <label>Max Amount ($):</label>
-                            <input
-                                type="number"
-                                name="maxAmount"
-                                placeholder="Max amount"
-                                value={filters.maxAmount}
-                                onChange={handleFilterChange}
-                                step="0.01"
-                                min="0"
-                            />
+                                    <div className="filter-group">
+                                        <label>Issue Date To:</label>
+                                        <input
+                                            type="date"
+                                            name="to"
+                                            value={filters.to}
+                                            onChange={handleFilterChange}
+                                        />
+                                    </div>
+
+                                    <div className="filter-group">
+                                        <label>Min Amount ($):</label>
+                                        <input
+                                            type="number"
+                                            name="minAmount"
+                                            placeholder="Min amount"
+                                            value={filters.minAmount}
+                                            onChange={handleFilterChange}
+                                            step="0.01"
+                                            min="0"
+                                        />
+                                    </div>
+
+                                    <div className="filter-group">
+                                        <label>Max Amount ($):</label>
+                                        <input
+                                            type="number"
+                                            name="maxAmount"
+                                            placeholder="Max amount"
+                                            value={filters.maxAmount}
+                                            onChange={handleFilterChange}
+                                            step="0.01"
+                                            min="0"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </aside>
+
+                        {/* === MAIN CONTENT AREA === */}
+                        <div className="main-content">
+                            <div className="content-header">
+                                <h2>Sales Documents</h2>
+                            </div>
+
+                            {/* Table */}
+                            <div className="table-wrapper">
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            {columns.map(col => (
+                                                <th
+                                                    key={col.key}
+                                                    style={{ width: col.width }}
+                                                    className={col.sortable !== false ? "sortable" : ""}
+                                                    onClick={() => col.sortable !== false && handleSort(col.key)}
+                                                >
+                                                    {col.label}
+                                                    {col.sortable !== false && sortColumn === col.key && (
+                                                        <span className="sort-icon">
+                                                            {sortDirection === "asc" ? " ▲" : " ▼"}
+                                                        </span>
+                                                    )}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.length === 0 && !loading ? (
+                                            <tr>
+                                                <td colSpan={columns.length} className="no-data">
+                                                    No documents found
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            rows.map(row => (
+                                                <tr
+                                                    key={row.id}
+                                                    className={selectedDocument && selectedDocument.id === row.id ? "selected" : ""}
+                                                    onClick={() => handleRowSelect(row)}
+                                                >
+                                                    {columns.map(col => (
+                                                        <td key={col.key}>{row[col.key]}</td>
+                                                    ))}
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+
+                                {/* Infinite scroll sentinel */}
+                                <div ref={observerRef} style={{ height: "1px" }} />
+                                {loading && (
+                                    <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
+                                )}
+                            </div>
                         </div>
                     </div>
-                )}
-
-                {/* Infinite scroll sentinel */}
-                <div ref={observerRef} style={{ height: "1px" }} />
-                {loading && (
-                    <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
-                )}
+                </div>
             </main>
+
+            {/* Details Modal */}
+            {showDetailsModal && selectedDocumentDetails && (
+                <Modal
+                    title={`Sales Document #${selectedDocumentDetails.documentNumber}`}
+                    onClose={() => setShowDetailsModal(false)}
+                    wide
+                >
+                    <div className="document-details-modal">
+                        {/* Document Header Information */}
+                        <div className="detail-section">
+                            <h3>Document Information</h3>
+                            <div className="detail-grid">
+                                <div className="detail-item">
+                                    <span className="detail-label">Document ID:</span>
+                                    <span className="detail-value">{selectedDocumentDetails.id}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Document Type:</span>
+                                    <span className="detail-value">{getDocumentTypeLabel(selectedDocumentDetails.documentType)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Document Number:</span>
+                                    <span className="detail-value">{selectedDocumentDetails.documentNumber}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Issue Date:</span>
+                                    <span className="detail-value">{formatDate(selectedDocumentDetails.issueDate)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Client:</span>
+                                    <span className="detail-value">{getClientName(selectedDocumentDetails.clientId)}</span>
+                                </div>
+                                {selectedDocumentDetails.description && (
+                                    <div className="detail-item full-width">
+                                        <span className="detail-label">Description:</span>
+                                        <span className="detail-value">{selectedDocumentDetails.description}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Items Section */}
+                        <div className="detail-section">
+                            <h3>Document Items</h3>
+                            {selectedDocumentDetails.items && selectedDocumentDetails.items.length > 0 ? (
+                                <div className="items-table-wrapper">
+                                    <table className="items-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>SKU</th>
+                                                <th>Location</th>
+                                                <th>Qty</th>
+                                                <th>Unit Price (Net)</th>
+                                                <th>Tax Rate</th>
+                                                <th>Line Net</th>
+                                                <th>Line Tax</th>
+                                                <th>Line Gross</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedDocumentDetails.items.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="product-name">{item.productName || `Product #${item.productId}`}</td>
+                                                    <td className="sku">{item.productSKU || "—"}</td>
+                                                    <td className="location">
+                                                        {item.fromLocationCode ? (
+                                                            <span className="location-badge">{item.fromLocationCode}</span>
+                                                        ) : (
+                                                            <span className="no-location">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="quantity">{item.quantity}</td>
+                                                    <td className="price">${item.unitPriceNet.toFixed(2)}</td>
+                                                    <td className="tax-rate">{item.taxCode || "—"}</td>
+                                                    <td className="line-net">${item.lineNet.toFixed(2)}</td>
+                                                    <td className="line-tax">${item.lineTax.toFixed(2)}</td>
+                                                    <td className="line-gross">${item.lineGross.toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="totals-row">
+                                                <td colSpan="6" className="totals-label">Subtotal:</td>
+                                                <td className="total-net">${selectedDocumentDetails.totalNet.toFixed(2)}</td>
+                                                <td className="total-tax">${selectedDocumentDetails.totalTax.toFixed(2)}</td>
+                                                <td className="total-gross">${selectedDocumentDetails.totalGross.toFixed(2)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="no-data">No items in this document.</p>
+                            )}
+                        </div>
+
+                        {/* Tax Breakdown Section */}
+                        <div className="detail-section">
+                            <h3>Tax Summary</h3>
+                            <div className="tax-summary">
+                                <div className="tax-row">
+                                    <span className="tax-label">Total Net Amount:</span>
+                                    <span className="tax-value">${selectedDocumentDetails.totalNet.toFixed(2)}</span>
+                                </div>
+                                <div className="tax-row">
+                                    <span className="tax-label">Total Tax Amount:</span>
+                                    <span className="tax-value tax-amount">${selectedDocumentDetails.totalTax.toFixed(2)}</span>
+                                </div>
+                                <div className="tax-row total">
+                                    <span className="tax-label">Total Gross Amount:</span>
+                                    <span className="tax-value gross-amount">${selectedDocumentDetails.totalGross.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Payments Section */}
+                        <div className="detail-section">
+                            <h3>Payment Details</h3>
+                            {selectedDocumentDetails.payments && selectedDocumentDetails.payments.length > 0 ? (
+                                <div className="payments-table-wrapper">
+                                    <table className="payments-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Payment Method</th>
+                                                <th>Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedDocumentDetails.payments.map((payment, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="payment-method">
+                                                        <span className={`payment-badge ${(payment.paymentOption || 'Unspecified').toLowerCase()}`}>
+                                                            {payment.paymentOption || "Unknown"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="payment-amount">${payment.amount.toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="totals-row">
+                                                <td className="totals-label">Total Paid:</td>
+                                                <td className="total-paid">
+                                                    ${selectedDocumentDetails.payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="no-data">No payments recorded for this document.</p>
+                            )}
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Toast messages */}
             {toast && (
