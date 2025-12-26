@@ -17,6 +17,8 @@ namespace Backend.Api.Objects.DTOs
                                             public decimal LineNet          { get; set; }
                                             public decimal LineTax          { get; set; }
                                             public decimal LineGross        { get; set; }
+                                            public int? FromLocationId      { get; set; }
+                                            public string? FromLocationCode { get; set; }
     }
 
     // --- CREATE SALES ITEM ---
@@ -28,5 +30,6 @@ namespace Backend.Api.Objects.DTOs
         [Required, Range(1, int.MaxValue)]  public int Quantity             { get; set; }
         [Required]                          public decimal UnitPriceNet     { get; set; }
         [Required]                          public int TaxRateId            { get; set; }
+                                            public int? FromLocationId      { get; set; } // nullable for backward compatibility
     }
 }

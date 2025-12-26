@@ -18,10 +18,12 @@
         public int SalesDocumentId  { get; set; }
         public int ProductId        { get; set; }
         public int TaxRateId        { get; set; }
+        public int? FromLocationId  { get; set; } // nullable for backward compatibility
 
         // --- Navigation Properties ---
         public virtual SalesDocument SalesDocument  { get; set; } = default!;
         public virtual Product Product              { get; set; } = default!;
         public virtual TaxRate TaxRate              { get; set; } = default!;
+        public virtual Location? FromLocation       { get; set; }
     }
 }

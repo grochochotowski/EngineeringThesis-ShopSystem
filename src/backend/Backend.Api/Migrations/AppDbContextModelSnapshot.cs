@@ -438,6 +438,9 @@ namespace Backend.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("FromLocationId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("LineGross")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -477,6 +480,8 @@ namespace Backend.Api.Migrations
                         .HasColumnType("decimal(18,4)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FromLocationId");
 
                     b.HasIndex("ProductId");
 
@@ -863,6 +868,10 @@ namespace Backend.Api.Migrations
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>
                 {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "FromLocation")
+                        .WithMany()
+                        .HasForeignKey("FromLocationId");
+
                     b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -880,6 +889,8 @@ namespace Backend.Api.Migrations
                         .HasForeignKey("TaxRateId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("FromLocation");
 
                     b.Navigation("Product");
 

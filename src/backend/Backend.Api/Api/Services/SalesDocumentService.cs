@@ -8,6 +8,7 @@ namespace Backend.Api.Api.Services
     public interface ISalesDocumentService
     {
         Task<int> CreateAsync(CreateSalesDocumentDto dto, CancellationToken ct = default);
+        Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, CancellationToken ct = default);
         Task<GetSalesDocumentDto?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<PagedResult<GetSalesDocumentListItemDto>> GetAllAsync(
             SalesDocumentType? type = null,
@@ -89,6 +90,7 @@ namespace Backend.Api.Api.Services
                     Quantity = i.Quantity,
                     UnitPriceNet = Round4(i.UnitPriceNet),
                     TaxRateId = i.TaxRateId,
+                    FromLocationId = i.FromLocationId,
                     LineNet = lineNet,
                     LineTax = lineTax,
                     LineGross = lineGross
@@ -131,6 +133,7 @@ namespace Backend.Api.Api.Services
             var doc = await _db.SalesDocuments
                 .AsNoTracking()
                 .Include(d => d.Items).ThenInclude(i => i.TaxRate)
+                .Include(d => d.Items).ThenInclude(i => i.FromLocation)
                 .Include(d => d.Payments)
                 .FirstOrDefaultAsync(d => d.Id == id, ct);
 
@@ -160,7 +163,9 @@ namespace Backend.Api.Api.Services
                     TaxCode = i.TaxRate.Code,
                     LineNet = i.LineNet,
                     LineTax = i.LineTax,
-                    LineGross = i.LineGross
+                    LineGross = i.LineGross,
+                    FromLocationId = i.FromLocationId,
+                    FromLocationCode = i.FromLocation?.LocationCode
                 }).ToList(),
                 Payments = doc.Payments.Select(p => new GetSalesPaymentDto
                 {
@@ -253,6 +258,213 @@ namespace Backend.Api.Api.Services
             var paid = doc.Payments.Sum(p => p.Amount);
             if (paid != doc.TotalGross && doc.Payments.Count > 0)
                 throw new InvalidOperationException($"Sum of payments ({paid:F2}) must equal document TotalGross ({doc.TotalGross:F2}).");
+        }
+
+        // --- FINALIZE POS TRANSACTION ---
+        public async Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, CancellationToken ct = default)
+        {
+            // Validations
+            if (dto.Items is null || dto.Items.Count == 0)
+                throw new ArgumentException("Transaction must contain at least one item.", nameof(dto.Items));
+
+            if (dto.Payments is null || dto.Payments.Count == 0)
+                throw new ArgumentException("Transaction must contain at least one payment.", nameof(dto.Payments));
+
+            if ((dto.DocumentType == SalesDocumentType.InvoicePersonal || dto.DocumentType == SalesDocumentType.InvoiceCompany)
+                && dto.ClientId is null)
+                throw new ArgumentException("ClientId is required for invoices.", nameof(dto.ClientId));
+
+            // Validate all items have locations
+            var itemsWithoutLocation = dto.Items.Where(i => i.FromLocationId <= 0).ToList();
+            if (itemsWithoutLocation.Any())
+                throw new ArgumentException("All items must have a valid location selected.", nameof(dto.Items));
+
+            // Start database transaction for atomicity
+            using var transaction = await _db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                // 1. Generate document number
+                var now = DateTimeOffset.Now;
+                var documentNumber = await GenerateDocumentNumberAsync(now.Year, ct);
+
+                // 2. Fetch and validate tax rates
+                var taxRateIds = dto.Items.Select(i => i.TaxRateId).Distinct().ToList();
+                var taxRates = await _db.TaxRates
+                    .Where(t => taxRateIds.Contains(t.Id) && t.IsActive)
+                    .ToDictionaryAsync(t => t.Id, ct);
+
+                foreach (var item in dto.Items)
+                {
+                    if (!taxRates.ContainsKey(item.TaxRateId))
+                        throw new ArgumentException($"TaxRateId {item.TaxRateId} not found or inactive.", nameof(dto.Items));
+                }
+
+                // 3. Verify products exist
+                var productIds = dto.Items.Select(i => i.ProductId).Distinct().ToList();
+                var productExists = await _db.Products
+                    .Where(p => productIds.Contains(p.Id) && p.IsActive)
+                    .Select(p => p.Id)
+                    .ToListAsync(ct);
+                var missingProducts = productIds.Except(productExists).ToList();
+                if (missingProducts.Count > 0)
+                    throw new ArgumentException($"Products not found or inactive: {string.Join(",", missingProducts)}", nameof(dto.Items));
+
+                // 4. Verify locations exist and check inventory availability
+                foreach (var item in dto.Items)
+                {
+                    var inventory = await _db.ProductsInWarehouse
+                        .FirstOrDefaultAsync(pw => pw.ProductId == item.ProductId && pw.LocationId == item.FromLocationId, ct);
+
+                    if (inventory == null)
+                        throw new InvalidOperationException($"Product '{item.ProductName}' not found at selected location.");
+
+                    if (inventory.Quantity < item.Quantity)
+                        throw new InvalidOperationException($"Insufficient stock for '{item.ProductName}' at selected location. Available: {inventory.Quantity}, Requested: {item.Quantity}");
+                }
+
+                // 5. Create sales document
+                var doc = new SalesDocument
+                {
+                    DocumentType = dto.DocumentType,
+                    IssueDate = now,
+                    DocumentNumber = documentNumber,
+                    ClientId = dto.ClientId,
+                    Items = new List<SalesDocumentItem>(),
+                    Payments = new List<SalesPayment>()
+                };
+
+                // Generate description
+                var itemSummary = string.Join(", ", dto.Items.Select(i => $"{i.ProductName} x{i.Quantity}"));
+                doc.Description = $"POS Sale - {now:dd/MM/yyyy - HH:mm:ss} - Items: {itemSummary}";
+
+                // 6. Calculate totals and create line items
+                decimal totalNet = 0m, totalTax = 0m, totalGross = 0m;
+
+                foreach (var i in dto.Items)
+                {
+                    var vat = taxRates[i.TaxRateId].Rate;
+                    var lineNet = Round2(i.UnitPriceNet * i.Quantity);
+                    var lineTax = Round2(lineNet * vat);
+                    var lineGross = Round2(lineNet + lineTax);
+
+                    doc.Items.Add(new SalesDocumentItem
+                    {
+                        ProductId = i.ProductId,
+                        ProductName = i.ProductName,
+                        ProductSKU = i.ProductSKU,
+                        Quantity = i.Quantity,
+                        UnitPriceNet = Round4(i.UnitPriceNet),
+                        TaxRateId = i.TaxRateId,
+                        FromLocationId = i.FromLocationId,
+                        LineNet = lineNet,
+                        LineTax = lineTax,
+                        LineGross = lineGross
+                    });
+
+                    totalNet += lineNet;
+                    totalTax += lineTax;
+                    totalGross += lineGross;
+                }
+
+                doc.TotalNet = Round2(totalNet);
+                doc.TotalTax = Round2(totalTax);
+                doc.TotalGross = Round2(totalGross);
+
+                // 7. Create payment records
+                decimal totalPaid = 0m;
+                foreach (var p in dto.Payments)
+                {
+                    doc.Payments.Add(new SalesPayment
+                    {
+                        PaymentOption = p.PaymentOption,
+                        Amount = Round2(p.Amount)
+                    });
+                    totalPaid += Round2(p.Amount);
+                }
+
+                // Validate payments match total (allow overpayment for change)
+                if (totalPaid < doc.TotalGross)
+                    throw new InvalidOperationException($"Insufficient payment. Total: {doc.TotalGross:F2}, Paid: {totalPaid:F2}");
+
+                var change = totalPaid - doc.TotalGross;
+
+                // 8. Deduct inventory quantities
+                foreach (var item in dto.Items)
+                {
+                    var inventory = await _db.ProductsInWarehouse
+                        .FirstOrDefaultAsync(pw => pw.ProductId == item.ProductId && pw.LocationId == item.FromLocationId, ct);
+
+                    if (inventory != null)
+                    {
+                        inventory.Quantity -= item.Quantity;
+
+                        // If quantity reaches zero, optionally remove the entry (or keep it at 0)
+                        if (inventory.Quantity == 0)
+                        {
+                            _db.ProductsInWarehouse.Remove(inventory);
+                        }
+                        else
+                        {
+                            _db.ProductsInWarehouse.Update(inventory);
+                        }
+                    }
+                }
+
+                // 9. Save sales document
+                _db.SalesDocuments.Add(doc);
+                await _db.SaveChangesAsync(ct);
+
+                // 10. Commit transaction
+                await transaction.CommitAsync(ct);
+
+                // 11. Return response
+                return new POSFinalizationResponseDto
+                {
+                    SalesDocumentId = doc.Id,
+                    DocumentNumber = doc.DocumentNumber,
+                    IssueDate = doc.IssueDate,
+                    TotalNet = doc.TotalNet,
+                    TotalTax = doc.TotalTax,
+                    TotalGross = doc.TotalGross,
+                    Change = change
+                };
+            }
+            catch
+            {
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
+        }
+
+        // --- GENERATE DOCUMENT NUMBER ---
+        private async Task<string> GenerateDocumentNumberAsync(int year, CancellationToken ct = default)
+        {
+            // Format: S1C1/YYYY/Yno
+            // S1C1 = Fixed prefix (Store 1, Cash register 1)
+            // YYYY = Current year
+            // Yno = Sequential number for this year
+
+            var prefix = $"S1C1/{year}/";
+
+            // Get the highest document number for this year with this prefix
+            var lastDoc = await _db.SalesDocuments
+                .Where(d => d.DocumentNumber.StartsWith(prefix))
+                .OrderByDescending(d => d.DocumentNumber)
+                .Select(d => d.DocumentNumber)
+                .FirstOrDefaultAsync(ct);
+
+            int nextNumber = 1;
+            if (lastDoc != null)
+            {
+                // Extract the sequential number from the last document
+                var parts = lastDoc.Split('/');
+                if (parts.Length == 3 && int.TryParse(parts[2], out int lastNumber))
+                {
+                    nextNumber = lastNumber + 1;
+                }
+            }
+
+            return $"{prefix}{nextNumber}";
         }
 
         private static decimal Round2(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);

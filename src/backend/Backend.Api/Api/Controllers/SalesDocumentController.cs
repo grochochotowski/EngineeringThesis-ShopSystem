@@ -57,5 +57,33 @@ namespace Backend.Api.Api.Controllers
             await _service.UpdateHeaderAsync(id, dto, ct);
             return NoContent();
         }
+
+        // --- FINALIZE POS TRANSACTION ---
+        [HttpPost("finalize")]
+        [Authorize(Roles = "Cashier,ShopAssistant,DeputyManager,Manager,SeniorManager,Director,Administrator,Root")]
+        public async Task<ActionResult<POSFinalizationResponseDto>> FinalizePOSTransaction(
+            [FromBody] POSFinalizationDto dto,
+            CancellationToken ct)
+        {
+            try
+            {
+                if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+                var result = await _service.FinalizePOSTransactionAsync(dto, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "An unexpected error occurred during transaction finalization.", details = ex.Message });
+            }
+        }
     }
 }
