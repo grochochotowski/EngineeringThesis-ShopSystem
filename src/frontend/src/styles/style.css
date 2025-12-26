@@ -250,15 +250,16 @@ textarea:focus {
 }
 
 .btn-close {
-    background: none;
+    background: transparent;
     border: none;
     font-size: 1.3rem;
     cursor: pointer;
-    color: #64748b;
-    transition: 0.2s;
+    color: #475569;
+    transition: color 0.2s ease;
+    padding: 0.25rem;
 }
 .btn-close:hover {
-    color: #1e293b;
+    color: #0f172a;
 }
 
 .btn-cancel,
