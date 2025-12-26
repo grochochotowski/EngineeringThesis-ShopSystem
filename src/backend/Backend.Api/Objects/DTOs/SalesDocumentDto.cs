@@ -27,7 +27,11 @@ namespace Backend.Api.Objects.DTOs
                                         public DateTimeOffset IssueDate                     { get; set; }
                                         public string DocumentNumber                        { get; set; } = default!;
                                         public int? ClientId                                { get; set; }
+                                        public decimal TotalNet                             { get; set; }
+                                        public decimal TotalTax                             { get; set; }
                                         public decimal TotalGross                           { get; set; }
+                                        public int NumberOfProducts                         { get; set; }
+                                        public string PaymentType                           { get; set; } = default!;
     }
 
     // --- CREATE DOCUMENT ---

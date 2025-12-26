@@ -16,6 +16,11 @@ namespace Backend.Api.Api.Services
             DateTimeOffset? from = null,
             DateTimeOffset? to = null,
             string? q = null,
+            string? paymentType = null,
+            decimal? minAmount = null,
+            decimal? maxAmount = null,
+            string? orderBy = null,
+            string? sortDirection = null,
             PaginationParams? pagination = null,
             CancellationToken ct = default);
         Task UpdateHeaderAsync(int id, UpdateSalesDocumentDto dto, CancellationToken ct = default);
@@ -184,12 +189,21 @@ namespace Backend.Api.Api.Services
             DateTimeOffset? from = null,
             DateTimeOffset? to = null,
             string? q = null,
+            string? paymentType = null,
+            decimal? minAmount = null,
+            decimal? maxAmount = null,
+            string? orderBy = null,
+            string? sortDirection = null,
             PaginationParams? pagination = null,
             CancellationToken ct = default)
         {
             pagination ??= new PaginationParams();
 
-            var qry = _db.SalesDocuments.AsNoTracking().AsQueryable();
+            var qry = _db.SalesDocuments
+                .AsNoTracking()
+                .Include(d => d.Items)
+                .Include(d => d.Payments)
+                .AsQueryable();
 
             if (type.HasValue)
                 qry = qry.Where(d => d.DocumentType == type.Value);
@@ -203,27 +217,78 @@ namespace Backend.Api.Api.Services
             if (to.HasValue)
                 qry = qry.Where(d => d.IssueDate <= to.Value);
 
+            if (minAmount.HasValue)
+                qry = qry.Where(d => d.TotalGross >= minAmount.Value);
+
+            if (maxAmount.HasValue)
+                qry = qry.Where(d => d.TotalGross <= maxAmount.Value);
+
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = q.Trim().ToLower();
-                qry = qry.Where(d =>
-                    d.DocumentNumber.ToLower().Contains(term) ||
-                    (d.Description != null && d.Description.ToLower().Contains(term)));
+                qry = qry.Where(d => d.DocumentNumber.ToLower().Contains(term));
             }
 
-            var projected = qry
-                .OrderByDescending(d => d.IssueDate)
-                .Select(d => new GetSalesDocumentListItemDto
+            // Filter by payment type
+            if (!string.IsNullOrWhiteSpace(paymentType))
+            {
+                if (paymentType.Equals("Mix", StringComparison.OrdinalIgnoreCase))
                 {
-                    Id = d.Id,
-                    DocumentType = d.DocumentType,
-                    IssueDate = d.IssueDate,
-                    DocumentNumber = d.DocumentNumber,
-                    ClientId = d.ClientId,
-                    TotalGross = d.TotalGross
-                });
+                    // Mix means multiple payment types
+                    qry = qry.Where(d => d.Payments.Select(p => p.PaymentOption).Distinct().Count() > 1);
+                }
+                else if (Enum.TryParse<PaymentOption>(paymentType, true, out var paymentOption))
+                {
+                    // Single payment type
+                    qry = qry.Where(d => d.Payments.Count == 1 && d.Payments.Any(p => p.PaymentOption == paymentOption));
+                }
+            }
+
+            // Project to DTO with calculated fields
+            var projected = qry.Select(d => new GetSalesDocumentListItemDto
+            {
+                Id = d.Id,
+                DocumentType = d.DocumentType,
+                IssueDate = d.IssueDate,
+                DocumentNumber = d.DocumentNumber,
+                ClientId = d.ClientId,
+                TotalNet = d.TotalNet,
+                TotalTax = d.TotalTax,
+                TotalGross = d.TotalGross,
+                NumberOfProducts = d.Items.Sum(i => i.Quantity),
+                PaymentType = d.Payments.Select(p => p.PaymentOption).Distinct().Count() > 1
+                    ? "Mix"
+                    : d.Payments.Any()
+                        ? d.Payments.First().PaymentOption.ToString()
+                        : "Unspecified"
+            });
+
+            // Apply sorting
+            projected = ApplySorting(projected, orderBy, sortDirection);
 
             return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
+        }
+
+        private IQueryable<GetSalesDocumentListItemDto> ApplySorting(
+            IQueryable<GetSalesDocumentListItemDto> query,
+            string? orderBy,
+            string? sortDirection)
+        {
+            var isDescending = sortDirection?.Equals("desc", StringComparison.OrdinalIgnoreCase) ?? false;
+
+            return (orderBy?.ToLower()) switch
+            {
+                "documentnumber" => isDescending
+                    ? query.OrderByDescending(d => d.DocumentNumber)
+                    : query.OrderBy(d => d.DocumentNumber),
+                "date" or "issuedate" => isDescending
+                    ? query.OrderByDescending(d => d.IssueDate)
+                    : query.OrderBy(d => d.IssueDate),
+                "grossamount" or "totalGross" => isDescending
+                    ? query.OrderByDescending(d => d.TotalGross)
+                    : query.OrderBy(d => d.TotalGross),
+                _ => query.OrderByDescending(d => d.IssueDate) // Default: newest first
+            };
         }
 
         // --- UPDATE HEADER ---
