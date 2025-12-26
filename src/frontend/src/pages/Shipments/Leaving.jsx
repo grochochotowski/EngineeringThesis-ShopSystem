@@ -252,11 +252,10 @@ export default function LeavingShipments() {
   };
 
   // Handle status change request
-  const handleStatusChangeRequest = (shipmentId, currentStatus, newStatus) => {
+  const handleStatusChangeRequest = (shipmentId, newStatus) => {
     const statusLabel = getStatusLabel(parseInt(newStatus));
     setPendingStatusChange({
       shipmentId,
-      currentStatus,
       newStatus: parseInt(newStatus),
       statusLabel,
     });
@@ -304,41 +303,35 @@ export default function LeavingShipments() {
     }
   };
 
-  // Render status dropdown or text based on role and status
+  // Render status cell with select dropdown for status changes (available to all users)
   const renderStatusCell = (row) => {
     const shipment = shipments.find(s => s.id === row.id);
     if (!shipment) return getStatusLabel(row.statusRaw);
 
     const currentStatus = shipment.status;
 
-    // Deputy Manager+ can change status
-    if (!isDeputyManagerOrHigher) {
-      return <div className={`badge ${getStatusBadgeClass(currentStatus)}`}>{getStatusLabel(currentStatus)}</div>;
-    }
-
-    // Filter out Collected status (id 5) for outgoing shipments
-    const availableStatuses = shipmentStatusesData.filter(s => s.id !== 5);
-
+    // Render select dropdown for all users
     return (
       <select
         value={currentStatus}
         onChange={(e) => {
-          const newStatus = e.target.value;
+          e.stopPropagation();
+          const newStatus = parseInt(e.target.value);
           // Only trigger if actually changed
-          if (parseInt(newStatus) !== currentStatus) {
-            handleStatusChangeRequest(row.id, currentStatus, newStatus);
+          if (newStatus !== currentStatus) {
+            handleStatusChangeRequest(row.id, newStatus);
           }
         }}
         onClick={(e) => e.stopPropagation()}
         className="status-select"
       >
-        {availableStatuses.map(s => {
-          // Only show current status and higher statuses
-          if (s.id < currentStatus) {
-            return null;
-          }
-          return <option key={s.id} value={s.id}>{s.value}</option>;
-        })}
+        {shipmentStatusesData
+          .filter(s => s.id >= currentStatus && s.id !== 5 && s.id !== 0) // Current + higher, exclude Collected and Unspecified
+          .map(status => (
+            <option key={status.id} value={status.id}>
+              {status.value}
+            </option>
+          ))}
       </select>
     );
   };
