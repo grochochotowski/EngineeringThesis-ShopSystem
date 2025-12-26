@@ -22,18 +22,16 @@ export default function SalesDocuments() {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [showFilters, setShowFilters] = useState(false);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
     const [sortColumn, setSortColumn] = useState("documentNumber");
     const [sortDirection, setSortDirection] = useState("desc");
 
-    // Filters
+    // Filters - using arrays for checkboxes
+    const [selectedDocumentTypes, setSelectedDocumentTypes] = useState([1, 2, 3]); // All types by default
+    const [selectedPaymentTypes, setSelectedPaymentTypes] = useState([1, 2, 4]); // Card, Cash, GiftCard
     const [filters, setFilters] = useState({
-        documentType: "",
-        clientId: "",
         from: "",
         to: "",
-        paymentType: "",
         minAmount: "",
         maxAmount: "",
     });
@@ -41,8 +39,10 @@ export default function SalesDocuments() {
     // Main search input
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Client list for filter
-    const [clients, setClients] = useState([]);
+    // Filters panel state
+    const [showFilters, setShowFilters] = useState(false);
+    const [showDocumentTypeFilters, setShowDocumentTypeFilters] = useState(false);
+    const [showPaymentTypeFilters, setShowPaymentTypeFilters] = useState(false);
 
     const observerRef = useRef(null);
     const filtersRef = useRef(null);
@@ -53,7 +53,9 @@ export default function SalesDocuments() {
         currentFilters,
         currentSearchQuery,
         currentSortColumn,
-        currentSortDirection
+        currentSortDirection,
+        currentDocumentTypes,
+        currentPaymentTypes
     ) => {
         try {
             setLoading(true);
@@ -63,26 +65,50 @@ export default function SalesDocuments() {
             const backendSortableColumns = ["documentNumber", "issueDate"];
             const useBackendSort = currentSortColumn && backendSortableColumns.includes(currentSortColumn);
 
+            // Build params
+            const params = {
+                PageNumber: page,
+                PageSize: 50,
+                ...(currentSearchQuery && { q: currentSearchQuery }),
+                ...(currentFilters.from && { from: currentFilters.from }),
+                ...(currentFilters.to && { to: currentFilters.to }),
+                ...(currentFilters.minAmount && { minAmount: currentFilters.minAmount }),
+                ...(currentFilters.maxAmount && { maxAmount: currentFilters.maxAmount }),
+                ...(useBackendSort && { orderBy: currentSortColumn }),
+                ...(useBackendSort && { sortDirection: currentSortDirection }),
+            };
+
+            // Add document types if selected (note: backend may not support multiple, so we'll filter client-side if needed)
+            if (currentDocumentTypes && currentDocumentTypes.length > 0 && currentDocumentTypes.length < 3) {
+                // If not all types selected, add filter
+                params.type = currentDocumentTypes[0]; // Backend might only support single type
+            }
+
             const { items, totalPages } = await api.get("/SalesDocument", {
-                params: {
-                    PageNumber: page,
-                    PageSize: 50,
-                    ...(currentSearchQuery && { q: currentSearchQuery }),
-                    ...(currentFilters.documentType !== "" && { type: currentFilters.documentType }),
-                    ...(currentFilters.clientId && { clientId: currentFilters.clientId }),
-                    ...(currentFilters.from && { from: currentFilters.from }),
-                    ...(currentFilters.to && { to: currentFilters.to }),
-                    ...(currentFilters.paymentType && { paymentType: currentFilters.paymentType }),
-                    ...(currentFilters.minAmount && { minAmount: currentFilters.minAmount }),
-                    ...(currentFilters.maxAmount && { maxAmount: currentFilters.maxAmount }),
-                    ...(useBackendSort && { orderBy: currentSortColumn }),
-                    ...(useBackendSort && { sortDirection: currentSortDirection }),
-                },
+                params,
                 cancelToken: source.token,
             });
 
             if (items?.length) {
-                setDocuments(items);
+                // Client-side filtering for document types and payment types
+                let filteredItems = items;
+
+                // Filter by document types if not all selected
+                if (currentDocumentTypes && currentDocumentTypes.length > 0 && currentDocumentTypes.length < 3) {
+                    filteredItems = filteredItems.filter(item => currentDocumentTypes.includes(item.documentType));
+                }
+
+                // Filter by payment types if not all selected (Card, Cash, GiftCard)
+                const allPaymentTypes = [1, 2, 4]; // Card, Cash, GiftCard
+                if (currentPaymentTypes && currentPaymentTypes.length > 0 && currentPaymentTypes.length < allPaymentTypes.length) {
+                    filteredItems = filteredItems.filter(item => {
+                        if (!item.paymentType) return false;
+                        const paymentTypeId = paymentOptionsData.find(p => p.value === item.paymentType)?.id;
+                        return currentPaymentTypes.includes(paymentTypeId);
+                    });
+                }
+
+                setDocuments(filteredItems);
                 setHasMore(page < (totalPages || 1));
             } else {
                 setDocuments([]);
@@ -99,25 +125,9 @@ export default function SalesDocuments() {
         }
     };
 
-    // Load clients for filter
+    // Initialize data loaded flag
     useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const clientsRes = await api.get("/Clients", {
-                    params: {
-                        pageNumber: 1,
-                        pageSize: 1000, // Get all clients for dropdown
-                    },
-                });
-                setClients(clientsRes.items || []);
-                setInitialDataLoaded(true);
-            } catch (err) {
-                console.error("Failed to fetch initial data", err);
-                setError("Failed to load initial page data.");
-            }
-        };
-
-        fetchInitialData();
+        setInitialDataLoaded(true);
     }, []);
 
     // Handle auto-search from query parameters
@@ -134,18 +144,18 @@ export default function SalesDocuments() {
         const delay = setTimeout(() => {
             setDocuments([]);
             setPageNumber(1);
-            fetchDocumentsData(1, filters, searchQuery, sortColumn, sortDirection);
+            fetchDocumentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes);
         }, 500);
 
         return () => clearTimeout(delay);
-    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection]);
+    }, [filters, searchQuery, initialDataLoaded, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes]);
 
     const immediateFetchDocuments = useCallback(() => {
         if (!initialDataLoaded) return;
         setDocuments([]);
         setPageNumber(1);
-        fetchDocumentsData(1, filters, searchQuery, sortColumn, sortDirection);
-    }, [sortColumn, sortDirection, filters, searchQuery, initialDataLoaded]);
+        fetchDocumentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes);
+    }, [sortColumn, sortDirection, filters, searchQuery, initialDataLoaded, selectedDocumentTypes, selectedPaymentTypes]);
 
     // Trigger debounced fetch for search
     useEffect(() => {
@@ -159,7 +169,7 @@ export default function SalesDocuments() {
     // Trigger immediate fetch for filters and sorting
     useEffect(() => {
         immediateFetchDocuments();
-    }, [filters, sortColumn, sortDirection]);
+    }, [filters, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -176,7 +186,7 @@ export default function SalesDocuments() {
     // Load next page
     useEffect(() => {
         if (pageNumber > 1) {
-            fetchDocumentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection);
+            fetchDocumentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes);
         }
     }, [pageNumber]);
 
@@ -206,13 +216,6 @@ export default function SalesDocuments() {
     // Get document type label
     const getDocumentTypeLabel = (typeId) => {
         return salesDocumentTypesData.find(t => t.id === typeId)?.value || "Unknown";
-    };
-
-    // Get client name
-    const getClientName = (clientId) => {
-        if (!clientId) return "—";
-        const client = clients.find(c => c.id === clientId);
-        return client ? `${client.name}${client.taxId ? ` (${client.taxId})` : ""}` : `Client #${clientId}`;
     };
 
     // Map documents to rows with raw values for sorting
@@ -285,6 +288,40 @@ export default function SalesDocuments() {
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters((prev) => ({ ...prev, [name]: value }));
+    };
+
+    // Handle checkbox toggle for document types
+    const handleDocumentTypeToggle = (typeId, checked) => {
+        setSelectedDocumentTypes(prev => {
+            if (checked) {
+                return [...prev, typeId];
+            } else {
+                return prev.filter(id => id !== typeId);
+            }
+        });
+    };
+
+    // Handle checkbox toggle for payment types
+    const handlePaymentTypeToggle = (paymentId, checked) => {
+        setSelectedPaymentTypes(prev => {
+            if (checked) {
+                return [...prev, paymentId];
+            } else {
+                return prev.filter(id => id !== paymentId);
+            }
+        });
+    };
+
+    // Reset all filters
+    const handleResetFilters = () => {
+        setSelectedDocumentTypes([1, 2, 3]);
+        setSelectedPaymentTypes([1, 2, 4]);
+        setFilters({
+            from: "",
+            to: "",
+            minAmount: "",
+            maxAmount: "",
+        });
     };
 
     // Close filters when clicking outside
@@ -394,7 +431,7 @@ export default function SalesDocuments() {
                                         className="btn-filter"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setShowFilters((prev) => !prev);
+                                            setShowFilters(prev => !prev);
                                         }}
                                     >
                                         Filters
@@ -427,111 +464,6 @@ export default function SalesDocuments() {
                                     Print
                                 </button>
                             </div>
-
-                            {/* Filters Panel */}
-                            {showFilters && (
-                                <div className="filters-content" ref={filtersRef}>
-                                    <h4>Filters</h4>
-
-                                    <div className="filter-group">
-                                        <label>Document Type:</label>
-                                        <select
-                                            name="documentType"
-                                            value={filters.documentType}
-                                            onChange={handleFilterChange}
-                                        >
-                                            <option value="">All Types</option>
-                                            {salesDocumentTypesData
-                                                .filter(t => t.id !== 0)
-                                                .map(t => (
-                                                    <option key={t.id} value={t.id}>
-                                                        {t.value}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="filter-group">
-                                        <label>Client:</label>
-                                        <select
-                                            name="clientId"
-                                            value={filters.clientId}
-                                            onChange={handleFilterChange}
-                                        >
-                                            <option value="">All Clients</option>
-                                            {clients.map(c => (
-                                                <option key={c.id} value={c.id}>
-                                                    {c.name}{c.taxId ? ` (${c.taxId})` : ""}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="filter-group">
-                                        <label>Payment Type:</label>
-                                        <select
-                                            name="paymentType"
-                                            value={filters.paymentType}
-                                            onChange={handleFilterChange}
-                                        >
-                                            <option value="">All Payment Types</option>
-                                            {paymentOptionsData
-                                                .filter(p => p.id !== 0)
-                                                .map(p => (
-                                                    <option key={p.id} value={p.value}>
-                                                        {p.value}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="filter-group">
-                                        <label>Issue Date From:</label>
-                                        <input
-                                            type="date"
-                                            name="from"
-                                            value={filters.from}
-                                            onChange={handleFilterChange}
-                                        />
-                                    </div>
-
-                                    <div className="filter-group">
-                                        <label>Issue Date To:</label>
-                                        <input
-                                            type="date"
-                                            name="to"
-                                            value={filters.to}
-                                            onChange={handleFilterChange}
-                                        />
-                                    </div>
-
-                                    <div className="filter-group">
-                                        <label>Min Amount ($):</label>
-                                        <input
-                                            type="number"
-                                            name="minAmount"
-                                            placeholder="Min amount"
-                                            value={filters.minAmount}
-                                            onChange={handleFilterChange}
-                                            step="0.01"
-                                            min="0"
-                                        />
-                                    </div>
-
-                                    <div className="filter-group">
-                                        <label>Max Amount ($):</label>
-                                        <input
-                                            type="number"
-                                            name="maxAmount"
-                                            placeholder="Max amount"
-                                            value={filters.maxAmount}
-                                            onChange={handleFilterChange}
-                                            step="0.01"
-                                            min="0"
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </aside>
 
                         {/* === MAIN CONTENT AREA === */}
@@ -625,8 +557,8 @@ export default function SalesDocuments() {
                                     <span className="detail-value">{formatDate(selectedDocumentDetails.issueDate)}</span>
                                 </div>
                                 <div className="detail-item">
-                                    <span className="detail-label">Client:</span>
-                                    <span className="detail-value">{getClientName(selectedDocumentDetails.clientId)}</span>
+                                    <span className="detail-label">Client ID:</span>
+                                    <span className="detail-value">{selectedDocumentDetails.clientId || "—"}</span>
                                 </div>
                                 {selectedDocumentDetails.description && (
                                     <div className="detail-item full-width">
@@ -751,6 +683,131 @@ export default function SalesDocuments() {
                         </div>
                     </div>
                 </Modal>
+            )}
+
+            {/* Filters Panel */}
+            {showFilters && (
+                <div className="filters-panel" ref={filtersRef}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h4 style={{ margin: 0 }}>Filters</h4>
+                        <button
+                            onClick={handleResetFilters}
+                            className="btn-reset-filters"
+                            style={{
+                                padding: '0.3rem 0.6rem',
+                                fontSize: '0.8rem',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: 'var(--radius-sm)',
+                                background: 'white',
+                                color: 'var(--text-dark)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            Reset
+                        </button>
+                    </div>
+
+                    {/* Document Types - Collapsible */}
+                    <div className="filter-group">
+                        <label
+                            onClick={() => setShowDocumentTypeFilters(prev => !prev)}
+                            style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                            <span>Document Type:</span>
+                            <span style={{ fontSize: '0.8rem' }}>{showDocumentTypeFilters ? '▼' : '▶'}</span>
+                        </label>
+                        {showDocumentTypeFilters && (
+                            <div className="status-checkbox-group">
+                                {salesDocumentTypesData
+                                    .filter(t => t.id !== 0)
+                                    .map(t => (
+                                        <label key={t.id} className="status-checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedDocumentTypes.includes(t.id)}
+                                                onChange={(e) => handleDocumentTypeToggle(t.id, e.target.checked)}
+                                            />
+                                            <span>{t.value}</span>
+                                        </label>
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Payment Types - Collapsible */}
+                    <div className="filter-group">
+                        <label
+                            onClick={() => setShowPaymentTypeFilters(prev => !prev)}
+                            style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                            <span>Payment Type:</span>
+                            <span style={{ fontSize: '0.8rem' }}>{showPaymentTypeFilters ? '▼' : '▶'}</span>
+                        </label>
+                        {showPaymentTypeFilters && (
+                            <div className="status-checkbox-group">
+                                {paymentOptionsData
+                                    .filter(p => [1, 2, 4].includes(p.id)) // Card, Cash, GiftCard
+                                    .map(p => (
+                                        <label key={p.id} className="status-checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedPaymentTypes.includes(p.id)}
+                                                onChange={(e) => handlePaymentTypeToggle(p.id, e.target.checked)}
+                                            />
+                                            <span>{p.value}</span>
+                                        </label>
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Issue Date Range - One Line */}
+                    <div className="filter-date-group">
+                        <label>Issue Date:</label>
+                        <div className="filter-date-inputs">
+                            <input
+                                type="date"
+                                name="from"
+                                value={filters.from}
+                                onChange={handleFilterChange}
+                            />
+                            <span className="date-separator">to</span>
+                            <input
+                                type="date"
+                                name="to"
+                                value={filters.to}
+                                onChange={handleFilterChange}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Amount Range - One Line */}
+                    <div className="filter-date-group">
+                        <label>Amount:</label>
+                        <div className="filter-date-inputs">
+                            <input
+                                type="number"
+                                name="minAmount"
+                                placeholder="Min"
+                                value={filters.minAmount}
+                                onChange={handleFilterChange}
+                                step="0.01"
+                                min="0"
+                            />
+                            <span className="date-separator">to</span>
+                            <input
+                                type="number"
+                                name="maxAmount"
+                                placeholder="Max"
+                                value={filters.maxAmount}
+                                onChange={handleFilterChange}
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Toast messages */}
