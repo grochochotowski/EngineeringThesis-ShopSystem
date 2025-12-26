@@ -43,6 +43,27 @@
 }
 
 /* === SEARCH PANEL === */
+.search-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.search-panel input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    background: #ffffff;
+    color: #0f1624;
+}
+
+.search-panel input:focus {
+    border-color: var(--accent-main);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
 .search-buttons {
     display: flex;
     justify-content: space-between;
@@ -192,6 +213,35 @@ li.list-column .description {
     color: var(--toast-error-text);
 }
 
+/* === MAIN CONTENT AREA === */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    overflow: hidden;
+}
+
+.content-header {
+    padding: 1.5rem 2rem 1rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: var(--bg-card);
+}
+
+.content-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.table-wrapper {
+    flex: 1;
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
 /* === MAIN TABLE === */
 .list-section {
     flex: 1;
@@ -205,7 +255,6 @@ li.list-column .description {
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1rem;
     background: var(--bg-card);
     border-radius: var(--radius-lg);
 }
@@ -242,8 +291,19 @@ li.list-column .description {
     font-size: 0.9rem;
 }
 
+.data-table td.no-data {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 /* === ROW STATES === */
-.data-table tr:hover {
+.data-table tbody tr {
+    cursor: pointer;
+}
+
+.data-table tbody tr:hover {
     background: var(--bg-hover);
 }
 

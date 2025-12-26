@@ -340,14 +340,11 @@
   border-radius: var(--radius-md);
 }
 
-/* Print button styling */
-.btn-print {
+/* Print button hover - success/green color */
+.btn-print:hover:not(.disabled):not(:disabled) {
   background: #10b981;
+  border-color: #10b981;
   color: white;
-}
-
-.btn-print:hover:not(.disabled) {
-  background: #059669;
 }
 
 /* Additional responsive styling */
