@@ -17,6 +17,7 @@ export default function POS() {
   // Scanned products state
   const [scannedProducts, setScannedProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productLocations, setProductLocations] = useState({}); // Map of productId -> locations array
 
   // Product search autocomplete
   const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -115,7 +116,7 @@ export default function POS() {
   }, [productSearchQuery]);
 
   // Add product to scanned list
-  const handleAddProduct = useCallback((product) => {
+  const handleAddProduct = useCallback(async (product) => {
     // Check if product already in list
     const existingIndex = scannedProducts.findIndex(p => p.id === product.id);
 
@@ -128,24 +129,40 @@ export default function POS() {
       };
       setScannedProducts(updated);
     } else {
-      // Add new product (European pricing: price includes tax)
-      const grossPrice = product.price;
-      const taxRate = taxRates.get(product.taxRateId)?.rate || 0;
-      const netPrice = grossPrice / (1 + taxRate);
-      const taxAmount = grossPrice - netPrice;
+      // Fetch available locations for this product
+      try {
+        const locations = await api.get(`/products-in-warehouse/product/${product.id}`);
 
-      setScannedProducts([...scannedProducts, {
-        id: product.id,
-        sku: product.sku,
-        name: product.name,
-        unitPriceGross: grossPrice,
-        unitPriceNet: netPrice,
-        unitTaxAmount: taxAmount,
-        quantity: 1,
-        taxRateId: product.taxRateId,
-        taxRate: taxRate,
-        taxCode: taxRates.get(product.taxRateId)?.code || ''
-      }]);
+        // Store locations for this product
+        setProductLocations(prev => ({
+          ...prev,
+          [product.id]: locations || []
+        }));
+
+        // Add new product (European pricing: price includes tax)
+        const grossPrice = product.price;
+        const taxRate = taxRates.get(product.taxRateId)?.rate || 0;
+        const netPrice = grossPrice / (1 + taxRate);
+        const taxAmount = grossPrice - netPrice;
+
+        setScannedProducts([...scannedProducts, {
+          id: product.id,
+          sku: product.sku,
+          name: product.name,
+          unitPriceGross: grossPrice,
+          unitPriceNet: netPrice,
+          unitTaxAmount: taxAmount,
+          quantity: 1,
+          taxRateId: product.taxRateId,
+          taxRate: taxRate,
+          taxCode: taxRates.get(product.taxRateId)?.code || '',
+          selectedLocationId: null, // Will be set by user
+          availableLocations: locations || []
+        }]);
+      } catch (error) {
+        console.error('Failed to load locations for product:', error);
+        setToast({ type: 'error', message: `Failed to load locations: ${error.message}` });
+      }
     }
 
     setProductSearchQuery('');
@@ -269,6 +286,18 @@ export default function POS() {
       updated[index] = {
         ...updated[index],
         quantity: newQuantity
+      };
+      return updated;
+    });
+  };
+
+  // Handle location selection
+  const handleLocationChange = (index, locationId) => {
+    setScannedProducts(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        selectedLocationId: parseInt(locationId)
       };
       return updated;
     });
@@ -490,14 +519,46 @@ export default function POS() {
 
   const handleFinishConfirm = async () => {
     try {
-      if (!saleDocumentGenerated) {
-        setToast({ type: 'error', message: 'No sale document to save' });
+      // Validate all products have locations selected
+      const productsWithoutLocation = scannedProducts.filter(p => !p.selectedLocationId);
+      if (productsWithoutLocation.length > 0) {
+        setToast({
+          type: 'error',
+          message: `Please select locations for: ${productsWithoutLocation.map(p => p.name).join(', ')}`
+        });
+        setShowFinishConfirm(false);
         return;
       }
 
-      await api.post('/SalesDocuments', saleDocumentGenerated);
+      // Map document type to enum value
+      const documentTypeEnum = documentType === 'Receipt' ? 1 : (selectedClient?.type === 0 ? 2 : 3);
 
-      setToast({ type: 'success', message: 'Transaction completed successfully!' });
+      // Prepare finalization DTO
+      const finalizationDto = {
+        documentType: documentTypeEnum,
+        clientId: documentType === 'Invoice' ? selectedClient?.id : null,
+        items: scannedProducts.map(p => ({
+          productId: p.id,
+          productName: p.name,
+          productSKU: p.sku,
+          quantity: p.quantity,
+          unitPriceNet: p.unitPriceNet,
+          taxRateId: p.taxRateId,
+          fromLocationId: p.selectedLocationId
+        })),
+        payments: payments.map(payment => ({
+          paymentOption: payment.method === 'Card' ? 1 : payment.method === 'Cash' ? 2 : 3,
+          amount: payment.amount
+        }))
+      };
+
+      // Call finalization endpoint
+      const response = await api.post('/SalesDocument/finalize', finalizationDto);
+
+      setToast({
+        type: 'success',
+        message: `Transaction completed! Document: ${response.documentNumber}, Change: $${response.change.toFixed(2)}`
+      });
       setShowFinishConfirm(false);
 
       // Reset entire state
@@ -509,9 +570,12 @@ export default function POS() {
       setPaymentAmount(0);
       setSaleDocumentGenerated(null);
       setDocumentType('Receipt');
+      setProductLocations({});
     } catch (error) {
-      console.error('Failed to save transaction:', error);
-      setToast({ type: 'error', message: `Transaction failed: ${error.message}` });
+      console.error('Failed to finalize transaction:', error);
+      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+      setToast({ type: 'error', message: `Transaction failed: ${errorMsg}` });
+      setShowFinishConfirm(false);
     }
   };
 
@@ -705,17 +769,19 @@ export default function POS() {
                   <table className="pos-products-table pos-products-table-clean-header">
                     <thead>
                       <tr>
-                        <th style={{ width: "30%", textAlign: "left" }}>Product</th>
-                        <th style={{ width: "10%", textAlign: "center" }}>Qty</th>
-                        <th style={{ width: "15%", textAlign: "center" }}>Price</th>
-                        <th style={{ width: "18%", textAlign: "center" }}>Tax</th>
-                        <th style={{ width: "17%", textAlign: "center", paddingRight: "2rem" }}>Total</th>
+                        <th style={{ width: "22%", textAlign: "left" }}>Product</th>
+                        <th style={{ width: "18%", textAlign: "left" }}>Location</th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Qty</th>
+                        <th style={{ width: "12%", textAlign: "center" }}>Price</th>
+                        <th style={{ width: "15%", textAlign: "center" }}>Tax</th>
+                        <th style={{ width: "15%", textAlign: "center", paddingRight: "2rem" }}>Total</th>
                         <th style={{ width: "10%", textAlign: "center" }}></th>
                       </tr>
                     </thead>
                     <tbody>
                       {scannedProducts.map((product, index) => {
                         const lineGross = product.unitPriceGross * product.quantity;
+                        const locations = product.availableLocations || [];
 
                         return (
                           <tr
@@ -724,10 +790,29 @@ export default function POS() {
                             onClick={() => !isFullyPaid && handleProductRowClick(product)}
                           >
                             {/* Product Name */}
-                            <td style={{ width: "30%", textAlign: "left" }}>{product.name}</td>
+                            <td style={{ width: "22%", textAlign: "left" }}>{product.name}</td>
+
+                            {/* Location Selection */}
+                            <td style={{ width: "18%", textAlign: "left" }}>
+                              <select
+                                value={product.selectedLocationId || ''}
+                                onChange={(e) => handleLocationChange(index, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={isFullyPaid}
+                                className={`pos-location-select ${!product.selectedLocationId ? 'not-selected' : ''}`}
+                                style={{ width: "100%" }}
+                              >
+                                <option value="">Select location...</option>
+                                {locations.map(loc => (
+                                  <option key={loc.locationId} value={loc.locationId}>
+                                    {loc.locationCode} (Qty: {loc.quantity})
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
 
                             {/* Editable Quantity */}
-                            <td style={{ width: "10%", textAlign: "center" }}>
+                            <td style={{ width: "8%", textAlign: "center" }}>
                               <input
                                 type="number"
                                 min="1"
@@ -735,22 +820,22 @@ export default function POS() {
                                 onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
                                 onClick={(e) => e.stopPropagation()}
                                 disabled={isFullyPaid}
-                                style={{ width: "60px", textAlign: "center" }}
+                                style={{ width: "50px", textAlign: "center" }}
                               />
                             </td>
 
                             {/* Net Price (without tax) */}
-                            <td style={{ width: "15%", textAlign: "center" }}>
+                            <td style={{ width: "12%", textAlign: "center" }}>
                               ${product.unitPriceNet.toFixed(2)}
                             </td>
 
                             {/* Tax (amount and percentage) - New format: XX.XX (yy%) */}
-                            <td style={{ width: "18%", textAlign: "center" }}>
+                            <td style={{ width: "15%", textAlign: "center" }}>
                               ${product.unitTaxAmount.toFixed(2)} ({(product.taxRate * 100).toFixed(0)}%)
                             </td>
 
                             {/* Total (gross price × quantity) - Add padding */}
-                            <td style={{ width: "17%", textAlign: "center", paddingRight: "2rem" }}>
+                            <td style={{ width: "15%", textAlign: "center", paddingRight: "2rem" }}>
                               ${lineGross.toFixed(2)}
                             </td>
 

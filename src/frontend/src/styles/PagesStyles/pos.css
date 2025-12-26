@@ -262,6 +262,41 @@
   pointer-events: none;
 }
 
+/* Location select dropdown in table */
+.pos-location-select {
+  padding: 0.4rem 0.5rem;
+  border: var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.pos-location-select:focus {
+  outline: 2px solid var(--accent-main);
+  outline-offset: -1px;
+  border-color: var(--accent-main);
+}
+
+.pos-location-select:disabled {
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pos-location-select.not-selected {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.pos-location-select.not-selected:focus {
+  outline-color: #f59e0b;
+  border-color: #f59e0b;
+}
+
 /* Empty message */
 .pos-empty-message {
   text-align: center;
