@@ -152,6 +152,66 @@ export default function POS() {
     setShowProductDropdown(false);
   }, [scannedProducts, taxRates]);
 
+  // Handle Enter key press for SKU scanning
+  const handleScanKeyPress = useCallback(async (e) => {
+    if (e.key !== 'Enter') return;
+
+    e.preventDefault();
+
+    const sku = productSearchQuery.trim();
+
+    // Validate SKU is not empty
+    if (!sku) {
+      setToast({ type: 'error', message: 'Please enter a SKU' });
+      return;
+    }
+
+    // Validate minimum SKU length (adjust as needed for your business rules)
+    if (sku.length < 3) {
+      setToast({ type: 'error', message: 'SKU too short (minimum 3 characters)' });
+      return;
+    }
+
+    try {
+      // Search for exact SKU match
+      const { items } = await api.get('/Products', {
+        params: {
+          q: sku,
+          PageSize: 20,
+          isActive: true
+        }
+      });
+
+      if (!items || items.length === 0) {
+        setToast({ type: 'error', message: `Product not found: ${sku}` });
+        // Keep the value in input for correction
+        return;
+      }
+
+      // Find exact SKU match (case-insensitive)
+      const exactMatch = items.find(p => p.sku.toLowerCase() === sku.toLowerCase());
+
+      if (exactMatch) {
+        // Add the exact match
+        handleAddProduct(exactMatch);
+        setToast({ type: 'success', message: `Added: ${exactMatch.name}` });
+      } else if (items.length === 1) {
+        // If only one result and it's a partial match, add it
+        handleAddProduct(items[0]);
+        setToast({ type: 'success', message: `Added: ${items[0].name}` });
+      } else {
+        // Multiple partial matches - show dropdown for user to select
+        setProductSearchResults(items);
+        setShowProductDropdown(true);
+        setToast({ type: 'info', message: `Found ${items.length} matches - please select` });
+      }
+    } catch (error) {
+      console.error('SKU scan failed:', error);
+      setToast({ type: 'error', message: `Scan failed: ${error.message || 'Network error'}` });
+      // Keep the value in input for retry
+    }
+  }, [productSearchQuery, handleAddProduct]);
+
   // Calculate totals (European pricing: tax included in price)
   const calculateTotals = useCallback((products) => {
     let totalNet = 0;
@@ -586,6 +646,7 @@ export default function POS() {
                 placeholder="Search products by SKU or name..."
                 value={productSearchQuery}
                 onChange={(e) => setProductSearchQuery(e.target.value)}
+                onKeyDown={handleScanKeyPress}
                 onFocus={() => productSearchResults.length > 0 && setShowProductDropdown(true)}
                 disabled={isFullyPaid}
                 className="pos-product-search"
