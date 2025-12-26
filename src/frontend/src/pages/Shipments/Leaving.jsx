@@ -310,7 +310,17 @@ export default function LeavingShipments() {
 
     const currentStatus = shipment.status;
 
-    // Render select dropdown for all users
+    // For InPreparation status (id: 1), show badge instead of select
+    // Status should only progress via the "Prepare" button workflow
+    if (currentStatus === 1) {
+      return (
+        <div className={`badge ${getStatusBadgeClass(currentStatus)}`}>
+          {getStatusLabel(currentStatus)}
+        </div>
+      );
+    }
+
+    // For all other statuses, render select dropdown
     return (
       <select
         value={currentStatus}
