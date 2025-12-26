@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import axios from "axios";
 import { api } from "../../api/apiClient";
 import { useSearchParams } from "react-router-dom";
@@ -24,7 +24,7 @@ export default function SalesDocuments() {
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
-    const [sortColumn, setSortColumn] = useState("id");
+    const [sortColumn, setSortColumn] = useState("documentNumber");
     const [sortDirection, setSortDirection] = useState("desc");
 
     // Filters
@@ -58,6 +58,11 @@ export default function SalesDocuments() {
         try {
             setLoading(true);
             const source = axios.CancelToken.source();
+
+            // Only send backend sorting for columns that backend supports
+            const backendSortableColumns = ["documentNumber", "issueDate"];
+            const useBackendSort = currentSortColumn && backendSortableColumns.includes(currentSortColumn);
+
             const { items, totalPages } = await api.get("/SalesDocument", {
                 params: {
                     PageNumber: page,
@@ -70,8 +75,8 @@ export default function SalesDocuments() {
                     ...(currentFilters.paymentType && { paymentType: currentFilters.paymentType }),
                     ...(currentFilters.minAmount && { minAmount: currentFilters.minAmount }),
                     ...(currentFilters.maxAmount && { maxAmount: currentFilters.maxAmount }),
-                    ...(currentSortColumn && { orderBy: currentSortColumn }),
-                    ...(currentSortDirection && { sortDirection: currentSortDirection }),
+                    ...(useBackendSort && { orderBy: currentSortColumn }),
+                    ...(useBackendSort && { sortDirection: currentSortDirection }),
                 },
                 cancelToken: source.token,
             });
@@ -177,14 +182,13 @@ export default function SalesDocuments() {
 
     // Columns for table
     const columns = [
-        { key: "id", label: "ID", width: "6%", sortable: true },
-        { key: "documentType", label: "Type", width: "12%", sortable: true },
-        { key: "documentNumber", label: "Document #", width: "14%", sortable: true },
-        { key: "issueDate", label: "Issue Date", width: "14%", sortable: true },
-        { key: "client", label: "Client", width: "16%", sortable: false },
-        { key: "totalGross", label: "Total", width: "10%", sortable: true },
-        { key: "numberOfProducts", label: "Products", width: "8%", sortable: true },
-        { key: "paymentType", label: "Payment", width: "12%", sortable: true },
+        { key: "documentNumber", label: "Document #", width: "16%", sortable: true },
+        { key: "documentType", label: "Type", width: "14%", sortable: false },
+        { key: "issueDate", label: "Issue Date", width: "18%", sortable: true },
+        { key: "totalGross", label: "Total", width: "12%", sortable: true },
+        { key: "totalTax", label: "Total Tax", width: "12%", sortable: true },
+        { key: "numberOfProducts", label: "Products", width: "12%", sortable: true },
+        { key: "paymentType", label: "Payment", width: "16%", sortable: false },
     ];
 
     // Format date for display
@@ -211,18 +215,62 @@ export default function SalesDocuments() {
         return client ? `${client.name}${client.taxId ? ` (${client.taxId})` : ""}` : `Client #${clientId}`;
     };
 
-    const rows = documents.map((d) => ({
+    // Map documents to rows with raw values for sorting
+    const baseRows = documents.map((d) => ({
         id: d.id,
         documentType: getDocumentTypeLabel(d.documentType),
         documentNumber: d.documentNumber,
         issueDate: formatDate(d.issueDate),
-        client: getClientName(d.clientId),
         totalGross: `$${d.totalGross.toFixed(2)}`,
+        totalTax: `$${d.totalTax.toFixed(2)}`,
         numberOfProducts: d.numberOfProducts,
         paymentType: d.paymentType || "—",
         rawDocumentType: d.documentType,
         rawClientId: d.clientId,
+        rawTotalGross: d.totalGross,
+        rawTotalTax: d.totalTax,
+        rawNumberOfProducts: d.numberOfProducts,
+        rawIssueDate: new Date(d.issueDate),
     }));
+
+    // Frontend sorting for columns that need it
+    const rows = useMemo(() => {
+        if (!sortColumn || !sortDirection) return baseRows;
+
+        // Columns that need frontend sorting
+        const frontendSortColumns = ["totalGross", "totalTax", "numberOfProducts"];
+
+        if (!frontendSortColumns.includes(sortColumn)) {
+            return baseRows; // Backend handles documentNumber and issueDate
+        }
+
+        const sorted = [...baseRows].sort((a, b) => {
+            let aValue, bValue;
+
+            switch (sortColumn) {
+                case "totalGross":
+                    aValue = a.rawTotalGross;
+                    bValue = b.rawTotalGross;
+                    break;
+                case "totalTax":
+                    aValue = a.rawTotalTax;
+                    bValue = b.rawTotalTax;
+                    break;
+                case "numberOfProducts":
+                    aValue = a.rawNumberOfProducts;
+                    bValue = b.rawNumberOfProducts;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+            if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+            return 0;
+        });
+
+        return sorted;
+    }, [baseRows, sortColumn, sortDirection]);
 
     const user = JSON.parse(localStorage.getItem("user"));
 
