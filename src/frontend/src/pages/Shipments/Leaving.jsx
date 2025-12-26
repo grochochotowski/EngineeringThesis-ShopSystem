@@ -7,7 +7,6 @@ import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageBox from "../../components/MessageBox";
 import { shipmentStatusesData } from "../../data/shipmentStatuses";
-import { countries, getCountryValue } from "../../data/countries";
 import { userRolesData } from "../../data/userRoles";
 import "../../styles/PagesStyles/shipments.css";
 
@@ -60,9 +59,6 @@ export default function LeavingShipments() {
     return userRolesData.find(r => r.value === roleName)?.id || 0;
   };
 
-  const isDeputyManagerOrHigher = userRoleLevel >= getRoleLevel("DeputyManager");
-  const isManagerOrHigher = userRoleLevel >= getRoleLevel("Manager");
-
   // State for status change confirmation
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
 
@@ -70,6 +66,15 @@ export default function LeavingShipments() {
   const fetchShipmentsData = async (page, currentFilters, currentSearchQuery, currentSortColumn, currentSortDirection, currentSelectedStatuses) => {
     try {
       setLoading(true);
+
+      // Check if the column is client-side sorted
+      const columnDef = columns.find(c => c.key === currentSortColumn);
+      const isClientSort = columnDef?.clientSort === true;
+
+      // Translate frontend column key to backend sort key (skip if client-side sort)
+      const backendSortKey = !isClientSort && currentSortColumn
+        ? columnDef?.sortKey || currentSortColumn
+        : null;
 
       // Build params object with multiple statuses
       const params = {
@@ -81,8 +86,8 @@ export default function LeavingShipments() {
         ...(currentFilters.sendDateTo && { sendDateTo: currentFilters.sendDateTo }),
         ...(currentFilters.deliveryDateFrom && { deliveryDateFrom: currentFilters.deliveryDateFrom }),
         ...(currentFilters.deliveryDateTo && { deliveryDateTo: currentFilters.deliveryDateTo }),
-        ...(currentSortColumn && { orderBy: currentSortColumn }),
-        ...(currentSortDirection && { sortDirection: currentSortDirection }),
+        ...(backendSortKey && { orderBy: backendSortKey }),
+        ...(backendSortKey && currentSortDirection && { sortDirection: currentSortDirection }),
       };
 
       // Add multiple status parameters if any are selected
@@ -98,7 +103,44 @@ export default function LeavingShipments() {
       const { items, totalPages } = await api.get("/Shipments", { params });
 
       if (items?.length) {
-        setShipments(items);
+        // Apply client-side sorting if needed
+        let sortedItems = items;
+        if (isClientSort && currentSortColumn && currentSortDirection) {
+          sortedItems = [...items].sort((a, b) => {
+            let aValue, bValue;
+
+            // For volume column, calculate volume from dimensions
+            if (currentSortColumn === 'volume') {
+              aValue = (a.length && a.width && a.height)
+                ? a.length * a.width * a.height
+                : 0;
+              bValue = (b.length && b.width && b.height)
+                ? b.length * b.width * b.height
+                : 0;
+            } else {
+              aValue = a[currentSortColumn];
+              bValue = b[currentSortColumn];
+
+              // Handle null/undefined values
+              if (aValue == null) aValue = 0;
+              if (bValue == null) bValue = 0;
+
+              // For totalQuantity, ensure numeric comparison
+              if (currentSortColumn === 'totalQuantity') {
+                aValue = Number(aValue) || 0;
+                bValue = Number(bValue) || 0;
+              }
+            }
+
+            if (currentSortDirection === 'asc') {
+              return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+            } else {
+              return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+            }
+          });
+        }
+
+        setShipments(sortedItems);
         setHasMore(page < (totalPages || 1));
       } else {
         setShipments([]);
@@ -134,15 +176,24 @@ export default function LeavingShipments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Debounced search
+  // Instant update for sorting and filtering (no delay)
+  useEffect(() => {
+    setShipments([]);
+    setPageNumber(1);
+    fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, sortColumn, sortDirection, selectedStatuses]);
+
+  // Debounced search (500ms delay for text input)
   useEffect(() => {
     const delay = setTimeout(() => {
       setShipments([]);
       setPageNumber(1);
       fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
-    }, 1000);
+    }, 500);
     return () => clearTimeout(delay);
-  }, [filters, searchQuery, sortColumn, sortDirection, selectedStatuses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // Infinite scroll
   useEffect(() => {
@@ -161,6 +212,7 @@ export default function LeavingShipments() {
     if (pageNumber > 1) {
       fetchShipmentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses]);
 
   // Close filters when clicking outside
@@ -210,19 +262,28 @@ export default function LeavingShipments() {
 
   // Table columns - ID, To, Size, Total Qty, Send Date, Status
   const columns = [
-    { key: "id", label: "ID", width: "8%", sortable: true },
-    { key: "to", label: "To", width: "22%", sortable: false },
-    { key: "size", label: "Size", width: "13%", sortable: false },
-    { key: "totalQuantity", label: "Total Qty", width: "12%", sortable: false },
-    { key: "sendDate", label: "Send Date", width: "13%", sortable: true },
-    { key: "status", label: "Status", width: "13%", sortable: false },
+    { key: "id", label: "ID", width: "8%", sortable: true, sortKey: "id" },
+    { key: "receiverName", label: "To", width: "22%", sortable: true, sortKey: "receivername" },
+    { key: "volume", label: "Size", width: "13%", sortable: true, clientSort: true }, // Client-side sort only
+    { key: "totalQuantity", label: "Total Qty", width: "12%", sortable: true, clientSort: true }, // Client-side sort only
+    { key: "sendDate", label: "Send Date", width: "13%", sortable: true, sortKey: "senddate" },
+    { key: "status", label: "Status", width: "13%", sortable: true, sortKey: "status" },
   ];
 
   const rows = shipments.map((s) => {
+    // Calculate volume (length × width × height) in cm³
+    // Dimensions are in cm, so volume = length × width × height (no conversion needed)
+    const volumeCalc = s.length && s.width && s.height
+      ? s.length * s.width * s.height
+      : 0;
+
     return {
       id: s.id,
-      to: `${s.receiverName || "Unknown"}${s.receiverTaxId ? ` (${s.receiverTaxId})` : ""}`,
-      size: s.length && s.width && s.height ? `${s.length} x ${s.width} x ${s.height}` : "—",
+      receiverName: `${s.receiverName || "Unknown"}${s.receiverTaxId ? ` (${s.receiverTaxId})` : ""}`,
+      volume: s.length && s.width && s.height
+        ? `${s.length} x ${s.width} x ${s.height} (${volumeCalc.toLocaleString()} cm³)`
+        : "—",
+      volumeValue: volumeCalc, // Store numeric value for sorting
       totalQuantity: s.totalQuantity || 0,
       sendDate: formatDate(s.sendDate),
       status: s.status,
