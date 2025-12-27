@@ -692,6 +692,8 @@ export default function SalesDocuments() {
                                             <tr>
                                                 <th>Payment Method</th>
                                                 <th>Amount</th>
+                                                <th>Amount Tendered</th>
+                                                <th>Change</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -703,6 +705,12 @@ export default function SalesDocuments() {
                                                         </span>
                                                     </td>
                                                     <td className="payment-amount">${payment.amount.toFixed(2)}</td>
+                                                    <td className="payment-amount">
+                                                        {payment.amountTendered ? `$${payment.amountTendered.toFixed(2)}` : '—'}
+                                                    </td>
+                                                    <td className="payment-amount">
+                                                        {payment.change ? `$${payment.change.toFixed(2)}` : '—'}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -712,6 +720,7 @@ export default function SalesDocuments() {
                                                 <td className="total-paid">
                                                     ${selectedDocumentDetails.payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
                                                 </td>
+                                                <td colSpan="2"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
