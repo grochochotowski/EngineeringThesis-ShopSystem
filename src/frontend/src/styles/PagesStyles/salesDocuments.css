@@ -324,7 +324,7 @@
   text-transform: capitalize;
 }
 
-/* Different colors for the 3 main payment methods */
+/* Different colors for payment methods */
 .payment-badge.card {
   background: #3b82f6; /* Blue */
 }
@@ -333,14 +333,33 @@
   background: #10b981; /* Green */
 }
 
+.payment-badge.bank-transfer,
 .payment-badge.banktransfer {
   background: #8b5cf6; /* Purple */
 }
 
-/* Fallback for other payment types (if any) */
-.payment-badge.giftcard,
-.payment-badge.voucher,
+.payment-badge.gift-card,
+.payment-badge.giftcard {
+  background: #f59e0b; /* Amber/Gold */
+}
+
+.payment-badge.voucher {
+  background: #ec4899; /* Pink */
+}
+
+/* Special badge for mixed payments */
+.payment-badge.mix,
+.payment-badge.mixed {
+  background: #f97316; /* Orange */
+}
+
+/* Fallback for unspecified payment type */
 .payment-badge.unspecified {
+  background: #6b7280; /* Gray */
+}
+
+/* Badge for unknown/unrecognized payment type */
+.payment-badge.unknown {
   background: #6b7280; /* Gray */
 }
 

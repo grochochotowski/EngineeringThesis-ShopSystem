@@ -5,8 +5,6 @@
         Unspecified = 0,
         Card = 1,
         Cash = 2,
-        BankTransfer = 3,
-        GiftCard = 4,
-        Voucher = 5
+        GiftCard = 3,
     }
 }

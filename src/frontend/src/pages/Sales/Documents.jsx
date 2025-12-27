@@ -28,7 +28,7 @@ export default function SalesDocuments() {
 
     // Filters - using arrays for checkboxes
     const [selectedDocumentTypes, setSelectedDocumentTypes] = useState([1, 2, 3]); // All types by default
-    const [selectedPaymentTypes, setSelectedPaymentTypes] = useState([1, 2, 4]); // Card, Cash, GiftCard
+    const [selectedPaymentTypes, setSelectedPaymentTypes] = useState([1, 2, 3, 4, 5]); // All payment types by default
     const [filters, setFilters] = useState({
         from: "",
         to: "",
@@ -95,11 +95,15 @@ export default function SalesDocuments() {
 
                 // Filter by document types if not all selected
                 if (currentDocumentTypes && currentDocumentTypes.length > 0 && currentDocumentTypes.length < 3) {
-                    filteredItems = filteredItems.filter(item => currentDocumentTypes.includes(item.documentType));
+                    filteredItems = filteredItems.filter(item => {
+                        // Backend returns enum as string (e.g., "Receipt"), need to map to ID
+                        const docType = salesDocumentTypesData.find(t => t.value === item.documentType);
+                        return docType ? currentDocumentTypes.includes(docType.id) : false;
+                    });
                 }
 
-                // Filter by payment types if not all selected (Card, Cash, GiftCard)
-                const allPaymentTypes = [1, 2, 4]; // Card, Cash, GiftCard
+                // Filter by payment types if not all selected
+                const allPaymentTypes = [1, 2, 3,]; // Card, Cash, GiftCard
                 if (currentPaymentTypes && currentPaymentTypes.length > 0 && currentPaymentTypes.length < allPaymentTypes.length) {
                     filteredItems = filteredItems.filter(item => {
                         if (!item.paymentType) return false;
@@ -214,8 +218,34 @@ export default function SalesDocuments() {
     };
 
     // Get document type label
-    const getDocumentTypeLabel = (typeId) => {
-        return salesDocumentTypesData.find(t => t.id === typeId)?.value || "Unknown";
+    // Backend serializes enums as strings (e.g., "Receipt"), not numbers
+    const getDocumentTypeLabel = (typeValue) => {
+        // If it's a number, find by id
+        if (typeof typeValue === 'number') {
+            return salesDocumentTypesData.find(t => t.id === typeValue)?.value || "Unknown";
+        }
+        // If it's a string (enum name), find by value
+        const found = salesDocumentTypesData.find(t => t.value === typeValue);
+        return found ? found.value : "Unknown";
+    };
+
+    // Get payment option label
+    // Backend serializes enums as strings (e.g., "GiftCard"), not numbers
+    const getPaymentOptionLabel = (paymentValue) => {
+        // Handle special case for mixed payments
+        if (paymentValue === "Mix") {
+            return "Mixed";
+        }
+        // If it's a number, find by id
+        if (typeof paymentValue === 'number') {
+            return paymentOptionsData.find(p => p.id === paymentValue)?.label || "Unknown";
+        }
+        // If it's a string (enum name), find by value and return label
+        const found = paymentOptionsData.find(p => p.value === paymentValue);
+        if (found) {
+            return found.label;
+        }
+        return "Unknown";
     };
 
     // Map documents to rows with raw values for sorting
@@ -227,7 +257,7 @@ export default function SalesDocuments() {
         totalGross: `$${d.totalGross.toFixed(2)}`,
         totalTax: `$${d.totalTax.toFixed(2)}`,
         numberOfProducts: d.numberOfProducts,
-        paymentType: d.paymentType || "—",
+        paymentType: d.paymentType ? getPaymentOptionLabel(d.paymentType) : "—",
         rawDocumentType: d.documentType,
         rawClientId: d.clientId,
         rawTotalGross: d.totalGross,
@@ -315,7 +345,7 @@ export default function SalesDocuments() {
     // Reset all filters
     const handleResetFilters = () => {
         setSelectedDocumentTypes([1, 2, 3]);
-        setSelectedPaymentTypes([1, 2, 4]);
+        setSelectedPaymentTypes([1, 2, 3, 4, 5]);
         setFilters({
             from: "",
             to: "",
@@ -508,9 +538,18 @@ export default function SalesDocuments() {
                                                     className={selectedDocument && selectedDocument.id === row.id ? "selected" : ""}
                                                     onClick={() => handleRowSelect(row)}
                                                 >
-                                                    {columns.map(col => (
-                                                        <td key={col.key}>{row[col.key]}</td>
-                                                    ))}
+                                                    {columns.map(col => {
+                                                        if (col.key === "paymentType" && row[col.key] !== "—") {
+                                                            return (
+                                                                <td key={col.key}>
+                                                                    <span className={`payment-badge ${row[col.key].toLowerCase().replace(/\s+/g, '-')}`}>
+                                                                        {row[col.key]}
+                                                                    </span>
+                                                                </td>
+                                                            );
+                                                        }
+                                                        return <td key={col.key}>{row[col.key]}</td>;
+                                                    })}
                                                 </tr>
                                             ))
                                         )}
@@ -659,8 +698,8 @@ export default function SalesDocuments() {
                                             {selectedDocumentDetails.payments.map((payment, idx) => (
                                                 <tr key={idx}>
                                                     <td className="payment-method">
-                                                        <span className={`payment-badge ${(payment.paymentOption || 'Unspecified').toLowerCase()}`}>
-                                                            {payment.paymentOption || "Unknown"}
+                                                        <span className={`payment-badge ${(getPaymentOptionLabel(payment.paymentOption) || 'Unspecified').toLowerCase().replace(/\s+/g, '-')}`}>
+                                                            {getPaymentOptionLabel(payment.paymentOption)}
                                                         </span>
                                                     </td>
                                                     <td className="payment-amount">${payment.amount.toFixed(2)}</td>
@@ -747,7 +786,7 @@ export default function SalesDocuments() {
                         {showPaymentTypeFilters && (
                             <div className="status-checkbox-group">
                                 {paymentOptionsData
-                                    .filter(p => [1, 2, 4].includes(p.id)) // Card, Cash, GiftCard
+                                    .filter(p => p.id !== 0) // Exclude Unspecified
                                     .map(p => (
                                         <label key={p.id} className="status-checkbox-label">
                                             <input
@@ -755,7 +794,7 @@ export default function SalesDocuments() {
                                                 checked={selectedPaymentTypes.includes(p.id)}
                                                 onChange={(e) => handlePaymentTypeToggle(p.id, e.target.checked)}
                                             />
-                                            <span>{p.value}</span>
+                                            <span>{p.label}</span>
                                         </label>
                                     ))}
                             </div>
