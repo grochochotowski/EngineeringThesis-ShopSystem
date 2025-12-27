@@ -692,8 +692,6 @@ export default function SalesDocuments() {
                                             <tr>
                                                 <th>Payment Method</th>
                                                 <th>Amount</th>
-                                                <th>Amount Tendered</th>
-                                                <th>Change</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -705,22 +703,40 @@ export default function SalesDocuments() {
                                                         </span>
                                                     </td>
                                                     <td className="payment-amount">${payment.amount.toFixed(2)}</td>
-                                                    <td className="payment-amount">
-                                                        {payment.amountTendered ? `$${payment.amountTendered.toFixed(2)}` : '—'}
-                                                    </td>
-                                                    <td className="payment-amount">
-                                                        {payment.change ? `$${payment.change.toFixed(2)}` : '—'}
-                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                         <tfoot>
                                             <tr className="totals-row">
-                                                <td className="totals-label">Total Paid:</td>
-                                                <td className="total-paid">
-                                                    ${selectedDocumentDetails.payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                                                <td colSpan="2" style={{ textAlign: 'right', padding: '0.75rem', fontSize: '1.05rem' }}>
+                                                    {(() => {
+                                                        const totalAmount = selectedDocumentDetails.payments.reduce((sum, p) => sum + p.amount, 0);
+                                                        const totalPaid = selectedDocumentDetails.payments.reduce((sum, p) => sum + (p.amountTendered || p.amount), 0);
+                                                        const totalChange = selectedDocumentDetails.payments.reduce((sum, p) => sum + (p.change || 0), 0);
+
+                                                        return (
+                                                            <>
+                                                                <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>
+                                                                    Total Amount: ${totalAmount.toFixed(2)}
+                                                                </span>
+                                                                {' │ '}
+                                                                <span style={{
+                                                                    color: totalPaid === totalAmount ? '#10b981' : '#f97316',
+                                                                    fontWeight: 'bold'
+                                                                }}>
+                                                                    Total Paid: ${totalPaid.toFixed(2)}
+                                                                </span>
+                                                                {' │ '}
+                                                                <span style={{
+                                                                    color: totalChange === 0 ? '#10b981' : (totalChange < 0 ? '#dc2626' : '#10b981'),
+                                                                    fontWeight: 'bold'
+                                                                }}>
+                                                                    Total Change: {totalChange < 0 ? '-' : ''}${Math.abs(totalChange).toFixed(2)}
+                                                                </span>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </td>
-                                                <td colSpan="2"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
