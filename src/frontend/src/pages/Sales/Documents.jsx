@@ -21,7 +21,6 @@ export default function SalesDocuments() {
     const [pageNumber, setPageNumber] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
     const [sortColumn, setSortColumn] = useState("documentNumber");
     const [sortDirection, setSortDirection] = useState("desc");
@@ -122,8 +121,7 @@ export default function SalesDocuments() {
             if (axios.isCancel(err)) {
                 return;
             }
-            console.error(err);
-            setError("Failed to load sales documents.");
+            console.error("Failed to load sales documents:", err);
         } finally {
             setLoading(false);
         }
@@ -173,7 +171,7 @@ export default function SalesDocuments() {
     // Trigger immediate fetch for filters and sorting
     useEffect(() => {
         immediateFetchDocuments();
-    }, [filters, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes]);
+    }, [immediateFetchDocuments, filters, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes]);
 
     // Infinite scroll observer
     useEffect(() => {
@@ -192,7 +190,7 @@ export default function SalesDocuments() {
         if (pageNumber > 1) {
             fetchDocumentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes);
         }
-    }, [pageNumber]);
+    }, [pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes]);
 
     // Columns for table
     const columns = [
