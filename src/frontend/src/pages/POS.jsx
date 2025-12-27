@@ -279,10 +279,16 @@ export default function POS() {
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const remainingBalance = parseFloat(totals.totalGross) - totalPaid;
 
+  // Calculate total amount tendered (actual amount customer gave)
+  const totalTendered = payments.reduce((sum, payment) => {
+    // For Cash: use amountTendered; for Card/Gift Card: use amount charged
+    return sum + (payment.method === 'Cash' && payment.amountTendered ? payment.amountTendered : payment.amount);
+  }, 0);
+
   // Two separate flags for different purposes:
   const isFullyPaid = scannedProducts.length > 0 && remainingBalance <= 0; // Is transaction fully paid?
 
-  const change = totalPaid > parseFloat(totals.totalGross) ? totalPaid - parseFloat(totals.totalGross) : 0;
+  const change = totalTendered - parseFloat(totals.totalGross);
 
   // Update payment amount when totals change
   useEffect(() => {
@@ -619,7 +625,7 @@ export default function POS() {
 
       setToast({
         type: 'success',
-        message: `Transaction completed! Document: ${response.documentNumber}, Change: $${response.change.toFixed(2)}`
+        message: response.documentNumber
       });
       setShowFinishConfirm(false);
 
@@ -990,38 +996,51 @@ export default function POS() {
             {/* Payment tracking rows (Sale mode only) */}
             {activeMode === 'Sale' && payments.length > 0 && (
               <>
-                {payments.map((payment, index) => (
-                  <div
-                    key={index}
-                    className="pos-totals-row pos-payment-row clickable"
-                    onClick={() => handleRemovePayment(payment.method)}
-                    title="Click to remove this payment"
-                  >
-                    <span>Paid with {payment.method}:</span>
-                    <span>${payment.amount.toFixed(2)}</span>
-                  </div>
-                ))}
+                {payments.map((payment, index) => {
+                  // For Cash: show amountTendered; for Card/Gift Card: show amount charged
+                  const displayAmount = payment.method === 'Cash' && payment.amountTendered
+                    ? payment.amountTendered
+                    : payment.amount;
+
+                  return (
+                    <div
+                      key={index}
+                      className="pos-totals-row pos-payment-row clickable"
+                      onClick={() => handleRemovePayment(payment.method)}
+                      title="Click to remove this payment"
+                    >
+                      <span>Paid with {payment.method}:</span>
+                      <span>${displayAmount.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
               </>
             )}
 
             <div className="pos-totals-divider"></div>
-            <div className="pos-totals-row pos-total-row">
-              <span>Total:</span>
-              <span>
-                ${activeMode === 'Sale' ? totals.totalGross : returnTotals.totalGross}
-                {activeMode === 'Sale' && payments.length > 0 && (
-                  <span className={`remaining-amount ${remainingBalance <= 0 ? 'paid' : 'unpaid'}`}>
-                    {' '}(Remaining: {remainingBalance < 0 ? '-' : ''}${Math.abs(remainingBalance).toFixed(2)})
-                  </span>
-                )}
-              </span>
-            </div>
 
-            {/* Change display (Sale mode only, when overpaid) */}
-            {activeMode === 'Sale' && change > 0 && (
-              <div className="pos-totals-row change-row">
-                <span>Change:</span>
-                <span>${change.toFixed(2)}</span>
+            {/* Summary section */}
+            {activeMode === 'Sale' && payments.length > 0 ? (
+              <>
+                <div className="pos-totals-row">
+                  <span>Total to Pay:</span>
+                  <span>${totals.totalGross}</span>
+                </div>
+                <div className="pos-totals-row">
+                  <span>Total Paid:</span>
+                  <span>${totalTendered.toFixed(2)}</span>
+                </div>
+                <div className="pos-totals-row pos-total-row">
+                  <span>Total Change:</span>
+                  <span style={{ color: '#dc2626', fontWeight: 'bold' }}>${change.toFixed(2)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="pos-totals-row pos-total-row">
+                <span>Total:</span>
+                <span>
+                  ${activeMode === 'Sale' ? totals.totalGross : returnTotals.totalGross}
+                </span>
               </div>
             )}
           </div>

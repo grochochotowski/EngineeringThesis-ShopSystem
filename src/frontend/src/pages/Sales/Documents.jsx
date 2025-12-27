@@ -728,10 +728,10 @@ export default function SalesDocuments() {
                                                                 </span>
                                                                 {' │ '}
                                                                 <span style={{
-                                                                    color: totalChange === 0 ? '#10b981' : (totalChange < 0 ? '#dc2626' : '#10b981'),
+                                                                    color: totalChange !== 0 ? '#dc2626' : '#10b981',
                                                                     fontWeight: 'bold'
                                                                 }}>
-                                                                    Total Change: {totalChange < 0 ? '-' : ''}${Math.abs(totalChange).toFixed(2)}
+                                                                    Total Change: ${totalChange.toFixed(2)}
                                                                 </span>
                                                             </>
                                                         );
