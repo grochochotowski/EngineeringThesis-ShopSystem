@@ -4,12 +4,31 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MessageBox from '../components/MessageBox';
 import { api } from '../api/apiClient';
+import { clientTypesData } from '../data/clientTypes';
 import '../styles/PagesStyles/pos.css';
 
 export default function POS() {
   // User context
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const userRole = currentUser?.role || 0;
+
+  // Helper function to get document type enum based on document type and client type
+  const getDocumentTypeEnum = (docType, client) => {
+    if (docType === 'Receipt') {
+      return 1; // SalesDocumentType.Receipt
+    } else {
+      // Invoice selected - check client type
+      // ClientType: Company=1, Person=2
+      // SalesDocumentType: InvoicePersonal=2, InvoiceCompany=3
+      return client?.type === 2 ? 2 : 3; // Person → InvoicePersonal, Company → InvoiceCompany
+    }
+  };
+
+  // Helper function to get client type label
+  const getClientTypeLabel = (typeId) => {
+    const type = clientTypesData.find(t => t.id === typeId);
+    return type?.value || 'Unknown';
+  };
 
   // Mode management
   const [activeMode, setActiveMode] = useState('Sale'); // Sale, Returns, Exchange
@@ -476,7 +495,7 @@ export default function POS() {
     }
 
     // Generate sale document (but don't save yet)
-    const documentTypeEnum = documentType === 'Receipt' ? 1 : (selectedClient?.type === 0 ? 2 : 3);
+    const documentTypeEnum = getDocumentTypeEnum(documentType, selectedClient);
 
     const createDto = {
       documentType: documentTypeEnum,
@@ -531,7 +550,7 @@ export default function POS() {
       }
 
       // Map document type to enum value
-      const documentTypeEnum = documentType === 'Receipt' ? 1 : (selectedClient?.type === 0 ? 2 : 3);
+      const documentTypeEnum = getDocumentTypeEnum(documentType, selectedClient);
 
       // Prepare finalization DTO
       const finalizationDto = {
@@ -1242,7 +1261,7 @@ export default function POS() {
                         <td>{client.name}</td>
                         <td>{client.email}</td>
                         <td>{client.phoneNumber}</td>
-                        <td>{client.type === 0 ? 'Personal' : 'Company'}</td>
+                        <td>{getClientTypeLabel(client.type)}</td>
                       </tr>
                     ))}
                   </tbody>
