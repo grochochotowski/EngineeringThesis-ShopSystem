@@ -73,7 +73,7 @@ namespace Backend.Api.Api.Controllers
             }
         }
 
-        // --- DELETE CLIENT ---
+        // --- DELETE CLIENT (Deactivate) ---
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
         {
@@ -86,6 +86,14 @@ namespace Backend.Api.Api.Controllers
             {
                 return Conflict(new { message = "Cannot delete client due to related data." });
             }
+        }
+
+        // --- ACTIVATE CLIENT ---
+        [HttpPut("{id:int}/activate")]
+        public async Task<IActionResult> Activate([FromRoute] int id, CancellationToken ct)
+        {
+            var ok = await _service.ActivateAsync(id, ct);
+            return ok ? NoContent() : NotFound();
         }
     }
 }

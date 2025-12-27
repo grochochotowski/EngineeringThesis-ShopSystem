@@ -11,6 +11,7 @@
         public ClientType Type      { get; set; }
         public string Email         { get; set; } = default!;
         public string PhoneNumber   { get; set; } = default!;
+        public bool IsActive        { get; set; } = true;
 
         // --- Foreign Keys ---
         public int AddressId { get; set; }

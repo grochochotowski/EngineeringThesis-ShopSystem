@@ -13,6 +13,7 @@ namespace Backend.Api.Api.Controllers
         Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateClientDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+        Task<bool> ActivateAsync(int id, CancellationToken ct = default);
     }
     public class ClientService : IClientService
     {
@@ -93,6 +94,7 @@ namespace Backend.Api.Api.Controllers
                     Email = c.Email,
                     PhoneNumber = c.PhoneNumber,
                     Type = c.Type,
+                    IsActive = c.IsActive,
                     Address = c.Address != null ? new GetAddressDto
                     {
                         Id = c.Address.Id,
@@ -139,13 +141,24 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
-        // --- DELETE CLIENT ---
+        // --- DELETE CLIENT (Soft delete - deactivate) ---
         public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
         {
             var entity = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id, ct);
             if (entity is null) return false;
 
-            _db.Clients.Remove(entity);
+            entity.IsActive = false;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // --- ACTIVATE CLIENT ---
+        public async Task<bool> ActivateAsync(int id, CancellationToken ct = default)
+        {
+            var entity = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id, ct);
+            if (entity is null) return false;
+
+            entity.IsActive = true;
             await _db.SaveChangesAsync(ct);
             return true;
         }
@@ -157,7 +170,8 @@ namespace Backend.Api.Api.Controllers
             Name = c.Name,
             Email = c.Email,
             PhoneNumber = c.PhoneNumber,
-            Type = c.Type
+            Type = c.Type,
+            IsActive = c.IsActive
         };
     }
 }
