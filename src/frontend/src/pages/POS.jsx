@@ -468,10 +468,33 @@ export default function POS() {
       return;
     }
 
-    const amount = parseFloat(paymentAmount);
-    if (isNaN(amount) || amount <= 0) {
+    const enteredAmount = parseFloat(paymentAmount);
+    if (isNaN(enteredAmount) || enteredAmount <= 0) {
       setToast({ type: 'error', message: 'Please enter a valid payment amount' });
       return;
+    }
+
+    // Calculate actual amount and change for Cash payments
+    let actualAmount;
+    let tenderedAmount;
+    let changeAmount;
+
+    if (paymentMethod === 'Cash') {
+      // For cash: if entered amount > remaining, only charge remaining and give change
+      if (enteredAmount > remainingBalance) {
+        actualAmount = remainingBalance;
+        tenderedAmount = enteredAmount;
+        changeAmount = enteredAmount - remainingBalance;
+      } else {
+        actualAmount = enteredAmount;
+        tenderedAmount = enteredAmount;
+        changeAmount = 0;
+      }
+    } else {
+      // For Card and Gift Card: charge the entered amount
+      actualAmount = enteredAmount;
+      tenderedAmount = null;
+      changeAmount = null;
     }
 
     // Update or add payment (allow repeated payments with same method)
@@ -481,15 +504,27 @@ export default function POS() {
     if (existingIndex !== -1) {
       // Update existing payment by adding to it
       const updated = [...payments];
+
       updated[existingIndex] = {
         ...updated[existingIndex],
-        amount: updated[existingIndex].amount + amount
+        amount: updated[existingIndex].amount + actualAmount,
+        amountTendered: paymentMethod === 'Cash'
+          ? (updated[existingIndex].amountTendered || 0) + tenderedAmount
+          : null,
+        change: paymentMethod === 'Cash'
+          ? (updated[existingIndex].change || 0) + changeAmount
+          : null
       };
       setPayments(updated);
       allPayments = updated;
     } else {
       // Add new payment
-      const newPayment = { method: paymentMethod, amount };
+      const newPayment = {
+        method: paymentMethod,
+        amount: actualAmount,
+        amountTendered: tenderedAmount,
+        change: changeAmount
+      };
       allPayments = [...payments, newPayment];
       setPayments(allPayments);
     }
@@ -513,7 +548,9 @@ export default function POS() {
       })),
       payments: allPayments.map(payment => ({
         paymentOption: payment.method === 'Card' ? 1 : payment.method === 'Cash' ? 2 : 3, // 1=Card, 2=Cash, 3=GiftCard
-        amount: payment.amount
+        amount: payment.amount,
+        amountTendered: payment.amountTendered || null,
+        change: payment.change || null
       }))
     };
 
@@ -524,7 +561,11 @@ export default function POS() {
     const newRemaining = parseFloat(totals.totalGross) - allPayments.reduce((sum, p) => sum + p.amount, 0);
     setPaymentAmount(Math.max(0, newRemaining).toFixed(2));
 
-    setToast({ type: 'success', message: `${paymentMethod} payment of $${amount.toFixed(2)} recorded` });
+    // Show appropriate success message
+    const successMsg = paymentMethod === 'Cash' && changeAmount > 0
+      ? `${paymentMethod} payment of $${actualAmount.toFixed(2)} recorded. Change: $${changeAmount.toFixed(2)}`
+      : `${paymentMethod} payment of $${actualAmount.toFixed(2)} recorded`;
+    setToast({ type: 'success', message: successMsg });
   };
 
   // Payment Step 2: Finalize transaction
@@ -567,7 +608,9 @@ export default function POS() {
         })),
         payments: payments.map(payment => ({
           paymentOption: payment.method === 'Card' ? 1 : payment.method === 'Cash' ? 2 : 3,
-          amount: payment.amount
+          amount: payment.amount,
+          amountTendered: payment.amountTendered || null,
+          change: payment.change || null
         }))
       };
 
@@ -1084,6 +1127,7 @@ export default function POS() {
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   className="pos-amount-input"
                   disabled={isFullyPaid}
+                  placeholder="Payment amount"
                 />
                 <div className="pos-radio-group">
                   <label className={paymentMethod === 'Card' ? 'active' : ''}>
@@ -1120,6 +1164,13 @@ export default function POS() {
                     Gift Card
                   </label>
                 </div>
+
+                {/* Cash payment change display */}
+                {paymentMethod === 'Cash' && parseFloat(paymentAmount) > remainingBalance && (
+                  <div className="pos-change-display">
+                    Change: ${(parseFloat(paymentAmount) - remainingBalance).toFixed(2)}
+                  </div>
+                )}
                 <div className="pos-payment-buttons">
                   {!isFullyPaid ? (
                     <button

@@ -111,7 +111,9 @@ namespace Backend.Api.Api.Services
                 doc.Payments.Add(new SalesPayment
                 {
                     PaymentOption = p.PaymentOption,
-                    Amount = Round2(p.Amount)
+                    Amount = Round2(p.Amount),
+                    AmountTendered = p.AmountTendered.HasValue ? Round2(p.AmountTendered.Value) : null,
+                    Change = p.Change.HasValue ? Round2(p.Change.Value) : null
                 });
             }
 
@@ -177,7 +179,9 @@ namespace Backend.Api.Api.Services
                     Id = p.Id,
                     SalesDocumentId = p.SalesDocumentId,
                     PaymentOption = p.PaymentOption,
-                    Amount = p.Amount
+                    Amount = p.Amount,
+                    AmountTendered = p.AmountTendered,
+                    Change = p.Change
                 }).ToList()
             };
         }
@@ -442,7 +446,9 @@ namespace Backend.Api.Api.Services
                     doc.Payments.Add(new SalesPayment
                     {
                         PaymentOption = p.PaymentOption,
-                        Amount = Round2(p.Amount)
+                        Amount = Round2(p.Amount),
+                        AmountTendered = p.AmountTendered.HasValue ? Round2(p.AmountTendered.Value) : null,
+                        Change = p.Change.HasValue ? Round2(p.Change.Value) : null
                     });
                     totalPaid += Round2(p.Amount);
                 }

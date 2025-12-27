@@ -29,6 +29,8 @@ namespace Backend.Api.Objects.DTOs
     {
         [Required]                          public PaymentOption PaymentOption  { get; set; }
         [Required, Range(0.01, double.MaxValue)]  public decimal Amount       { get; set; }
+        [Range(0, double.MaxValue)]         public decimal? AmountTendered      { get; set; }
+        [Range(0, double.MaxValue)]         public decimal? Change              { get; set; }
     }
 
     // --- POS FINALIZATION RESPONSE ---
