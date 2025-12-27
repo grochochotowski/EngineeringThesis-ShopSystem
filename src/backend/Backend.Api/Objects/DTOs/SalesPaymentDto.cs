@@ -10,6 +10,8 @@ namespace Backend.Api.Objects.DTOs
                                                 public int SalesDocumentId          { get; set; }
                                                 public PaymentOption PaymentOption  { get; set; }
                                                 public decimal Amount               { get; set; }
+                                                public decimal? AmountTendered      { get; set; }
+                                                public decimal? Change              { get; set; }
     }
 
     // --- CREATE PAYMENT ---
@@ -17,5 +19,7 @@ namespace Backend.Api.Objects.DTOs
     {
         [Required]                              public PaymentOption PaymentOption  { get; set; }
         [Required, Range(0, double.MaxValue)]   public decimal Amount               { get; set; }
+        [Range(0, double.MaxValue)]             public decimal? AmountTendered      { get; set; }
+        [Range(0, double.MaxValue)]             public decimal? Change              { get; set; }
     }
 }

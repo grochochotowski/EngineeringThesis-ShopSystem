@@ -191,6 +191,8 @@ namespace Backend.Api.Objects.Entities
                 b.HasIndex(x => x.SalesDocumentId);
 
                 b.Property(x => x.Amount).HasPrecision(18, 2);
+                b.Property(x => x.AmountTendered).HasPrecision(18, 2);
+                b.Property(x => x.Change).HasPrecision(18, 2);
 
                 b.HasOne(x => x.SalesDocument)
                  .WithMany(d => d.Payments)
@@ -200,6 +202,8 @@ namespace Backend.Api.Objects.Entities
                 b.ToTable(t =>
                 {
                     t.HasCheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
+                    t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
+                    t.HasCheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
                 });
             });
 

@@ -8,6 +8,8 @@
         // --- Basic fields ---
         public decimal Amount               { get; set; }
         public PaymentOption PaymentOption  { get; set; }
+        public decimal? AmountTendered      { get; set; }
+        public decimal? Change              { get; set; }
 
         // --- Foreign Keys ---
         public int SalesDocumentId { get; set; }

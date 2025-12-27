@@ -509,6 +509,14 @@ namespace Backend.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("AmountTendered")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("Change")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("PaymentOption")
                         .HasColumnType("int");
 
@@ -521,7 +529,11 @@ namespace Backend.Api.Migrations
 
                     b.ToTable("SalesPayments", t =>
                         {
+                            t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
+
                             t.HasCheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
+
+                            t.HasCheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
                         });
                 });
 

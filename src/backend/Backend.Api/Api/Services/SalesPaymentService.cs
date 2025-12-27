@@ -30,7 +30,9 @@ namespace Backend.Api.Api.Services
                 Id = x.Id,
                 SalesDocumentId = x.SalesDocumentId,
                 PaymentOption = x.PaymentOption,
-                Amount = x.Amount
+                Amount = x.Amount,
+                AmountTendered = x.AmountTendered,
+                Change = x.Change
             });
         }
 
@@ -47,7 +49,9 @@ namespace Backend.Api.Api.Services
             {
                 SalesDocumentId = salesDocumentId,
                 PaymentOption = dto.PaymentOption,
-                Amount = Math.Round(dto.Amount, 2, MidpointRounding.AwayFromZero)
+                Amount = Math.Round(dto.Amount, 2, MidpointRounding.AwayFromZero),
+                AmountTendered = dto.AmountTendered.HasValue ? Math.Round(dto.AmountTendered.Value, 2, MidpointRounding.AwayFromZero) : null,
+                Change = dto.Change.HasValue ? Math.Round(dto.Change.Value, 2, MidpointRounding.AwayFromZero) : null
             };
 
             _db.SalesPayments.Add(payment);
