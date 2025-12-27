@@ -20,6 +20,7 @@ const POS = lazy(() => import('./pages/POS.jsx'));
 const SalesDocuments = lazy(() => import('./pages/Sales/Documents.jsx'));
 
 const Users = lazy(() => import("./pages/Organization/Users.jsx"));
+const Clients = lazy(() => import("./pages/Organization/Clients.jsx"));
 const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
 const Categories = lazy(() => import("./pages/Organization/Categories.jsx"));
 const TaxRates = lazy(() => import("./pages/Organization/TaxRates.jsx"));
@@ -90,6 +91,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={getUserRole()} requiredRole="DeputyManager">
                     <Users />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/organization/clients',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                    <Clients />
                 </ProtectedRoute>
             </PrivateRoute>
         ),

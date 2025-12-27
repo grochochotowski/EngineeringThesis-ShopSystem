@@ -38,6 +38,7 @@ export default function Header({ user, onLogout }) {
             items: [
                 { name: "Products", path: "/organization/products" },
                 { name: "Users", path: "/organization/users" },
+                { name: "Clients", path: "/organization/clients" },
                 { name: "Addresses", path: "/organization/addresses" },
                 { name: "Categories", path: "/organization/categories" },
                 { name: "Tax Rates", path: "/organization/tax-rates" },
