@@ -410,10 +410,12 @@ export default function SalesDocuments() {
             // Fetch client data if clientId exists
             if (full.clientId) {
                 try {
-                    const clientData = await api.get(`/Client/${full.clientId}`);
+                    const clientData = await api.get(`/Clients/${full.clientId}`);
+                    full.clientData = clientData; // Store full client data
                     full.clientName = clientData.name;
                 } catch (err) {
                     console.error("Failed to load client data:", err);
+                    full.clientData = null;
                     full.clientName = null;
                 }
             }
@@ -604,7 +606,20 @@ export default function SalesDocuments() {
                                 <div className="detail-item">
                                     <span className="detail-label">Client:</span>
                                     <span className="detail-value">
-                                        {selectedDocumentDetails.clientName || (selectedDocumentDetails.clientId ? `Client #${selectedDocumentDetails.clientId}` : "—")}
+                                        {selectedDocumentDetails.clientName || "—"}
+                                        {selectedDocumentDetails.clientData?.type === "Company" && selectedDocumentDetails.clientData?.taxId && (
+                                            <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
+                                                Tax ID: {selectedDocumentDetails.clientData.taxId}
+                                            </div>
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Client Address:</span>
+                                    <span className="detail-value">
+                                        {selectedDocumentDetails.clientData?.address ? (
+                                            `${selectedDocumentDetails.clientData.address.street} ${selectedDocumentDetails.clientData.address.building}${selectedDocumentDetails.clientData.address.premises ? `/${selectedDocumentDetails.clientData.address.premises}` : ''}, ${selectedDocumentDetails.clientData.address.postalCode} ${selectedDocumentDetails.clientData.address.city}, ${selectedDocumentDetails.clientData.address.country}`
+                                        ) : "—"}
                                     </span>
                                 </div>
                                 {selectedDocumentDetails.description && (
