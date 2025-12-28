@@ -36,7 +36,7 @@ export default function POS() {
   // Scanned products state
   const [scannedProducts, setScannedProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [productLocations, setProductLocations] = useState({}); // Map of productId -> locations array
+  const [productLocationLines, setProductLocationLines] = useState({}); // Map of productId -> array of { locationId, quantity }
 
   // Product search autocomplete
   const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -49,7 +49,6 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState(null); // null until selected
   const [payments, setPayments] = useState([]); // Array of { method: "Card"|"Cash"|"Gift Card", amount: number }
   const [paymentAmount, setPaymentAmount] = useState(0);
-  const [saleDocumentGenerated, setSaleDocumentGenerated] = useState(null);
 
   // Client selection modal
   const [showClientModal, setShowClientModal] = useState(false);
@@ -152,10 +151,10 @@ export default function POS() {
       try {
         const locations = await api.get(`/products-in-warehouse/product/${product.id}`);
 
-        // Store locations for this product
-        setProductLocations(prev => ({
+        // Initialize location lines for this product (one empty line to start)
+        setProductLocationLines(prev => ({
           ...prev,
-          [product.id]: locations || []
+          [product.id]: [{ locationId: null, quantity: 1 }]
         }));
 
         // Add new product (European pricing: price includes tax)
@@ -175,7 +174,6 @@ export default function POS() {
           taxRateId: product.taxRateId,
           taxRate: taxRate,
           taxCode: taxRates.get(product.taxRateId)?.code || '',
-          selectedLocationId: null, // Will be set by user
           availableLocations: locations || []
         }]);
       } catch (error) {
@@ -302,29 +300,217 @@ export default function POS() {
     setSelectedProduct(product);
   };
 
-  // Handle quantity change
-  const handleQuantityChange = (index, newQuantity) => {
-    if (newQuantity < 1) return;
+  // Handle quantity change (updates total product quantity)
+  const handleQuantityChange = (productId, lineIndex, value) => {
+    // Allow empty string (user is clearing the input)
+    if (value === '' || value === null || value === undefined) {
+      setProductLocationLines(prev => {
+        const lines = [...(prev[productId] || [])];
+        lines[lineIndex] = {
+          ...lines[lineIndex],
+          quantity: '' // Store empty string temporarily
+        };
+        return {
+          ...prev,
+          [productId]: lines
+        };
+      });
+      return;
+    }
 
-    setScannedProducts(prev => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
+    // Parse to integer
+    const newQuantity = parseInt(value);
+
+    // Validate positive integer - allow any positive number (will be capped on blur)
+    if (isNaN(newQuantity) || newQuantity < 1) return;
+
+    // No blocking validation - allow user to type any quantity
+    // Enforcement happens in handleQuantityBlur
+
+    setProductLocationLines(prev => {
+      const lines = [...(prev[productId] || [])];
+      lines[lineIndex] = {
+        ...lines[lineIndex],
         quantity: newQuantity
       };
-      return updated;
+
+      // Update total product quantity (only count numeric quantities)
+      const totalQuantity = lines.reduce((sum, line) => {
+        const qty = typeof line.quantity === 'number' ? line.quantity : 0;
+        return sum + qty;
+      }, 0);
+
+      setScannedProducts(products => products.map(p =>
+        p.id === productId ? { ...p, quantity: totalQuantity } : p
+      ));
+
+      return {
+        ...prev,
+        [productId]: lines
+      };
     });
   };
 
-  // Handle location selection
-  const handleLocationChange = (index, locationId) => {
-    setScannedProducts(prev => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        selectedLocationId: parseInt(locationId)
+  // Handle quantity blur - set to 1 if empty, or cap to max available if exceeds
+  const handleQuantityBlur = (productId, lineIndex) => {
+    setProductLocationLines(prev => {
+      const lines = [...(prev[productId] || [])];
+      const currentQty = lines[lineIndex].quantity;
+      const selectedLocationId = lines[lineIndex]?.locationId;
+
+      let finalQuantity = currentQty;
+      let wasEmptyInput = false;
+
+      // If quantity is empty or invalid, set to 1
+      if (currentQty === '' || currentQty === null || currentQty === undefined || isNaN(currentQty)) {
+        finalQuantity = 1;
+        wasEmptyInput = true;
+      } else if (selectedLocationId) {
+        // If a location is selected, validate against available stock
+        const product = scannedProducts.find(p => p.id === productId);
+        const availableLocation = product?.availableLocations?.find(loc => loc.locationId === selectedLocationId);
+
+        if (availableLocation && currentQty > availableLocation.quantity) {
+          // Cap to maximum available quantity
+          finalQuantity = availableLocation.quantity;
+          setToast({
+            type: 'warning',
+            message: `Quantity capped to available stock at ${availableLocation.locationCode}: ${availableLocation.quantity}`
+          });
+        }
+      }
+
+      // Only update if quantity changed
+      if (finalQuantity !== currentQty) {
+        lines[lineIndex] = {
+          ...lines[lineIndex],
+          quantity: finalQuantity
+        };
+
+        // Update total product quantity
+        const totalQuantity = lines.reduce((sum, line) => {
+          const qty = typeof line.quantity === 'number' ? line.quantity : 1;
+          return sum + qty;
+        }, 0);
+
+        setScannedProducts(products => products.map(p =>
+          p.id === productId ? { ...p, quantity: totalQuantity } : p
+        ));
+
+        // Show warning toast for empty input
+        if (wasEmptyInput) {
+          setToast({
+            type: 'warning',
+            message: 'Empty quantity set to 1'
+          });
+        }
+
+        return {
+          ...prev,
+          [productId]: lines
+        };
+      }
+
+      return prev;
+    });
+  };
+
+  // Handle location selection for a specific line
+  const handleLocationChange = (productId, lineIndex, locationId) => {
+    const parsedLocationId = locationId ? parseInt(locationId) : null;
+
+    // Check for duplicate location selection
+    if (parsedLocationId) {
+      const lines = productLocationLines[productId] || [];
+      const isDuplicate = lines.some((line, idx) => idx !== lineIndex && line.locationId === parsedLocationId);
+
+      if (isDuplicate) {
+        setToast({ type: 'error', message: 'This location is already selected for this product' });
+        return;
+      }
+    }
+
+    setProductLocationLines(prev => {
+      const lines = [...(prev[productId] || [])];
+      const currentQuantity = lines[lineIndex]?.quantity || 1;
+
+      // If a location is selected and current quantity exceeds available stock, cap it
+      let adjustedQuantity = currentQuantity;
+      if (parsedLocationId) {
+        const product = scannedProducts.find(p => p.id === productId);
+        const availableLocation = product?.availableLocations?.find(loc => loc.locationId === parsedLocationId);
+
+        if (availableLocation && currentQuantity > availableLocation.quantity) {
+          adjustedQuantity = availableLocation.quantity;
+          setToast({
+            type: 'warning',
+            message: `Quantity adjusted to available stock at ${availableLocation.locationCode}: ${availableLocation.quantity}`
+          });
+        }
+      }
+
+      lines[lineIndex] = {
+        ...lines[lineIndex],
+        locationId: parsedLocationId,
+        quantity: adjustedQuantity
       };
-      return updated;
+
+      // Update total product quantity if quantity was adjusted
+      if (adjustedQuantity !== currentQuantity) {
+        const totalQuantity = lines.reduce((sum, line) => {
+          const qty = typeof line.quantity === 'number' ? line.quantity : 1;
+          return sum + qty;
+        }, 0);
+
+        setScannedProducts(products => products.map(p =>
+          p.id === productId ? { ...p, quantity: totalQuantity } : p
+        ));
+      }
+
+      return {
+        ...prev,
+        [productId]: lines
+      };
+    });
+  };
+
+  // Add a new location line for a product
+  const handleAddLocationLine = (productId) => {
+    setProductLocationLines(prev => {
+      const lines = [...(prev[productId] || [])];
+      lines.push({ locationId: null, quantity: 1 });
+
+      // Update total product quantity
+      const totalQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
+      setScannedProducts(products => products.map(p =>
+        p.id === productId ? { ...p, quantity: totalQuantity } : p
+      ));
+
+      return {
+        ...prev,
+        [productId]: lines
+      };
+    });
+  };
+
+  // Remove a location line (only if there's more than one)
+  const handleRemoveLocationLine = (productId, lineIndex) => {
+    setProductLocationLines(prev => {
+      const lines = [...(prev[productId] || [])];
+      if (lines.length <= 1) return prev; // Don't remove the last line
+
+      lines.splice(lineIndex, 1);
+
+      // Update total product quantity
+      const totalQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
+      setScannedProducts(products => products.map(p =>
+        p.id === productId ? { ...p, quantity: totalQuantity } : p
+      ));
+
+      return {
+        ...prev,
+        [productId]: lines
+      };
     });
   };
 
@@ -338,6 +524,13 @@ export default function POS() {
     if (!productToDelete) return;
 
     setScannedProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+
+    // Remove location lines for this product
+    setProductLocationLines(prev => {
+      const updated = { ...prev };
+      delete updated[productToDelete.id];
+      return updated;
+    });
 
     // Clear selection if the removed product was selected
     if (selectedProduct?.id === productToDelete.id) {
@@ -452,7 +645,6 @@ export default function POS() {
     setPayments([]);
     setPaymentMethod(null);
     setPaymentAmount(0);
-    setSaleDocumentGenerated(null);
     setToast({ type: 'success', message: 'All payments reverted' });
   };
 
@@ -535,33 +727,6 @@ export default function POS() {
       setPayments(allPayments);
     }
 
-    // Generate sale document (but don't save yet)
-    const documentTypeEnum = getDocumentTypeEnum(documentType, selectedClient);
-
-    const createDto = {
-      documentType: documentTypeEnum,
-      issueDate: new Date().toISOString(),
-      description: `POS ${documentType} - ${new Date().toLocaleString()}`,
-      documentNumber: `POS-${Date.now()}`,
-      clientId: documentType === 'Invoice' ? selectedClient?.id : null,
-      items: scannedProducts.map(p => ({
-        productId: p.id,
-        productName: p.name,
-        productSKU: p.sku,
-        quantity: p.quantity,
-        unitPriceNet: p.unitPriceNet,
-        taxRateId: p.taxRateId
-      })),
-      payments: allPayments.map(payment => ({
-        paymentOption: payment.method === 'Card' ? 1 : payment.method === 'Cash' ? 2 : 3, // 1=Card, 2=Cash, 3=GiftCard
-        amount: payment.amount,
-        amountTendered: payment.amountTendered || null,
-        change: payment.change || null
-      }))
-    };
-
-    setSaleDocumentGenerated(createDto);
-
     // Clear payment method selection and reset amount
     setPaymentMethod(null);
     const newRemaining = parseFloat(totals.totalGross) - allPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -585,12 +750,21 @@ export default function POS() {
 
   const handleFinishConfirm = async () => {
     try {
-      // Validate all products have locations selected
-      const productsWithoutLocation = scannedProducts.filter(p => !p.selectedLocationId);
-      if (productsWithoutLocation.length > 0) {
+      // Validate all products have all location lines with locations selected
+      const productsWithMissingLocations = [];
+
+      for (const product of scannedProducts) {
+        const lines = productLocationLines[product.id] || [];
+        const hasEmptyLocation = lines.some(line => !line.locationId);
+        if (hasEmptyLocation) {
+          productsWithMissingLocations.push(product.name);
+        }
+      }
+
+      if (productsWithMissingLocations.length > 0) {
         setToast({
           type: 'error',
-          message: `Please select locations for: ${productsWithoutLocation.map(p => p.name).join(', ')}`
+          message: `Please select locations for all lines: ${productsWithMissingLocations.join(', ')}`
         });
         setShowFinishConfirm(false);
         return;
@@ -599,19 +773,27 @@ export default function POS() {
       // Map document type to enum value
       const documentTypeEnum = getDocumentTypeEnum(documentType, selectedClient);
 
-      // Prepare finalization DTO
+      // Prepare finalization DTO - create separate line items for each location
+      const items = [];
+      scannedProducts.forEach(product => {
+        const lines = productLocationLines[product.id] || [];
+        lines.forEach(line => {
+          items.push({
+            productId: product.id,
+            productName: product.name,
+            productSKU: product.sku,
+            quantity: line.quantity,
+            unitPriceNet: product.unitPriceNet,
+            taxRateId: product.taxRateId,
+            fromLocationId: line.locationId
+          });
+        });
+      });
+
       const finalizationDto = {
         documentType: documentTypeEnum,
         clientId: documentType === 'Invoice' ? selectedClient?.id : null,
-        items: scannedProducts.map(p => ({
-          productId: p.id,
-          productName: p.name,
-          productSKU: p.sku,
-          quantity: p.quantity,
-          unitPriceNet: p.unitPriceNet,
-          taxRateId: p.taxRateId,
-          fromLocationId: p.selectedLocationId
-        })),
+        items: items,
         payments: payments.map(payment => ({
           paymentOption: payment.method === 'Card' ? 1 : payment.method === 'Cash' ? 2 : 3,
           amount: payment.amount,
@@ -636,9 +818,8 @@ export default function POS() {
       setPaymentMethod(null);
       setPayments([]);
       setPaymentAmount(0);
-      setSaleDocumentGenerated(null);
       setDocumentType('Receipt');
-      setProductLocations({});
+      setProductLocationLines({});
     } catch (error) {
       console.error('Failed to finalize transaction:', error);
       const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
@@ -837,93 +1018,214 @@ export default function POS() {
                   <table className="pos-products-table pos-products-table-clean-header">
                     <thead>
                       <tr>
-                        <th style={{ width: "22%", textAlign: "left" }}>Product</th>
-                        <th style={{ width: "18%", textAlign: "left" }}>Location</th>
-                        <th style={{ width: "8%", textAlign: "center" }}>Qty</th>
-                        <th style={{ width: "12%", textAlign: "center" }}>Price</th>
-                        <th style={{ width: "15%", textAlign: "center" }}>Tax</th>
-                        <th style={{ width: "15%", textAlign: "center", paddingRight: "2rem" }}>Total</th>
+                        <th style={{ width: "18%", textAlign: "left" }}>Product</th>
+                        <th style={{ width: "6%", textAlign: "center" }}>Total Qty</th>
+                        <th style={{ width: "10%", textAlign: "center" }}>Price</th>
+                        <th style={{ width: "12%", textAlign: "center" }}>Tax</th>
+                        <th style={{ width: "12%", textAlign: "center" }}>Total</th>
+                        <th style={{ width: "16%", textAlign: "left" }}>Location</th>
+                        <th style={{ width: "16%", textAlign: "left" }}>Qty</th>
                         <th style={{ width: "10%", textAlign: "center" }}></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {scannedProducts.map((product, index) => {
+                      {scannedProducts.map((product) => {
                         const lineGross = product.unitPriceGross * product.quantity;
                         const locations = product.availableLocations || [];
+                        const locationLines = productLocationLines[product.id] || [];
+
+                        const firstLine = locationLines[0] || { locationId: null, quantity: 1 };
+                        const additionalLines = locationLines.slice(1);
 
                         return (
-                          <tr
-                            key={product.id}
-                            className={selectedProduct?.id === product.id ? 'selected' : ''}
-                            onClick={() => !isFullyPaid && handleProductRowClick(product)}
-                          >
-                            {/* Product Name */}
-                            <td style={{ width: "22%", textAlign: "left" }}>{product.name}</td>
+                          <React.Fragment key={product.id}>
+                            {/* Main product row with first location inline */}
+                            <tr
+                              className={`pos-product-main-row ${selectedProduct?.id === product.id ? 'selected' : ''}`}
+                              onClick={() => !isFullyPaid && handleProductRowClick(product)}
+                            >
+                              {/* Product Name */}
+                              <td style={{ width: "18%", textAlign: "left", fontWeight: "600" }}>
+                                {product.name}
+                              </td>
 
-                            {/* Location Selection */}
-                            <td style={{ width: "18%", textAlign: "left" }}>
-                              <select
-                                value={product.selectedLocationId || ''}
-                                onChange={(e) => handleLocationChange(index, e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                disabled={isFullyPaid}
-                                className={`pos-location-select ${!product.selectedLocationId ? 'not-selected' : ''}`}
-                                style={{ width: "100%" }}
-                              >
-                                <option value="">Select location...</option>
-                                {locations.map(loc => (
-                                  <option key={loc.locationId} value={loc.locationId}>
-                                    {loc.locationCode} (Qty: {loc.quantity})
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
+                              {/* Total Quantity (sum of all location lines) */}
+                              <td style={{ width: "6%", textAlign: "center", fontWeight: "600" }}>
+                                {product.quantity}
+                              </td>
 
-                            {/* Editable Quantity */}
-                            <td style={{ width: "8%", textAlign: "center" }}>
-                              <input
-                                type="number"
-                                min="1"
-                                value={product.quantity}
-                                onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
-                                onClick={(e) => e.stopPropagation()}
-                                disabled={isFullyPaid}
-                                style={{ width: "50px", textAlign: "center" }}
-                              />
-                            </td>
+                              {/* Net Price (without tax) */}
+                              <td style={{ width: "10%", textAlign: "center" }}>
+                                ${product.unitPriceNet.toFixed(2)}
+                              </td>
 
-                            {/* Net Price (without tax) */}
-                            <td style={{ width: "12%", textAlign: "center" }}>
-                              ${product.unitPriceNet.toFixed(2)}
-                            </td>
+                              {/* Tax (amount and percentage) */}
+                              <td style={{ width: "12%", textAlign: "center" }}>
+                                ${product.unitTaxAmount.toFixed(2)} ({(product.taxRate * 100).toFixed(0)}%)
+                              </td>
 
-                            {/* Tax (amount and percentage) - New format: XX.XX (yy%) */}
-                            <td style={{ width: "15%", textAlign: "center" }}>
-                              ${product.unitTaxAmount.toFixed(2)} ({(product.taxRate * 100).toFixed(0)}%)
-                            </td>
+                              {/* Total (gross price × quantity) */}
+                              <td style={{ width: "12%", textAlign: "center", fontWeight: "600" }}>
+                                ${lineGross.toFixed(2)}
+                              </td>
 
-                            {/* Total (gross price × quantity) - Add padding */}
-                            <td style={{ width: "15%", textAlign: "center", paddingRight: "2rem" }}>
-                              ${lineGross.toFixed(2)}
-                            </td>
+                              {/* First Location Selection */}
+                              <td style={{ width: "16%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={firstLine.locationId || ''}
+                                  onChange={(e) => handleLocationChange(product.id, 0, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  disabled={isFullyPaid}
+                                  className={`pos-location-select ${!firstLine.locationId ? 'not-selected' : ''}`}
+                                >
+                                  <option value="">Select location...</option>
+                                  {locations.map(loc => {
+                                    const isAlreadySelected = locationLines.some((line, idx) => idx !== 0 && line.locationId === loc.locationId);
+                                    return (
+                                      <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
+                                        {loc.locationCode} (Qty: {loc.quantity}) {isAlreadySelected ? '- Already selected' : ''}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </td>
 
-                            {/* Remove Button - Trash icon */}
-                            <td style={{ width: "10%", textAlign: "center" }}>
-                              <button
-                                className="btn-remove-product"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveProductClick(product);
-                                }}
-                                disabled={isFullyPaid}
-                                title="Remove product"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18">
-                                  <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6m4-6v6"/>
-                                </svg>
-                              </button>
-                            </td>
-                          </tr>
+                              {/* First Location Quantity with action buttons inline */}
+                              <td style={{ width: "16%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                                <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={firstLine.quantity}
+                                    onChange={(e) => handleQuantityChange(product.id, 0, e.target.value)}
+                                    onBlur={() => handleQuantityBlur(product.id, 0)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={isFullyPaid}
+                                    className="pos-quantity-input"
+                                  />
+                                  {/* Show + button only if there are still unselected locations available */}
+                                  {locationLines.length < locations.length && (
+                                    <button
+                                      className="btn-add-location-line"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddLocationLine(product.id);
+                                      }}
+                                      disabled={isFullyPaid}
+                                      title="Add another location"
+                                    >
+                                      +
+                                    </button>
+                                  )}
+                                  {locationLines.length > 1 && (
+                                    <button
+                                      className="btn-remove-location-line"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveLocationLine(product.id, 0);
+                                      }}
+                                      disabled={isFullyPaid}
+                                      title="Remove this location line"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Remove Product Button - Trash icon */}
+                              <td style={{ width: "10%", textAlign: "center" }}>
+                                <button
+                                  className="btn-remove-product"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveProductClick(product);
+                                  }}
+                                  disabled={isFullyPaid}
+                                  title="Remove product"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18">
+                                    <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6m4-6v6"/>
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+
+                            {/* Additional location lines as sub-rows (if any) */}
+                            {additionalLines.map((line, additionalIndex) => {
+                              const lineIndex = additionalIndex + 1; // Offset by 1 since first line is in main row
+                              return (
+                                <tr
+                                  key={`${product.id}-line-${lineIndex}`}
+                                  className="pos-location-line-row"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {/* Empty product columns */}
+                                  <td style={{ width: "18%", paddingLeft: "2rem", textAlign: "left" }}>
+                                    <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                                      Location {lineIndex + 1}
+                                    </span>
+                                  </td>
+                                  <td style={{ width: "6%", textAlign: "center" }}></td>
+                                  <td style={{ width: "10%", textAlign: "center" }}></td>
+                                  <td style={{ width: "12%", textAlign: "center" }}></td>
+                                  <td style={{ width: "12%", textAlign: "center" }}></td>
+
+                                  {/* Location Selection */}
+                                  <td style={{ width: "16%", textAlign: "left" }}>
+                                    <select
+                                      value={line.locationId || ''}
+                                      onChange={(e) => handleLocationChange(product.id, lineIndex, e.target.value)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      disabled={isFullyPaid}
+                                      className={`pos-location-select ${!line.locationId ? 'not-selected' : ''}`}
+                                    >
+                                      <option value="">Select location...</option>
+                                      {locations.map(loc => {
+                                        const isAlreadySelected = locationLines.some((l, idx) => idx !== lineIndex && l.locationId === loc.locationId);
+                                        return (
+                                          <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
+                                            {loc.locationCode} (Qty: {loc.quantity}) {isAlreadySelected ? '- Already selected' : ''}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </td>
+
+                                  {/* Location Quantity with action buttons inline */}
+                                  <td style={{ width: "16%", textAlign: "left" }}>
+                                    <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={line.quantity}
+                                        onChange={(e) => handleQuantityChange(product.id, lineIndex, e.target.value)}
+                                        onBlur={() => handleQuantityBlur(product.id, lineIndex)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        disabled={isFullyPaid}
+                                        className="pos-quantity-input"
+                                      />
+                                      {/* No + button on additional lines - only on first line */}
+                                      <button
+                                        className="btn-remove-location-line"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveLocationLine(product.id, lineIndex);
+                                        }}
+                                        disabled={isFullyPaid}
+                                        title="Remove this location line"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  {/* Empty cell for product remove button */}
+                                  <td style={{ width: "10%", textAlign: "center" }}></td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>

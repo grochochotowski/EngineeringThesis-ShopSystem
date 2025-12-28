@@ -228,6 +228,35 @@
   outline-offset: -1px;
 }
 
+/* POS quantity input - wider and no spinner arrows */
+.pos-quantity-input {
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  padding: 0.4rem;
+  border: var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  text-align: center;
+  flex-shrink: 0; /* Prevent flex containers from shrinking the input */
+}
+
+.pos-quantity-input:focus {
+  outline: 2px solid var(--accent-main);
+  outline-offset: -1px;
+}
+
+/* Remove spinner arrows from number inputs */
+.pos-quantity-input::-webkit-inner-spin-button,
+.pos-quantity-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pos-quantity-input[type=number] {
+  -moz-appearance: textfield;
+}
+
 /* Remove product button */
 .btn-remove-product {
   display: inline-flex;
@@ -262,8 +291,93 @@
   pointer-events: none;
 }
 
+/* Add location line button */
+.btn-add-location-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--accent-main);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-main);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  line-height: 1;
+}
+
+.btn-add-location-line:hover:not(:disabled) {
+  background: var(--accent-main);
+  color: white;
+}
+
+.btn-add-location-line:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Remove location line button */
+.btn-remove-location-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--btn-danger-bg);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--btn-danger-bg);
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  line-height: 1;
+}
+
+.btn-remove-location-line:hover:not(:disabled) {
+  background: var(--btn-danger-bg);
+  color: white;
+}
+
+.btn-remove-location-line:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Product main row styling */
+.pos-product-main-row {
+  background: var(--bg-card);
+  border-top: 2px solid var(--border);
+}
+
+.pos-product-main-row:hover {
+  background: var(--bg-hover);
+}
+
+.pos-product-main-row.selected {
+  background: var(--bg-selected);
+  outline: 2px solid var(--accent-main);
+  outline-offset: -2px;
+}
+
+/* Location line row styling */
+.pos-location-line-row {
+  background: rgba(59, 130, 246, 0.03);
+  border-bottom: 1px dashed var(--border-muted);
+}
+
+.pos-location-line-row:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
 /* Location select dropdown in table */
 .pos-location-select {
+  width: 100%;
   padding: 0.4rem 0.5rem;
   border: var(--border-muted);
   border-radius: var(--radius-sm);
