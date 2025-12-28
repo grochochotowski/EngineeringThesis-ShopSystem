@@ -265,7 +265,7 @@ export default function Clients() {
     // Conditionally add Tax ID field for Company type
     if (isCompany) {
       baseFields.push({
-        label: "Tax ID (NIP)",
+        label: "Tax ID",
         key: "taxId",
         render: (data) => data.taxId || "—",
       });

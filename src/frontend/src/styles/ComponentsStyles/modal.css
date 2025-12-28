@@ -379,6 +379,50 @@
     font-weight: 400;
 }
 
+/* === CLIENT FORM TWO-COLUMN LAYOUT === */
+.client-form-two-column .client-form-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+}
+
+.client-form-left,
+.client-form-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.client-form-two-column .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.client-form-two-column .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.client-form-two-column .form-field label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.client-form-two-column .form-field input,
+.client-form-two-column .form-field select {
+    width: 100%;
+}
+
+/* Responsive: collapse to single column on smaller screens */
+@media (max-width: 1024px) {
+    .client-form-two-column .client-form-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* === ANIMATIONS === */
 @keyframes fadeIn {
     from { opacity: 0; }
