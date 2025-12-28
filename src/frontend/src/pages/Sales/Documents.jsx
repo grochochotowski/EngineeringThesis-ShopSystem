@@ -7,6 +7,7 @@ import Modal from "../../components/Modal";
 import MessageBox from "../../components/MessageBox";
 import { salesDocumentTypesData } from "../../data/salesDocumentTypes";
 import { paymentOptionsData } from "../../data/paymentOptions";
+import { printSalesDocumentPDF } from "../../utils/printService";
 import "../../styles/PagesStyles/salesDocuments.css";
 import "../../styles/PagesStyles/baseListPage.css";
 
@@ -431,8 +432,8 @@ export default function SalesDocuments() {
         }
     };
 
-    // Handle Print button - show alert
-    const handlePrint = () => {
+    // Handle Print button - generate PDF
+    const handlePrint = async () => {
         if (!selectedDocument) {
             setToast({
                 message: "Please select a document to print.",
@@ -441,8 +442,52 @@ export default function SalesDocuments() {
             return;
         }
 
-        // Show web alert
-        alert("printing");
+        try {
+            // Show loading toast
+            setToast({
+                message: "Generating PDF...",
+                type: "info",
+            });
+
+            // Fetch full document details if not already loaded
+            let documentToPrint = selectedDocumentDetails;
+            if (!documentToPrint || documentToPrint.id !== selectedDocument.id) {
+                const full = await api.get(`/SalesDocument/${selectedDocument.id}`);
+
+                // Fetch client data if clientId exists
+                if (full.clientId) {
+                    try {
+                        const clientData = await api.get(`/Clients/${full.clientId}`);
+                        full.clientData = clientData;
+                        full.clientName = clientData.name;
+                    } catch (err) {
+                        console.error("Failed to load client data:", err);
+                        full.clientData = null;
+                        full.clientName = null;
+                    }
+                }
+
+                documentToPrint = full;
+            }
+
+            // Generate PDF with formatters
+            const fileName = await printSalesDocumentPDF(documentToPrint, {
+                formatDate,
+                getDocumentTypeLabel,
+                getPaymentOptionLabel,
+            });
+
+            setToast({
+                message: `PDF generated successfully: ${fileName}`,
+                type: "success",
+            });
+        } catch (err) {
+            console.error("Failed to generate PDF:", err);
+            setToast({
+                message: err.message || "Failed to generate PDF.",
+                type: "error",
+            });
+        }
     };
 
     // Render
