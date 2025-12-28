@@ -6,7 +6,7 @@ export default function MessageBox({ message, type = "success", duration = 3000,
     const [visible, setVisible] = useState(true);
     const [progress, setProgress] = useState(100);
 
-     useEffect(() => {
+    useEffect(() => {
         if (!duration || duration <= 0) return;
         let start = Date.now();
 
@@ -32,13 +32,31 @@ export default function MessageBox({ message, type = "success", duration = 3000,
         }
     }, [visible, onClose]);
 
-       return (
+    // Icon renderer based on message type - using simple text characters for reliability
+    const renderIcon = () => {
+        switch (type) {
+            case "success":
+                return "✓";
+            case "error":
+                return "✕";
+            case "info":
+                return "ℹ";
+            case "warning":
+                return "!";
+            default:
+                return null;
+        }
+    };
+
+    return (
         <div
             role="status"
             aria-live={type === "error" ? "assertive" : "polite"}
             className={`message-box ${type} ${visible ? "show" : "hide"} ${className}`}
         >
-            <div className={`icon icon-${type}`} aria-hidden="true"></div>
+            <div className={`icon icon-${type}`} aria-hidden="true">
+                {renderIcon()}
+            </div>
             <div className="text">{message}</div>
             <div className="progress-bar" style={{ width: `${progress}%` }} />
         </div>
@@ -48,7 +66,8 @@ export default function MessageBox({ message, type = "success", duration = 3000,
 
 MessageBox.propTypes = {
     message: PropTypes.string.isRequired,
-    type: PropTypes.oneOf(["success", "error", "info"]),
+    type: PropTypes.oneOf(["success", "error", "info", "warning"]),
     duration: PropTypes.number,
     onClose: PropTypes.func,
+    className: PropTypes.string,
 };
