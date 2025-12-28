@@ -171,7 +171,17 @@ namespace Backend.Api.Api.Controllers
             Email = c.Email,
             PhoneNumber = c.PhoneNumber,
             Type = c.Type,
-            IsActive = c.IsActive
+            IsActive = c.IsActive,
+            Address = c.Address != null ? new GetAddressDto
+            {
+                Id = c.Address.Id,
+                Country = c.Address.Country.ToString(),
+                City = c.Address.City,
+                Street = c.Address.Street,
+                Building = c.Address.Building,
+                Premises = c.Address.Premises,
+                PostalCode = c.Address.PostalCode
+            } : null
         };
     }
 }
