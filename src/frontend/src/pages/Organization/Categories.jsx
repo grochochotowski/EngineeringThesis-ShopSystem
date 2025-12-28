@@ -24,7 +24,7 @@ export default function Categories() {
     const [formMode, setFormMode] = useState("create");
 
     // --- Filters ---
-    const [filters, setFilters] = useState({ isActive: "true" });
+    const [filters, setFilters] = useState({ isActive: "" });
     const [sortColumn, setSortColumn] = useState("name");
     const [sortDirection, setSortDirection] = useState("asc");
 

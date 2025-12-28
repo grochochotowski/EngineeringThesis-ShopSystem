@@ -42,7 +42,7 @@ namespace Backend.Api.Infrastructure
             };
 
             foreach (var n in names)
-                _db.Categories.Add(new Category { Name = n, Description = $"{n} category" });
+                _db.Categories.Add(new Category { Name = n, Description = $"{n} category", IsActive = true });
 
             _db.SaveChanges();
         }

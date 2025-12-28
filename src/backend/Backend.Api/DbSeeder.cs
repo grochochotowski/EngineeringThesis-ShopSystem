@@ -53,9 +53,9 @@ namespace Backend.Api.Infrastructure
             if (!_db.Categories.Any())
             {
                 _db.Categories.AddRange(
-                    new() {Name = "Default", Description = "Default category" },
-                    new() {Name = "Food", Description = "Food & Grocery" },
-                    new() {Name = "Drinks", Description = "Beverages" }
+                    new() {Name = "Default", Description = "Default category", IsActive = true },
+                    new() {Name = "Food", Description = "Food & Grocery", IsActive = true },
+                    new() {Name = "Drinks", Description = "Beverages", IsActive = true }
                 );
                 _db.SaveChanges();
             }

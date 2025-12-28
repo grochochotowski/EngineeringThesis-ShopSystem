@@ -65,7 +65,7 @@ namespace Backend.Api.Migrations
                         .IsUnique()
                         .HasFilter("[Premises] IS NOT NULL");
 
-                    b.ToTable("Addresses");
+                    b.ToTable("Addresses", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Category", b =>
@@ -95,7 +95,7 @@ namespace Backend.Api.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Client", b =>
@@ -148,7 +148,7 @@ namespace Backend.Api.Migrations
                         .IsUnique()
                         .HasFilter("[TaxId] IS NOT NULL");
 
-                    b.ToTable("Clients");
+                    b.ToTable("Clients", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Location", b =>
@@ -189,7 +189,7 @@ namespace Backend.Api.Migrations
                     b.HasIndex("LocationCode")
                         .IsUnique();
 
-                    b.ToTable("Locations", t =>
+                    b.ToTable("Locations", null, t =>
                         {
                             t.HasCheckConstraint("CK_Location_Col_Length", "LEN([Col]) <= 4");
 
@@ -253,7 +253,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("TaxRateId");
 
-                    b.ToTable("Products", t =>
+                    b.ToTable("Products", null, t =>
                         {
                             t.HasCheckConstraint("CK_Product_Price_NonNegative", "[Price] >= 0");
                         });
@@ -288,7 +288,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Relations.ProductsInWarehouse", b =>
@@ -306,7 +306,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("LocationId");
 
-                    b.ToTable("ProductsInWarehouse", t =>
+                    b.ToTable("ProductsInWarehouse", null, t =>
                         {
                             t.HasCheckConstraint("CK_ProductsInWarehouse_Qty_NonNegative", "[Quantity] >= 0");
                         });
@@ -330,7 +330,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ShipmentProducts", t =>
+                    b.ToTable("ShipmentProducts", null, t =>
                         {
                             t.HasCheckConstraint("CK_ShipmentProduct_CollectedQty_NonNegative", "[CollectedQuantity] IS NULL OR [CollectedQuantity] >= 0");
 
@@ -376,7 +376,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("ShipmentId", "ProductId", "LocationId");
 
-                    b.ToTable("ShipmentProductLocations", t =>
+                    b.ToTable("ShipmentProductLocations", null, t =>
                         {
                             t.HasCheckConstraint("CK_ShipmentProductLocation_Qty_Positive", "[Quantity] > 0");
                         });
@@ -427,7 +427,7 @@ namespace Backend.Api.Migrations
                     b.HasIndex("DocumentNumber")
                         .IsUnique();
 
-                    b.ToTable("SalesDocuments", t =>
+                    b.ToTable("SalesDocuments", null, t =>
                         {
                             t.HasCheckConstraint("CK_SalesDocument_PositiveTotals", "[TotalNet] >= 0 AND [TotalTax] >= 0 AND [TotalGross] >= 0");
                         });
@@ -492,7 +492,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("TaxRateId");
 
-                    b.ToTable("SalesDocumentItems", t =>
+                    b.ToTable("SalesDocumentItems", null, t =>
                         {
                             t.HasCheckConstraint("CK_SalesItem_Line_Positive", "[LineNet] >= 0 AND [LineTax] >= 0 AND [LineGross] >= 0");
 
@@ -530,7 +530,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("SalesDocumentId");
 
-                    b.ToTable("SalesPayments", t =>
+                    b.ToTable("SalesPayments", null, t =>
                         {
                             t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
 
@@ -620,7 +620,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("SenderAddressId");
 
-                    b.ToTable("Shipments", t =>
+                    b.ToTable("Shipments", null, t =>
                         {
                             t.HasCheckConstraint("CK_Shipment_Dates_Valid", "[DeliveryDate] IS NULL OR [SendDate] IS NULL OR [DeliveryDate] >= [SendDate]");
 
@@ -661,7 +661,7 @@ namespace Backend.Api.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("TaxRates", t =>
+                    b.ToTable("TaxRates", null, t =>
                         {
                             t.HasCheckConstraint("CK_TaxRate_0_1", "[Rate] >= 0 AND [Rate] <= 1");
                         });
@@ -715,7 +715,7 @@ namespace Backend.Api.Migrations
                     b.HasIndex("PhoneNumber")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.UserCredential", b =>
@@ -755,7 +755,7 @@ namespace Backend.Api.Migrations
                     b.HasIndex("Login")
                         .IsUnique();
 
-                    b.ToTable("UserCredentials");
+                    b.ToTable("UserCredentials", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Client", b =>
