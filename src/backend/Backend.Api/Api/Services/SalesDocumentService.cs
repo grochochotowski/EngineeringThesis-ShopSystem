@@ -267,7 +267,23 @@ namespace Backend.Api.Api.Services
                         : "Unspecified"
             });
 
-            // Apply sorting
+            // Special handling for DocumentNumber sorting (needs numeric parsing)
+            if (orderBy?.Equals("documentnumber", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                // Fetch all data and sort in memory for correct numeric ordering
+                var allData = await projected.ToListAsync(ct);
+                var isDescending = sortDirection?.Equals("desc", StringComparison.OrdinalIgnoreCase) ?? false;
+
+                var sorted = isDescending
+                    ? allData.OrderByDescending(d => ExtractDocumentNumberParts(d.DocumentNumber).year)
+                            .ThenByDescending(d => ExtractDocumentNumberParts(d.DocumentNumber).sequenceNumber)
+                    : allData.OrderBy(d => ExtractDocumentNumberParts(d.DocumentNumber).year)
+                            .ThenBy(d => ExtractDocumentNumberParts(d.DocumentNumber).sequenceNumber);
+
+                return sorted.ToPagedResult(pagination.PageNumber, pagination.PageSize);
+            }
+
+            // Apply sorting for other columns
             projected = ApplySorting(projected, orderBy, sortDirection);
 
             return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
@@ -545,10 +561,53 @@ namespace Backend.Api.Api.Services
                     break; // Found a gap
             }
 
-            return $"{prefix}{nextNumber}";
+            // Use 4-digit zero-padding for proper string sorting (e.g., 0001, 0002, ...)
+            return $"{prefix}{nextNumber:D4}";
+        }
+
+        // --- HELPER: Extract year and sequence number from document number ---
+        private static (int year, int sequenceNumber) ExtractDocumentNumberParts(string documentNumber)
+        {
+            // Format: S1C1/YYYY/SequenceNumber
+            // Example: S1C1/2025/0013 or S1C1/2025/13 (old format)
+            try
+            {
+                var parts = documentNumber.Split('/');
+                if (parts.Length == 3)
+                {
+                    var year = int.TryParse(parts[1], out var y) ? y : 0;
+                    var seqNum = int.TryParse(parts[2], out var s) ? s : 0;
+                    return (year, seqNum);
+                }
+            }
+            catch
+            {
+                // Ignore parse errors
+            }
+            return (0, 0);
         }
 
         private static decimal Round2(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);
         private static decimal Round4(decimal v) => Math.Round(v, 4, MidpointRounding.AwayFromZero);
+    }
+
+    // --- EXTENSION: In-memory pagination for sorted lists ---
+    public static class EnumerableExtensions
+    {
+        public static PagedResult<T> ToPagedResult<T>(this IEnumerable<T> source, int pageNumber, int pageSize)
+        {
+            var sourceList = source.ToList(); // Materialize once to avoid multiple enumerations
+            var items = sourceList.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+            var totalCount = sourceList.Count;
+
+            return new PagedResult<T>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+                // TotalPages is computed automatically from TotalCount / PageSize
+            };
+        }
     }
 }
