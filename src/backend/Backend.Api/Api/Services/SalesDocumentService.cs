@@ -517,22 +517,32 @@ namespace Backend.Api.Api.Services
 
             var prefix = $"S1C1/{year}/";
 
-            // Get the highest document number for this year with this prefix
-            var lastDoc = await _db.SalesDocuments
+            // Get ALL document numbers for this year to find gaps and the highest number
+            var existingNumbers = await _db.SalesDocuments
                 .Where(d => d.DocumentNumber.StartsWith(prefix))
-                .OrderByDescending(d => d.DocumentNumber)
                 .Select(d => d.DocumentNumber)
-                .FirstOrDefaultAsync(ct);
+                .ToListAsync(ct);
 
+            // Extract all sequential numbers
+            var usedNumbers = existingNumbers
+                .Select(docNum => {
+                    var parts = docNum.Split('/');
+                    if (parts.Length == 3 && int.TryParse(parts[2], out int num))
+                        return num;
+                    return 0;
+                })
+                .Where(n => n > 0)
+                .OrderBy(n => n)
+                .ToList();
+
+            // Find the first available number (either a gap or max + 1)
             int nextNumber = 1;
-            if (lastDoc != null)
+            foreach (var num in usedNumbers)
             {
-                // Extract the sequential number from the last document
-                var parts = lastDoc.Split('/');
-                if (parts.Length == 3 && int.TryParse(parts[2], out int lastNumber))
-                {
-                    nextNumber = lastNumber + 1;
-                }
+                if (num == nextNumber)
+                    nextNumber++;
+                else
+                    break; // Found a gap
             }
 
             return $"{prefix}{nextNumber}";

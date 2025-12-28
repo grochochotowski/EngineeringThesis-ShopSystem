@@ -406,6 +406,18 @@ export default function SalesDocuments() {
 
         try {
             const full = await api.get(`/SalesDocument/${selectedDocument.id}`);
+
+            // Fetch client data if clientId exists
+            if (full.clientId) {
+                try {
+                    const clientData = await api.get(`/Client/${full.clientId}`);
+                    full.clientName = clientData.name;
+                } catch (err) {
+                    console.error("Failed to load client data:", err);
+                    full.clientName = null;
+                }
+            }
+
             setSelectedDocumentDetails(full);
             setShowDetailsModal(true);
         } catch (err) {
@@ -578,24 +590,22 @@ export default function SalesDocuments() {
                             <h3>Document Information</h3>
                             <div className="detail-grid">
                                 <div className="detail-item">
-                                    <span className="detail-label">Document ID:</span>
-                                    <span className="detail-value">{selectedDocumentDetails.id}</span>
+                                    <span className="detail-label">Document Number:</span>
+                                    <span className="detail-value">{selectedDocumentDetails.documentNumber}</span>
                                 </div>
                                 <div className="detail-item">
                                     <span className="detail-label">Document Type:</span>
                                     <span className="detail-value">{getDocumentTypeLabel(selectedDocumentDetails.documentType)}</span>
                                 </div>
                                 <div className="detail-item">
-                                    <span className="detail-label">Document Number:</span>
-                                    <span className="detail-value">{selectedDocumentDetails.documentNumber}</span>
-                                </div>
-                                <div className="detail-item">
                                     <span className="detail-label">Issue Date:</span>
                                     <span className="detail-value">{formatDate(selectedDocumentDetails.issueDate)}</span>
                                 </div>
                                 <div className="detail-item">
-                                    <span className="detail-label">Client ID:</span>
-                                    <span className="detail-value">{selectedDocumentDetails.clientId || "—"}</span>
+                                    <span className="detail-label">Client:</span>
+                                    <span className="detail-value">
+                                        {selectedDocumentDetails.clientName || (selectedDocumentDetails.clientId ? `Client #${selectedDocumentDetails.clientId}` : "—")}
+                                    </span>
                                 </div>
                                 {selectedDocumentDetails.description && (
                                     <div className="detail-item full-width">
@@ -639,7 +649,14 @@ export default function SalesDocuments() {
                                                     </td>
                                                     <td className="quantity">{item.quantity}</td>
                                                     <td className="price">${item.unitPriceNet.toFixed(2)}</td>
-                                                    <td className="tax-rate">{item.taxCode || "—"}</td>
+                                                    <td className="tax-rate">
+                                                        {item.taxCode ? (
+                                                            (() => {
+                                                                const match = item.taxCode.match(/\d+/);
+                                                                return match ? `${match[0]}%` : item.taxCode;
+                                                            })()
+                                                        ) : "—"}
+                                                    </td>
                                                     <td className="line-net">${item.lineNet.toFixed(2)}</td>
                                                     <td className="line-tax">${item.lineTax.toFixed(2)}</td>
                                                     <td className="line-gross">${item.lineGross.toFixed(2)}</td>
@@ -689,7 +706,8 @@ export default function SalesDocuments() {
                                         <thead>
                                             <tr>
                                                 <th>Payment Method</th>
-                                                <th>Amount</th>
+                                                <th style={{ textAlign: 'right' }}>Amount</th>
+                                                <th style={{ textAlign: 'right' }}>Paid</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -701,12 +719,15 @@ export default function SalesDocuments() {
                                                         </span>
                                                     </td>
                                                     <td className="payment-amount">${payment.amount.toFixed(2)}</td>
+                                                    <td className="payment-amount" style={{ fontWeight: '600' }}>
+                                                        ${(payment.amountTendered || payment.amount).toFixed(2)}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                         <tfoot>
                                             <tr className="totals-row">
-                                                <td colSpan="2" style={{ textAlign: 'right', padding: '0.75rem', fontSize: '1.05rem' }}>
+                                                <td colSpan="3" style={{ textAlign: 'right', padding: '0.75rem', fontSize: '1.05rem' }}>
                                                     {(() => {
                                                         const totalAmount = selectedDocumentDetails.payments.reduce((sum, p) => sum + p.amount, 0);
                                                         const totalPaid = selectedDocumentDetails.payments.reduce((sum, p) => sum + (p.amountTendered || p.amount), 0);

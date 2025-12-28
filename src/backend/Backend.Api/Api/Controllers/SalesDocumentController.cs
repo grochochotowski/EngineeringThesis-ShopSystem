@@ -13,7 +13,12 @@ namespace Backend.Api.Api.Controllers
     public class SalesDocumentController : ControllerBase
     {
         private readonly ISalesDocumentService _service;
-        public SalesDocumentController(ISalesDocumentService service) => _service = service;
+        private readonly ILogger<SalesDocumentController> _logger;
+        public SalesDocumentController(ISalesDocumentService service, ILogger<SalesDocumentController> logger)
+        {
+            _service = service;
+            _logger = logger;
+        }
 
         // --- CREATE SALES DOCUMENT ---
         [HttpPost]
@@ -87,7 +92,16 @@ namespace Backend.Api.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = "An unexpected error occurred during transaction finalization.", details = ex.Message });
+                _logger.LogError(ex, "Error finalizing POS transaction: {Message}", ex.Message);
+                var innerMsg = ex.InnerException?.Message ?? "";
+                var innerTrace = ex.InnerException?.StackTrace ?? "";
+                return StatusCode(500, new {
+                    error = "An unexpected error occurred during transaction finalization.",
+                    details = ex.Message,
+                    innerException = innerMsg,
+                    innerStackTrace = innerTrace,
+                    stackTrace = ex.StackTrace
+                });
             }
         }
     }

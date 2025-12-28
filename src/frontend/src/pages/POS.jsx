@@ -255,22 +255,31 @@ export default function POS() {
     }
   }, [productSearchQuery, handleAddProduct]);
 
+  // Helper to round to 2 decimal places (matches backend Round2)
+  const round2 = useCallback((value) => Math.round(value * 100) / 100, []);
+
+  // Calculate line item totals (matches backend calculation exactly)
+  const calculateLineTotal = useCallback((product) => {
+    const lineNet = round2(product.unitPriceNet * product.quantity);
+    const lineTax = round2(lineNet * product.taxRate);
+    const lineGross = round2(lineNet + lineTax);
+    return { lineNet, lineTax, lineGross };
+  }, [round2]);
+
   // Calculate totals (European pricing: tax included in price)
+  // IMPORTANT: Must match backend rounding logic exactly to avoid payment validation errors
   const calculateTotals = useCallback((products) => {
     let totalNet = 0;
     let totalTax = 0;
     let totalGross = 0;
 
     products.forEach(product => {
-      const qty = product.quantity;
-      const grossPrice = product.unitPriceGross * qty;
-      const taxRate = product.taxRate;
-      const netPrice = grossPrice / (1 + taxRate);
-      const taxAmount = grossPrice - netPrice;
+      // Use same calculation as table display
+      const { lineNet, lineTax, lineGross } = calculateLineTotal(product);
 
-      totalNet += netPrice;
-      totalTax += taxAmount;
-      totalGross += grossPrice;
+      totalNet += lineNet;
+      totalTax += lineTax;
+      totalGross += lineGross;
     });
 
     return {
@@ -278,7 +287,7 @@ export default function POS() {
       totalTax: totalTax.toFixed(2),
       totalGross: totalGross.toFixed(2)
     };
-  }, []);
+  }, [calculateLineTotal]);
 
   const totals = calculateTotals(scannedProducts);
 
@@ -831,8 +840,17 @@ export default function POS() {
       setProductLocationLines({});
     } catch (error) {
       console.error('Failed to finalize transaction:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-      setToast({ type: 'error', message: `Transaction failed: ${errorMsg}` });
+      console.error('Error details:', error.response?.data);
+      const errorData = error.response?.data;
+      const errorMsg = errorData?.error || error.message || 'Unknown error';
+      const details = errorData?.details;
+      const innerException = errorData?.innerException;
+
+      let fullMsg = errorMsg;
+      if (details) fullMsg += `\n\nDetails: ${details}`;
+      if (innerException) fullMsg += `\n\nRoot cause: ${innerException}`;
+
+      setToast({ type: 'error', message: `Transaction failed: ${fullMsg}` });
       setShowFinishConfirm(false);
     }
   };
@@ -1039,7 +1057,8 @@ export default function POS() {
                     </thead>
                     <tbody>
                       {scannedProducts.map((product) => {
-                        const lineGross = product.unitPriceGross * product.quantity;
+                        // Calculate line total using backend-matching logic
+                        const { lineGross } = calculateLineTotal(product);
                         const locations = product.availableLocations || [];
                         const locationLines = productLocationLines[product.id] || [];
 
@@ -1063,17 +1082,17 @@ export default function POS() {
                                 {product.quantity}
                               </td>
 
-                              {/* Net Price (without tax) */}
+                              {/* Gross Price (including tax) - European pricing */}
                               <td style={{ width: "10%", textAlign: "center" }}>
-                                ${product.unitPriceNet.toFixed(2)}
+                                ${product.unitPriceGross.toFixed(2)}
                               </td>
 
-                              {/* Tax (amount and percentage) */}
+                              {/* Tax rate percentage */}
                               <td style={{ width: "12%", textAlign: "center" }}>
-                                ${product.unitTaxAmount.toFixed(2)} ({(product.taxRate * 100).toFixed(0)}%)
+                                {(product.taxRate * 100).toFixed(0)}%
                               </td>
 
-                              {/* Total (gross price × quantity) */}
+                              {/* Total (gross price × quantity) - matches backend rounding */}
                               <td style={{ width: "12%", textAlign: "center", fontWeight: "600" }}>
                                 ${lineGross.toFixed(2)}
                               </td>
