@@ -333,18 +333,9 @@
   background: #10b981; /* Green */
 }
 
-.payment-badge.bank-transfer,
-.payment-badge.banktransfer {
-  background: #8b5cf6; /* Purple */
-}
-
 .payment-badge.gift-card,
 .payment-badge.giftcard {
   background: #a855f7; /* Purple */
-}
-
-.payment-badge.voucher {
-  background: #ec4899; /* Pink */
 }
 
 /* Special badge for mixed payments */
