@@ -8,6 +8,7 @@ const initialClient = {
   email: "",
   phoneNumber: "",
   type: 1, // Default to "Company"
+  taxId: "",
 };
 
 const initialAddress = {
@@ -40,11 +41,22 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
 
   useEffect(() => {
     if (mode === "edit" && client) {
+      // Convert type from string enum name to ID if needed
+      let typeId = 1; // Default to "Company"
+      if (typeof client.type === 'number') {
+        typeId = client.type;
+      } else if (typeof client.type === 'string') {
+        // Find the ID by matching the enum name
+        const typeData = clientTypesData.find(ct => ct.value === client.type);
+        typeId = typeData ? typeData.id : 1;
+      }
+
       setClientForm({
         name: client.name || "",
         email: client.email || "",
         phoneNumber: client.phoneNumber || "",
-        type: client.type || 1, // Default to "Company" if not set
+        type: typeId,
+        taxId: client.taxId || "",
       });
     } else {
       setClientForm(initialClient);
@@ -82,6 +94,7 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
       email: clientForm.email,
       phoneNumber: clientForm.phoneNumber,
       type: parseInt(clientForm.type, 10),
+      taxId: clientForm.type === 1 ? clientForm.taxId : null, // Only for Company
       address: addressPayload,
     };
 
@@ -123,106 +136,171 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
     }
   };
 
+  const isCompany = parseInt(clientForm.type, 10) === 1;
+
   return (
     <form onSubmit={handleSubmit} className="product-form">
-      <div className="form-grid two-column">
-        <input
-          type="text"
-          name="name"
-          placeholder="Client Name"
-          value={clientForm.name}
-          onChange={handleClientChange}
-          required
-        />
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={clientForm.email}
-          onChange={handleClientChange}
-          required
-        />
-        <input
-          type="tel"
-          name="phoneNumber"
-          placeholder="Phone Number"
-          value={clientForm.phoneNumber}
-          onChange={handleClientChange}
-          required
-        />
-        <select
-          name="type"
-          value={clientForm.type}
-          onChange={handleClientChange}
-          required
-        >
-          {clientTypesData
-            .filter((ct) => ct.id !== 0) // Exclude "Unspecified"
-            .map((ct) => (
-              <option key={ct.id} value={ct.id}>
-                {ct.value}
-              </option>
-            ))}
-        </select>
+      {/* Client Information Section */}
+      <h4 className="form-section-title">Client Information</h4>
+
+      <div className="form-section">
+        {/* Row 1: Name, Type, Tax ID (conditional) */}
+        <div className={isCompany ? 'form-row-3' : 'form-row-2'}>
+          <div className="form-field">
+            <label>Name *</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="Enter client name"
+              value={clientForm.name}
+              onChange={handleClientChange}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>Type *</label>
+            <select
+              name="type"
+              value={clientForm.type}
+              onChange={handleClientChange}
+              required
+            >
+              {clientTypesData
+                .filter((ct) => ct.id !== 0) // Exclude "Unspecified"
+                .map((ct) => (
+                  <option key={ct.id} value={ct.id}>
+                    {ct.value}
+                  </option>
+                ))}
+            </select>
+          </div>
+          {isCompany && (
+            <div className="form-field">
+              <label>Tax ID (NIP) *</label>
+              <input
+                type="text"
+                name="taxId"
+                placeholder="Enter tax identification number"
+                value={clientForm.taxId}
+                onChange={handleClientChange}
+                required
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Row 2: Email, Phone */}
+        <div className="form-row-2">
+          <div className="form-field">
+            <label>Email *</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="Enter email address"
+              value={clientForm.email}
+              onChange={handleClientChange}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>Phone Number *</label>
+            <input
+              type="tel"
+              name="phoneNumber"
+              placeholder="Enter phone number"
+              value={clientForm.phoneNumber}
+              onChange={handleClientChange}
+              required
+            />
+          </div>
+        </div>
       </div>
 
+      {/* Address Section */}
       <h4 className="form-section-title">Address</h4>
-      <div className="form-grid two-column">
-        <select
-          name="country"
-          value={addressForm.country}
-          onChange={handleAddressChange}
-          required
-        >
-          <option value="" disabled>Select a country</option>
-          {countries.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          name="city"
-          placeholder="City"
-          value={addressForm.city}
-          onChange={handleAddressChange}
-          required
-        />
-        <input
-          type="text"
-          name="street"
-          placeholder="Street"
-          value={addressForm.street}
-          onChange={handleAddressChange}
-          required
-        />
-        <input
-          type="text"
-          name="building"
-          placeholder="Building"
-          value={addressForm.building}
-          onChange={handleAddressChange}
-          required
-        />
-        <input
-          type="text"
-          name="premises"
-          placeholder="Premises"
-          value={addressForm.premises}
-          onChange={handleAddressChange}
-        />
-        <input
-          type="text"
-          name="postalCode"
-          placeholder="Postal Code"
-          value={addressForm.postalCode}
-          onChange={handleAddressChange}
-          required
-        />
+
+      <div className="form-section">
+        {/* Row 1: Country, City, Postal Code */}
+        <div className="form-row-3">
+          <div className="form-field">
+            <label>Country *</label>
+            <select
+              name="country"
+              value={addressForm.country}
+              onChange={handleAddressChange}
+              required
+            >
+              <option value="" disabled>Select a country</option>
+              {countries.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-field">
+            <label>City *</label>
+            <input
+              type="text"
+              name="city"
+              placeholder="Enter city"
+              value={addressForm.city}
+              onChange={handleAddressChange}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>Postal Code *</label>
+            <input
+              type="text"
+              name="postalCode"
+              placeholder="Enter postal code"
+              value={addressForm.postalCode}
+              onChange={handleAddressChange}
+              required
+            />
+          </div>
+        </div>
+
+        {/* Row 2: Street, Building, Premises */}
+        <div className="form-row-3">
+          <div className="form-field">
+            <label>Street *</label>
+            <input
+              type="text"
+              name="street"
+              placeholder="Enter street name"
+              value={addressForm.street}
+              onChange={handleAddressChange}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>Building *</label>
+            <input
+              type="text"
+              name="building"
+              placeholder="Building number"
+              value={addressForm.building}
+              onChange={handleAddressChange}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label>Premises</label>
+            <input
+              type="text"
+              name="premises"
+              placeholder="Apartment/Unit (optional)"
+              value={addressForm.premises}
+              onChange={handleAddressChange}
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="form-actions">
+      {/* Form Actions - Button on Right */}
+      <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
         <button type="submit" className="btn-confirm" disabled={loading}>
           {loading ? "Saving..." : mode === "create" ? "Create" : "Save"}
         </button>
