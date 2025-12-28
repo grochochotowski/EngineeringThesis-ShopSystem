@@ -18,16 +18,25 @@ export default function POS() {
       return 1; // SalesDocumentType.Receipt
     } else {
       // Invoice selected - check client type
-      // ClientType: Company=1, Person=2
+      // ClientType: Company=1, Person=2 (but API returns as string: "Company", "Person")
       // SalesDocumentType: InvoicePersonal=2, InvoiceCompany=3
-      return client?.type === 2 ? 2 : 3; // Person → InvoicePersonal, Company → InvoiceCompany
+      const clientType = typeof client?.type === 'string' ? client.type : '';
+      return clientType === 'Person' || client?.type === 2 ? 2 : 3; // Person → InvoicePersonal, Company → InvoiceCompany
     }
   };
 
   // Helper function to get client type label
-  const getClientTypeLabel = (typeId) => {
-    const type = clientTypesData.find(t => t.id === typeId);
-    return type?.value || 'Unknown';
+  const getClientTypeLabel = (typeValue) => {
+    // Handle both string enum values (from API with JsonStringEnumConverter) and numeric IDs
+    if (typeof typeValue === 'string') {
+      // API returns string like "Company" or "Person"
+      const type = clientTypesData.find(t => t.value === typeValue);
+      return type?.value || 'Unknown';
+    } else {
+      // Fallback for numeric IDs
+      const type = clientTypesData.find(t => t.id === typeValue);
+      return type?.value || 'Unknown';
+    }
   };
 
   // Mode management
@@ -1412,7 +1421,8 @@ export default function POS() {
                 </button>
                 {selectedClient && (
                   <div className="pos-selected-info">
-                    {selectedClient.email}
+                    <div>{selectedClient.email}</div>
+                    <div>Type: {getClientTypeLabel(selectedClient.type)}</div>
                   </div>
                 )}
               </div>
