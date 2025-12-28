@@ -242,13 +242,15 @@ export default function Clients() {
     }
   }, []);
 
-  const clientDetailsConfig = {
-    status: {
-      key: "isActive",
-      activeLabel: "Active",
-      inactiveLabel: "Inactive",
-    },
-    fields: [
+  const getClientDetailsConfig = (clientData) => {
+    // Check if client is a Company (type === 1 or type === "Company")
+    const isCompany = clientData
+      ? typeof clientData.type === 'number'
+        ? clientData.type === 1
+        : clientData.type === "Company"
+      : false;
+
+    const baseFields = [
       { label: "Id", key: "id" },
       { label: "Name", key: "name" },
       { label: "Email", key: "email" },
@@ -258,24 +260,46 @@ export default function Clients() {
         key: "type",
         render: (data) => getClientTypeLabel(data.type),
       },
-      {
-        label: "Address",
-        key: "address",
-        render: (data) => {
-          if (!data?.address) return "—";
-          const a = data.address;
-          const parts = [];
-          if (a.street) parts.push(a.street);
-          if (a.building) parts.push(a.building);
-          if (a.premises) parts.push(a.premises);
-          if (a.postalCode) parts.push(a.postalCode);
-          if (a.city) parts.push(a.city);
-          if (a.country) parts.push(a.country);
-          return parts.length > 0 ? parts.join(", ") : "—";
-        },
+    ];
+
+    // Conditionally add Tax ID field for Company type
+    if (isCompany) {
+      baseFields.push({
+        label: "Tax ID (NIP)",
+        key: "taxId",
+        render: (data) => data.taxId || "—",
+      });
+    }
+
+    // Add Address field
+    baseFields.push({
+      label: "Address",
+      key: "address",
+      render: (data) => {
+        if (!data?.address) return "—";
+        const a = data.address;
+        const parts = [];
+        if (a.street) parts.push(a.street);
+        if (a.building) parts.push(a.building);
+        if (a.premises) parts.push(a.premises);
+        if (a.postalCode) parts.push(a.postalCode);
+        if (a.city) parts.push(a.city);
+        if (a.country) parts.push(a.country);
+        return parts.length > 0 ? parts.join(", ") : "—";
       },
-    ],
+    });
+
+    return {
+      status: {
+        key: "isActive",
+        activeLabel: "Active",
+        inactiveLabel: "Inactive",
+      },
+      fields: baseFields,
+    };
   };
+
+  const clientDetailsConfig = getClientDetailsConfig(selectedClientDetails);
 
   // === Form helpers ===
   const openCreateModal = () => {
