@@ -33,6 +33,10 @@ namespace Backend.Api.Api.Controllers
             if (await _db.Clients.AnyAsync(c => c.Email == dto.Email, ct))
                 throw new InvalidOperationException("Client with this email already exists.");
 
+            // Validate TaxId for Company type
+            if (dto.Type == ClientType.Company && string.IsNullOrWhiteSpace(dto.TaxId))
+                throw new InvalidOperationException("Tax ID is required for Company type clients.");
+
             // checking if address was given and exists
             if (dto.Address is null)
                 throw new InvalidOperationException("Address must be provided.");
@@ -45,6 +49,7 @@ namespace Backend.Api.Api.Controllers
                 Email = dto.Email.Trim(),
                 PhoneNumber = dto.PhoneNumber.Trim(),
                 Type = dto.Type,
+                TaxId = dto.Type == ClientType.Company ? dto.TaxId?.Trim() : null,
                 AddressId = addressId
             };
 
@@ -94,6 +99,7 @@ namespace Backend.Api.Api.Controllers
                     Email = c.Email,
                     PhoneNumber = c.PhoneNumber,
                     Type = c.Type,
+                    TaxId = c.TaxId,
                     IsActive = c.IsActive,
                     Address = c.Address != null ? new GetAddressDto
                     {
@@ -127,6 +133,10 @@ namespace Backend.Api.Api.Controllers
                     throw new InvalidOperationException("Client with this email already exists.");
             }
 
+            // Validate TaxId for Company type
+            if (dto.Type == ClientType.Company && string.IsNullOrWhiteSpace(dto.TaxId))
+                throw new InvalidOperationException("Tax ID is required for Company type clients.");
+
             // handling address update/creation
             int addressId = await _addressService.GetOrCreateAsync(dto.Address, ct);
             entity.AddressId = addressId;
@@ -136,6 +146,7 @@ namespace Backend.Api.Api.Controllers
             entity.Email = dto.Email.Trim();
             entity.PhoneNumber = dto.PhoneNumber.Trim();
             entity.Type = dto.Type;
+            entity.TaxId = dto.Type == ClientType.Company ? dto.TaxId?.Trim() : null;
 
             await _db.SaveChangesAsync(ct);
             return true;
@@ -171,6 +182,7 @@ namespace Backend.Api.Api.Controllers
             Email = c.Email,
             PhoneNumber = c.PhoneNumber,
             Type = c.Type,
+            TaxId = c.TaxId,
             IsActive = c.IsActive,
             Address = c.Address != null ? new GetAddressDto
             {
