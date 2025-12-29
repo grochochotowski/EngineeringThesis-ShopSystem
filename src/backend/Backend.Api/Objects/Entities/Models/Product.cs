@@ -9,6 +9,7 @@ namespace Backend.Api.Objects.Entities.Models
 
         // --- Basic fields ---
         public string SKU                   { get; set; } = default!;
+        public string? EAN                  { get; set; }
         public string Name                  { get; set; } = default!;
         public string Description           { get; set; } = default!;
         public decimal Price                { get; set; }
