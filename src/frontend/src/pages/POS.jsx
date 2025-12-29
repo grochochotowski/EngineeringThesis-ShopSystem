@@ -1026,7 +1026,7 @@ export default function POS() {
                     >
                       <div className="product-dropdown-name">{product.name}</div>
                       <div className="product-dropdown-details">
-                        {product.sku} - ${product.price.toFixed(2)}
+                        SKU: {product.sku}{product.ean ? ` | EAN: ${product.ean}` : ''} | ${product.price.toFixed(2)}
                       </div>
                     </div>
                   ))}
