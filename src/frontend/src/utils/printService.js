@@ -423,3 +423,191 @@ export async function printGenericDocument(htmlContent, fileName, barcodeValue =
 
   return fileName;
 }
+
+
+
+/**
+ * Print sales report to PDF
+ * @param {object} reportData - The sales report data  
+ * @param {object} formatters - Helper functions for formatting
+ */
+export async function printSalesReportPDF(reportData, formatters) {
+  const { formatCurrency, formatPercentage, formatDate, formatTime } = formatters;
+
+  const printContainer = document.createElement('div');
+  printContainer.style.position = 'absolute';
+  printContainer.style.left = '-9999px';
+  printContainer.style.top = '0';
+  printContainer.style.width = '210mm';
+  printContainer.style.background = 'white';
+  printContainer.style.padding = '15mm';
+  printContainer.style.fontFamily = 'Arial, sans-serif';
+  printContainer.style.fontSize = '10px';
+  printContainer.style.color = '#0f1624';
+
+  document.body.appendChild(printContainer);
+
+  const html = `
+    <div style="max-width: 170mm; margin: 0 auto;">
+      <div style="margin-bottom: 20px;">
+        <h1 style="font-size: 18px; margin: 0 0 5px 0; color: #0f1624; font-weight: 700; text-align: center;">Sales Report</h1>
+        <div style="font-size: 11px; color: #64748b; font-weight: 500; text-align: center;">
+          From ${formatDate(reportData.dateFrom)} to ${formatDate(reportData.dateTo)}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 13px; margin: 0 0 10px 0; color: #0f1624; font-weight: 600;">Earnings Summary</h2>
+        <div style="overflow-x: auto; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+            <thead>
+              <tr style="background: #f8fafc;">
+                <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Metric</th>
+                <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Receipts</th>
+                <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Invoices Personal</th>
+                <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Invoices Company</th>
+                <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">Count of Documents</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${reportData.receipts.count}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${reportData.invoicesPersonal.count}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${reportData.invoicesCompany.count}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">${reportData.total.count}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">Total Net Amount</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.receipts.totalNet)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.invoicesPersonal.totalNet)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.invoicesCompany.totalNet)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">${formatCurrency(reportData.total.totalNet)}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">Total Tax Amount</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.receipts.totalTax)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.invoicesPersonal.totalTax)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.invoicesCompany.totalTax)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">${formatCurrency(reportData.total.totalTax)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">Total Gross Amount</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.receipts.totalGross)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.invoicesPersonal.totalGross)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(reportData.invoicesCompany.totalGross)}</td>
+                <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">${formatCurrency(reportData.total.totalGross)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 13px; margin: 0 0 10px 0; color: #0f1624; font-weight: 600;">Tax Breakdown</h2>
+        
+        <div style="margin-bottom: 15px;">
+          <h3 style="font-size: 11px; margin: 0 0 8px 0; color: #475569; font-weight: 600;">Products</h3>
+          <div style="overflow-x: auto; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Tax Code</th>
+                  <th style="padding: 6px 8px; text-align: center; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Tax Rate</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Total Products</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Distinct Products</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.taxBreakdown.map(tax => `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">${tax.taxCode}</td>
+                    <td style="padding: 5px 8px; text-align: center; font-size: 8px; color: #64748b;">${formatPercentage(tax.taxRate)}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${tax.totalProducts}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${tax.distinctProducts}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot style="background: #f1f5f9; font-weight: 600;">
+                <tr>
+                  <td colspan="2" style="padding: 6px 8px; text-align: right; font-weight: 700; color: #475569; border-top: 2px solid #e2e8f0; font-size: 9px;">Total:</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${reportData.taxBreakdown.reduce((sum, tax) => sum + tax.totalProducts, 0)}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${reportData.taxBreakdown.reduce((sum, tax) => sum + tax.distinctProducts, 0)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <h3 style="font-size: 11px; margin: 0 0 8px 0; color: #475569; font-weight: 600;">Values</h3>
+          <div style="overflow-x: auto; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Tax Code</th>
+                  <th style="padding: 6px 8px; text-align: center; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Tax Rate</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Receipts Tax</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Invoices Personal Tax</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Invoices Company Tax</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Total Tax</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.taxBreakdown.map(tax => `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">${tax.taxCode}</td>
+                    <td style="padding: 5px 8px; text-align: center; font-size: 8px; color: #64748b;">${formatPercentage(tax.taxRate)}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(tax.taxReceipts)}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(tax.taxInvoicesPersonal)}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(tax.taxInvoicesCompany)}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">${formatCurrency(tax.taxTotal)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot style="background: #f1f5f9; font-weight: 600;">
+                <tr>
+                  <td colspan="2" style="padding: 6px 8px; text-align: right; font-weight: 700; color: #475569; border-top: 2px solid #e2e8f0; font-size: 9px;">Total:</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxReceipts, 0))}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxInvoicesPersonal, 0))}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxInvoicesCompany, 0))}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxTotal, 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 8px; color: #94a3b8; font-style: italic;">
+        Report generated on ${formatDate(reportData.generatedAt)} at ${formatTime(reportData.generatedAt)} by ${reportData.generatedBy}
+      </div>
+    </div>
+  `;
+
+  printContainer.innerHTML = html;
+  await new Promise(resolve => setTimeout(resolve, 500));
+  const canvas = await html2canvas(printContainer, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+  document.body.removeChild(printContainer);
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const imgData = canvas.toDataURL('image/png');
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pdfWidth;
+  const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+  let heightLeft = imgHeight;
+  let position = 0;
+  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  heightLeft -= pdfHeight;
+  while (heightLeft > 0) {
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+  }
+  const fromDate = formatDate(reportData.dateFrom).replace(/\//g, '-');
+  const toDate = formatDate(reportData.dateTo).replace(/\//g, '-');
+  const fileName = `Sales_Report_${fromDate}_to_${toDate}_${new Date().getTime()}.pdf`;
+  pdf.save(fileName);
+  return fileName;
+}
