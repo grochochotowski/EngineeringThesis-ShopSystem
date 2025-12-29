@@ -63,6 +63,7 @@ export default function LeavingPrepareModal({
               return {
                 productId: prep.productId,
                 sku: prep.productSku,
+                ean: prep.productEAN || prep.productEan || null,
                 name: prep.productName,
                 shipmentQuantity: prep.totalDeclaredQuantity,
                 inStore: stockData.totalQuantity,
@@ -92,6 +93,7 @@ export default function LeavingPrepareModal({
               return {
                 productId: sp.productId,
                 sku: sp.productSKU,
+                ean: sp.productEAN || sp.productEan || null,
                 name: sp.productName,
                 shipmentQuantity: sp.quantity,
                 inStore: stockData.totalQuantity,
@@ -180,6 +182,7 @@ export default function LeavingPrepareModal({
     const newProduct = {
       productId: product.productId,
       sku: product.productSKU || product.sku || product.SKU || product.productSku || "N/A",
+      ean: product.ean || product.EAN || null,
       name: product.productName || product.name || product.Name || "Unknown",
       shipmentQuantity: 0, // User added product (not in original shipment)
       inStore: stockData.totalQuantity,
@@ -195,9 +198,45 @@ export default function LeavingPrepareModal({
   };
 
   // Handle keyboard navigation in dropdown
-  const handleKeyDown = (e) => {
+  const handleKeyDown = async (e) => {
     if (!showDropdown || productSuggestions.length === 0) {
       if (e.key === "Enter" && scanInput) {
+        e.preventDefault();
+
+        // Check if input is EAN-13 (exactly 13 digits)
+        const isEAN13 = /^\d{13}$/.test(scanInput.trim());
+
+        if (isEAN13) {
+          // Search for exact EAN match
+          try {
+            const response = await api.get("/products-in-warehouse/search-product", {
+              params: {
+                pageNumber: 1,
+                pageSize: 1,
+                searchTerm: scanInput.trim(),
+              },
+            });
+
+            const products = response.items || [];
+            if (products.length > 0) {
+              const product = products[0];
+              const productEAN = product.ean || product.EAN || "";
+
+              // Verify exact EAN match
+              if (productEAN === scanInput.trim()) {
+                await handleSelectProduct(product);
+                return;
+              }
+            }
+
+            setToast({ type: "error", message: `No product found with EAN: ${scanInput}` });
+          } catch (err) {
+            console.error("Failed to search by EAN", err);
+            setToast({ type: "error", message: "Failed to search product" });
+          }
+          return;
+        }
+
         // Try to find exact SKU match and auto-add
         const exactMatch = productSuggestions.find(p => {
           const sku = p.productSKU || p.sku || p.SKU || p.productSku || "";
@@ -205,6 +244,8 @@ export default function LeavingPrepareModal({
         });
         if (exactMatch) {
           handleSelectProduct(exactMatch);
+        } else {
+          setToast({ type: "info", message: `No exact match found for: ${scanInput}` });
         }
       }
       return;
@@ -605,7 +646,7 @@ export default function LeavingPrepareModal({
         <div className="scan-panel" style={{ position: "relative" }}>
           <input
             type="text"
-            placeholder="Scan or type product SKU/name (press Enter for exact SKU match)"
+            placeholder="Scan EAN/SKU or search by name (Enter to add exact match)"
             value={scanInput}
             onChange={handleScanInputChange}
             onKeyDown={handleKeyDown}
@@ -622,8 +663,11 @@ export default function LeavingPrepareModal({
                   onClick={() => handleSelectProduct(product)}
                 >
                   <div className="product-suggestion-main">
-                    <strong>{product.productName || product.name || product.Name || "Unknown"}</strong>
-                    <span className="product-sku">{product.productSKU || product.sku || product.SKU || product.productSku || "N/A"}</span>
+                    <strong>{product.name || "Unknown"}</strong>
+                    <span className="product-sku">
+                      SKU: {product.sku || "N/A"}
+                      {product.ean && ` | EAN: ${product.ean}`}
+                    </span>
                   </div>
                   <span className="product-stock">Stock: {product.totalQuantity || product.quantity || 0}</span>
                 </div>
@@ -647,7 +691,10 @@ export default function LeavingPrepareModal({
                   <div className="product-header">
                     <div className="product-info">
                       <strong>{product.name}</strong>
-                      <span className="product-sku-badge">{product.sku}</span>
+                      <span className="product-sku-badge">
+                        SKU: {product.sku}
+                        {product.ean && ` | EAN: ${product.ean}`}
+                      </span>
                     </div>
                     <div className="product-quantities">
                       {product.shipmentQuantity > 0 && (
