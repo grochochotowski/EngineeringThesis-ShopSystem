@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
+import ClientFormModal from '../components/Forms/ClientFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MessageBox from '../components/MessageBox';
 import { api } from '../api/apiClient';
@@ -649,6 +650,30 @@ export default function POS() {
     setSelectedClient(selectedClientRow);
     setShowClientModal(false);
     setToast({ type: 'success', message: `Client ${selectedClientRow.name} selected` });
+  };
+
+  const handleClientCreated = async (clientId) => {
+    // Fetch the newly created client details
+    try {
+      const newClient = await api.get(`/Clients/${clientId}`);
+
+      // Close both modals (creation modal and selection modal)
+      setShowClientCreateModal(false);
+      setShowClientModal(false);
+
+      // Automatically select the newly created client
+      setSelectedClient(newClient);
+
+      // Show success message
+      setToast({ type: 'success', message: `Client ${newClient.name} created and selected` });
+    } catch (error) {
+      console.error('Failed to fetch newly created client:', error);
+      setToast({ type: 'error', message: 'Client created but failed to select automatically' });
+
+      // Still close the modals
+      setShowClientCreateModal(false);
+      setShowClientModal(false);
+    }
   };
 
   // Remove payment handler
@@ -1690,24 +1715,12 @@ export default function POS() {
       )}
 
       {/* Client Creation Modal */}
-      {showClientCreateModal && (
-        <Modal
-          title="Create Client"
-          onClose={() => setShowClientCreateModal(false)}
-        >
-          <div className="pos-client-create">
-            <p>Client creation form will be implemented later.</p>
-            <div className="pos-modal-actions">
-              <button
-                className="pos-button-primary"
-                onClick={() => setShowClientCreateModal(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <ClientFormModal
+        isOpen={showClientCreateModal}
+        onClose={() => setShowClientCreateModal(false)}
+        mode="create"
+        onClientCreated={handleClientCreated}
+      />
 
       {/* Price Change Modal */}
       {showPriceChangeModal && (

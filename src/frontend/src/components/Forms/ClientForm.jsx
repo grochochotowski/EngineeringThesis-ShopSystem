@@ -89,12 +89,13 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
       postalCode: addressForm.postalCode,
     };
 
+    const typeAsInt = parseInt(clientForm.type, 10);
     const clientPayload = {
       name: clientForm.name,
       email: clientForm.email,
       phoneNumber: clientForm.phoneNumber,
-      type: parseInt(clientForm.type, 10),
-      taxId: clientForm.type === 1 ? clientForm.taxId : null, // Only for Company
+      type: typeAsInt,
+      taxId: typeAsInt === 1 ? clientForm.taxId : null, // Only for Company
       address: addressPayload,
     };
 

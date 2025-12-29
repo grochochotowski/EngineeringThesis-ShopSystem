@@ -2,8 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { api } from "../../api/apiClient";
 import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
-import Modal from "../../components/Modal";
-import ClientForm from "../../components/Forms/ClientForm";
+import ClientFormModal from "../../components/Forms/ClientFormModal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageBox from "../../components/MessageBox";
 import { clientTypesData } from "../../data/clientTypes";
@@ -508,29 +507,22 @@ export default function Clients() {
         )}
       </main>
 
-      {showClientModal && (
-        <Modal
-          title={clientFormMode === "create" ? "Create Client" : "Edit Client"}
-          onClose={() => setShowClientModal(false)}
-          wide
-        >
-          <ClientForm
-            mode={clientFormMode}
-            client={clientFormMode === "edit" ? formClientData : null}
-            address={formAddressData}
-            onSuccess={async (clientId) => {
-              setShowClientModal(false);
-              if (clientId) {
-                lastSelectedId.current = clientId;
-                await fetchAndSelectClient(clientId);
-              }
-              loadedPages.current.clear();
-              setPageNumber(1);
-              await fetchClients(1, true);
-            }}
-          />
-        </Modal>
-      )}
+      <ClientFormModal
+        isOpen={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        mode={clientFormMode}
+        client={clientFormMode === "edit" ? formClientData : null}
+        address={formAddressData}
+        onClientCreated={async (clientId) => {
+          if (clientId) {
+            lastSelectedId.current = clientId;
+            await fetchAndSelectClient(clientId);
+          }
+          loadedPages.current.clear();
+          setPageNumber(1);
+          await fetchClients(1, true);
+        }}
+      />
 
       {/* === CONFIRM DIALOG: Activate/Deactivate === */}
       {actionableClient && (
