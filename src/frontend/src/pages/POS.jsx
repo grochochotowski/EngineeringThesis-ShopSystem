@@ -855,7 +855,8 @@ export default function POS() {
           amount: payment.amount,
           amountTendered: payment.amountTendered || null,
           change: payment.change || null
-        }))
+        })),
+        userId: currentUser?.id || 0
       };
 
       // Call finalization endpoint

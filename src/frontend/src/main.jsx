@@ -29,6 +29,7 @@ const OrganizationProducts = lazy(() => import("./pages/Organization/Products.js
 
 const StorageProducts = lazy(() => import("./pages/Storage/StorageProducts.jsx"));
 const Warehouses = lazy(() => import("./pages/Storage/Warehouses.jsx"));
+const InventoryReports = lazy(() => import("./pages/Storage/InventoryReports.jsx"));
 
 const IncomingShipments = lazy(() => import("./pages/Shipments/Incoming.jsx"));
 const LeavingShipments = lazy(() => import("./pages/Shipments/Leaving.jsx"));
@@ -180,6 +181,17 @@ const router = createBrowserRouter([
             <PrivateRoute>
                 <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
                     <Warehouses />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
+        path: '/storage/inventory-reports',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                    <InventoryReports />
                 </ProtectedRoute>
             </PrivateRoute>
         ),
