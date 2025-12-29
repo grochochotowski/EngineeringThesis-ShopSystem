@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { api } from "../api/apiClient";
 import Header from "../components/Header";
 import MessageBox from "../components/MessageBox";
+import { printSalesReportPDF } from "../utils/printService";
 import "../styles/PagesStyles/baseListPage.css";
 import "../styles/PagesStyles/reports.css";
 
@@ -142,8 +143,23 @@ export default function Reports() {
   };
 
   // Print report to PDF
-  const handlePrintReport = () => {
-    window.print();
+  const handlePrintReport = async () => {
+    if (!reportData) return;
+
+    try {
+      const formatters = {
+        formatCurrency,
+        formatPercentage,
+        formatDate: formatDateForDisplay,
+        formatTime: formatTimeForDisplay,
+      };
+
+      await printSalesReportPDF(reportData, formatters);
+      // No toast message - PDF download starts automatically
+    } catch (err) {
+      console.error("Failed to print report:", err);
+      setToast({ type: "error", message: "Failed to generate PDF." });
+    }
   };
 
   return (
@@ -246,11 +262,11 @@ export default function Reports() {
                         <td className="total-cell">{reportData.total.count}</td>
                       </tr>
                       <tr>
-                        <td>Total Gross Amount</td>
-                        <td>{formatCurrency(reportData.receipts.totalGross)}</td>
-                        <td>{formatCurrency(reportData.invoicesPersonal.totalGross)}</td>
-                        <td>{formatCurrency(reportData.invoicesCompany.totalGross)}</td>
-                        <td className="total-cell">{formatCurrency(reportData.total.totalGross)}</td>
+                        <td>Total Net Amount</td>
+                        <td>{formatCurrency(reportData.receipts.totalNet)}</td>
+                        <td>{formatCurrency(reportData.invoicesPersonal.totalNet)}</td>
+                        <td>{formatCurrency(reportData.invoicesCompany.totalNet)}</td>
+                        <td className="total-cell">{formatCurrency(reportData.total.totalNet)}</td>
                       </tr>
                       <tr>
                         <td>Total Tax Amount</td>
@@ -260,11 +276,11 @@ export default function Reports() {
                         <td className="total-cell">{formatCurrency(reportData.total.totalTax)}</td>
                       </tr>
                       <tr>
-                        <td>Total Net Amount</td>
-                        <td>{formatCurrency(reportData.receipts.totalNet)}</td>
-                        <td>{formatCurrency(reportData.invoicesPersonal.totalNet)}</td>
-                        <td>{formatCurrency(reportData.invoicesCompany.totalNet)}</td>
-                        <td className="total-cell">{formatCurrency(reportData.total.totalNet)}</td>
+                        <td>Total Gross Amount</td>
+                        <td>{formatCurrency(reportData.receipts.totalGross)}</td>
+                        <td>{formatCurrency(reportData.invoicesPersonal.totalGross)}</td>
+                        <td>{formatCurrency(reportData.invoicesCompany.totalGross)}</td>
+                        <td className="total-cell">{formatCurrency(reportData.total.totalGross)}</td>
                       </tr>
                     </tbody>
                   </table>
