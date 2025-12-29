@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251224100132_leaving")]
-    partial class leaving
+    [Migration("20251229142947_EAN-init")]
+    partial class EANinit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -116,6 +116,9 @@ namespace Backend.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -223,6 +226,9 @@ namespace Backend.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("EAN")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -441,6 +447,9 @@ namespace Backend.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("FromLocationId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("LineGross")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -481,6 +490,8 @@ namespace Backend.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FromLocationId");
+
                     b.HasIndex("ProductId");
 
                     b.HasIndex("SalesDocumentId");
@@ -507,6 +518,14 @@ namespace Backend.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("AmountTendered")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("Change")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("PaymentOption")
                         .HasColumnType("int");
 
@@ -519,7 +538,11 @@ namespace Backend.Api.Migrations
 
                     b.ToTable("SalesPayments", t =>
                         {
+                            t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
+
                             t.HasCheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
+
+                            t.HasCheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
                         });
                 });
 
@@ -866,6 +889,10 @@ namespace Backend.Api.Migrations
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>
                 {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "FromLocation")
+                        .WithMany()
+                        .HasForeignKey("FromLocationId");
+
                     b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -883,6 +910,8 @@ namespace Backend.Api.Migrations
                         .HasForeignKey("TaxRateId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("FromLocation");
 
                     b.Navigation("Product");
 

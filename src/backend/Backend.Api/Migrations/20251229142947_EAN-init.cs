@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Backend.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class EANinit : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -91,6 +91,7 @@ namespace Backend.Api.Migrations
                     Type = table.Column<int>(type: "int", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
                     PhoneNumber = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
                     AddressId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -182,6 +183,7 @@ namespace Backend.Api.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     SKU = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    EAN = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
@@ -309,6 +311,49 @@ namespace Backend.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ShipmentProductLocations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ShipmentId = table.Column<int>(type: "int", nullable: false),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    LocationId = table.Column<int>(type: "int", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    ProcessedByUserId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ShipmentProductLocations", x => x.Id);
+                    table.CheckConstraint("CK_ShipmentProductLocation_Qty_Positive", "[Quantity] > 0");
+                    table.ForeignKey(
+                        name: "FK_ShipmentProductLocations_Locations_LocationId",
+                        column: x => x.LocationId,
+                        principalTable: "Locations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ShipmentProductLocations_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ShipmentProductLocations_Shipments_ShipmentId",
+                        column: x => x.ShipmentId,
+                        principalTable: "Shipments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ShipmentProductLocations_Users_ProcessedByUserId",
+                        column: x => x.ProcessedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ShipmentProducts",
                 columns: table => new
                 {
@@ -351,13 +396,19 @@ namespace Backend.Api.Migrations
                     Quantity = table.Column<int>(type: "int", nullable: false),
                     SalesDocumentId = table.Column<int>(type: "int", nullable: false),
                     ProductId = table.Column<int>(type: "int", nullable: false),
-                    TaxRateId = table.Column<int>(type: "int", nullable: false)
+                    TaxRateId = table.Column<int>(type: "int", nullable: false),
+                    FromLocationId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SalesDocumentItems", x => x.Id);
                     table.CheckConstraint("CK_SalesItem_Line_Positive", "[LineNet] >= 0 AND [LineTax] >= 0 AND [LineGross] >= 0");
                     table.CheckConstraint("CK_SalesItem_Qty_Positive", "[Quantity] >= 1");
+                    table.ForeignKey(
+                        name: "FK_SalesDocumentItems_Locations_FromLocationId",
+                        column: x => x.FromLocationId,
+                        principalTable: "Locations",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_SalesDocumentItems_Products_ProductId",
                         column: x => x.ProductId,
@@ -386,12 +437,16 @@ namespace Backend.Api.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     PaymentOption = table.Column<int>(type: "int", nullable: false),
+                    AmountTendered = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    Change = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     SalesDocumentId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SalesPayments", x => x.Id);
                     table.CheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
+                    table.CheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
+                    table.CheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
                     table.ForeignKey(
                         name: "FK_SalesPayments_SalesDocuments_SalesDocumentId",
                         column: x => x.SalesDocumentId,
@@ -476,6 +531,11 @@ namespace Backend.Api.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SalesDocumentItems_FromLocationId",
+                table: "SalesDocumentItems",
+                column: "FromLocationId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_SalesDocumentItems_ProductId",
                 table: "SalesDocumentItems",
                 column: "ProductId");
@@ -505,6 +565,26 @@ namespace Backend.Api.Migrations
                 name: "IX_SalesPayments_SalesDocumentId",
                 table: "SalesPayments",
                 column: "SalesDocumentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentProductLocations_LocationId",
+                table: "ShipmentProductLocations",
+                column: "LocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentProductLocations_ProcessedByUserId",
+                table: "ShipmentProductLocations",
+                column: "ProcessedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentProductLocations_ProductId",
+                table: "ShipmentProductLocations",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShipmentProductLocations_ShipmentId_ProductId_LocationId",
+                table: "ShipmentProductLocations",
+                columns: new[] { "ShipmentId", "ProductId", "LocationId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ShipmentProducts_ProductId",
@@ -568,16 +648,19 @@ namespace Backend.Api.Migrations
                 name: "SalesPayments");
 
             migrationBuilder.DropTable(
+                name: "ShipmentProductLocations");
+
+            migrationBuilder.DropTable(
                 name: "ShipmentProducts");
 
             migrationBuilder.DropTable(
                 name: "UserCredentials");
 
             migrationBuilder.DropTable(
-                name: "Locations");
+                name: "SalesDocuments");
 
             migrationBuilder.DropTable(
-                name: "SalesDocuments");
+                name: "Locations");
 
             migrationBuilder.DropTable(
                 name: "Products");
