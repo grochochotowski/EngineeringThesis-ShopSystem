@@ -94,7 +94,6 @@ namespace Backend.Api.Api.Services
                 fromLocationId: null,
                 toLocationId: locationId,
                 userId: userId,
-                notes: $"Manual addition of {quantity} units to warehouse",
                 ct: ct);
 
             return true;
@@ -134,7 +133,6 @@ namespace Backend.Api.Api.Services
                 fromLocationId: locationId,
                 toLocationId: null,
                 userId: userId,
-                notes: $"Manual removal of {quantityToRemove} units from warehouse",
                 ct: ct);
 
             return true;
@@ -210,7 +208,6 @@ namespace Backend.Api.Api.Services
                 fromLocationId: fromLocationId,
                 toLocationId: toLocationId,
                 userId: userId,
-                notes: $"Manual transfer of {quantity} units between locations",
                 ct: ct);
 
             return true;

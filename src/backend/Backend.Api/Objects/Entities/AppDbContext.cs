@@ -96,7 +96,6 @@ namespace Backend.Api.Objects.Entities
                 // String length configurations
                 b.Property(x => x.ProductSku).HasMaxLength(64).IsRequired();
                 b.Property(x => x.ProductEan).HasMaxLength(64);
-                b.Property(x => x.Notes).HasMaxLength(512);
 
                 // Enum conversion
                 b.Property(x => x.ChangeType).HasConversion<string>().HasMaxLength(32);

@@ -27,11 +27,6 @@ namespace Backend.Api.Objects.Entities.Models
         /// </summary>
         public DateTime Timestamp { get; set; }
 
-        /// <summary>
-        /// Optional notes or description for this change
-        /// </summary>
-        public string? Notes { get; set; }
-
         // --- Denormalized product information (for historical reference) ---
         /// <summary>
         /// Product SKU at the time of change (denormalized for historical reference)

@@ -15,7 +15,6 @@ namespace Backend.Api.Api.Services
             int? fromLocationId,
             int? toLocationId,
             int userId,
-            string? notes = null,
             CancellationToken ct = default);
 
         Task<GetInventoryChangeDto?> GetByIdAsync(int id, CancellationToken ct = default);
@@ -61,7 +60,6 @@ namespace Backend.Api.Api.Services
             int? fromLocationId,
             int? toLocationId,
             int userId,
-            string? notes = null,
             CancellationToken ct = default)
         {
             // Validate that at least one location is provided
@@ -102,7 +100,6 @@ namespace Backend.Api.Api.Services
                 FromLocationId = fromLocationId,
                 ToLocationId = toLocationId,
                 UserId = userId,
-                Notes = notes,
                 Timestamp = DateTime.UtcNow
             };
 
@@ -130,7 +127,6 @@ namespace Backend.Api.Api.Services
                 ChangeType = change.ChangeType,
                 Quantity = change.Quantity,
                 Timestamp = change.Timestamp,
-                Notes = change.Notes,
                 ProductId = change.ProductId,
                 ProductSku = change.ProductSku,
                 ProductEan = change.ProductEan,
@@ -193,8 +189,7 @@ namespace Backend.Api.Api.Services
                 query = query.Where(ic =>
                     ic.ProductSku.ToLower().Contains(term) ||
                     ic.Product.Name.ToLower().Contains(term) ||
-                    (ic.ProductEan != null && ic.ProductEan.ToLower().Contains(term)) ||
-                    (ic.Notes != null && ic.Notes.ToLower().Contains(term)));
+                    (ic.ProductEan != null && ic.ProductEan.ToLower().Contains(term)));
             }
 
             // Apply sorting
@@ -214,6 +209,7 @@ namespace Backend.Api.Api.Services
                     Quantity = ic.Quantity,
                     Timestamp = ic.Timestamp,
                     ProductSku = ic.ProductSku,
+                    ProductEan = ic.ProductEan,
                     ProductName = ic.Product.Name,
                     FromLocationCode = ic.FromLocation != null ? ic.FromLocation.LocationCode : null,
                     ToLocationCode = ic.ToLocation != null ? ic.ToLocation.LocationCode : null,

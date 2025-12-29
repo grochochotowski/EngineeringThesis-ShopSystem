@@ -11,7 +11,6 @@ namespace Backend.Api.Objects.DTOs
         public InventoryChangeType ChangeType { get; set; }
         public int Quantity { get; set; }
         public DateTime Timestamp { get; set; }
-        public string? Notes { get; set; }
 
         // Product information
         public int ProductId { get; set; }
@@ -40,6 +39,7 @@ namespace Backend.Api.Objects.DTOs
         public int Quantity { get; set; }
         public DateTime Timestamp { get; set; }
         public string ProductSku { get; set; } = default!;
+        public string? ProductEan { get; set; }
         public string ProductName { get; set; } = default!;
         public string? FromLocationCode { get; set; }
         public string? ToLocationCode { get; set; }
@@ -57,6 +57,5 @@ namespace Backend.Api.Objects.DTOs
         public int? FromLocationId { get; set; }
         public int? ToLocationId { get; set; }
         public int UserId { get; set; }
-        public string? Notes { get; set; }
     }
 }

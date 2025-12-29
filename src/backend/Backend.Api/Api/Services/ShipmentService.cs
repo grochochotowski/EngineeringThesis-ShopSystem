@@ -542,7 +542,6 @@ namespace Backend.Api.Api.Services
                                 fromLocationId: null,
                                 toLocationId: locationId,
                                 userId: userId,
-                                notes: $"Incoming shipment #{shipmentId} collection",
                                 ct: ct);
                         }
                     }
@@ -769,7 +768,6 @@ namespace Backend.Api.Api.Services
                                 fromLocationId: sourceLocation.LocationId,
                                 toLocationId: null,
                                 userId: userId,
-                                notes: $"Outgoing shipment #{shipmentId} preparation",
                                 ct: ct);
                         }
                     }

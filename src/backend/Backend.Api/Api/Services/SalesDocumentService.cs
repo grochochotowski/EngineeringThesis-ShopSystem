@@ -509,7 +509,6 @@ namespace Backend.Api.Api.Services
                             fromLocationId: item.FromLocationId,
                             toLocationId: null,
                             userId: dto.UserId,
-                            notes: $"POS sale - Document: {documentNumber}",
                             ct: ct);
                     }
                 }
