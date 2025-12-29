@@ -574,6 +574,7 @@ export default function IncomingShipments() {
     setSelectedProducts(prev => [...prev, {
       id: productId,
       sku: product.sku,
+      ean: product.ean || null,
       name: product.name,
       quantity: 1,
       currentStock: product.totalQuantity || 0,
@@ -2252,7 +2253,10 @@ export default function IncomingShipments() {
                         >
                           <div className="product-suggestion-main">
                             <strong>{product.name}</strong>
-                            <span className="product-sku">{product.sku}</span>
+                            <span className="product-sku">
+                              SKU: {product.sku}
+                              {product.ean && ` | EAN: ${product.ean}`}
+                            </span>
                           </div>
                           <span className="product-stock">Stock: {product.totalQuantity || 0}</span>
                         </div>
@@ -2272,6 +2276,7 @@ export default function IncomingShipments() {
                       <tr>
                         <th>Product Name</th>
                         <th>SKU</th>
+                        <th>EAN</th>
                         <th>Amount in Shipment</th>
                         <th>Amount in Store</th>
                         <th>Action</th>
@@ -2282,6 +2287,7 @@ export default function IncomingShipments() {
                         <tr key={product.id}>
                           <td>{product.name}</td>
                           <td>{product.sku}</td>
+                          <td>{product.ean || "—"}</td>
                           <td>
                             <input
                               type="number"
