@@ -161,6 +161,18 @@ export default function POS() {
       try {
         const locations = await api.get(`/products-in-warehouse/product/${product.id}`);
 
+        // VALIDATION: Check if product has any stock in warehouse
+        const totalStock = locations?.reduce((sum, loc) => sum + loc.quantity, 0) || 0;
+        if (totalStock === 0 || !locations || locations.length === 0) {
+          setToast({
+            type: 'error',
+            message: `Cannot add "${product.name}": No stock available in warehouse`
+          });
+          setProductSearchQuery('');
+          setShowProductDropdown(false);
+          return;
+        }
+
         // Initialize location lines for this product (one empty line to start)
         setProductLocationLines(prev => ({
           ...prev,
@@ -176,6 +188,7 @@ export default function POS() {
         setScannedProducts([...scannedProducts, {
           id: product.id,
           sku: product.sku,
+          ean: product.ean || null,
           name: product.name,
           unitPriceGross: grossPrice,
           unitPriceNet: netPrice,
@@ -1070,14 +1083,16 @@ export default function POS() {
                   <table className="pos-products-table pos-products-table-clean-header">
                     <thead>
                       <tr>
-                        <th style={{ width: "18%", textAlign: "left" }}>Product</th>
+                        <th style={{ width: "20%", textAlign: "left" }}>Product</th>
+                        <th style={{ width: "10%", textAlign: "left" }}>SKU</th>
+                        <th style={{ width: "10%", textAlign: "left" }}>EAN</th>
                         <th style={{ width: "6%", textAlign: "center" }}>Total Qty</th>
-                        <th style={{ width: "10%", textAlign: "center" }}>Price</th>
-                        <th style={{ width: "12%", textAlign: "center" }}>Tax</th>
-                        <th style={{ width: "12%", textAlign: "center" }}>Total</th>
-                        <th style={{ width: "16%", textAlign: "left" }}>Location</th>
-                        <th style={{ width: "16%", textAlign: "left" }}>Qty</th>
-                        <th style={{ width: "10%", textAlign: "center" }}></th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Price</th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Tax</th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Total</th>
+                        <th style={{ width: "12%", textAlign: "left" }}>Location</th>
+                        <th style={{ width: "10%", textAlign: "left" }}>Qty</th>
+                        <th style={{ width: "8%", textAlign: "center" }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1098,8 +1113,18 @@ export default function POS() {
                               onClick={() => !isFullyPaid && handleProductRowClick(product)}
                             >
                               {/* Product Name */}
-                              <td style={{ width: "18%", textAlign: "left", fontWeight: "600" }}>
+                              <td style={{ width: "20%", textAlign: "left", fontWeight: "600" }}>
                                 {product.name}
+                              </td>
+
+                              {/* SKU */}
+                              <td style={{ width: "10%", textAlign: "left", fontSize: "0.9rem" }}>
+                                {product.sku}
+                              </td>
+
+                              {/* EAN */}
+                              <td style={{ width: "10%", textAlign: "left", fontSize: "0.9rem" }}>
+                                {product.ean || '-'}
                               </td>
 
                               {/* Total Quantity (sum of all location lines) */}
@@ -1108,22 +1133,22 @@ export default function POS() {
                               </td>
 
                               {/* Gross Price (including tax) - European pricing */}
-                              <td style={{ width: "10%", textAlign: "center" }}>
+                              <td style={{ width: "8%", textAlign: "center" }}>
                                 ${product.unitPriceGross.toFixed(2)}
                               </td>
 
                               {/* Tax rate percentage */}
-                              <td style={{ width: "12%", textAlign: "center" }}>
+                              <td style={{ width: "8%", textAlign: "center" }}>
                                 {(product.taxRate * 100).toFixed(0)}%
                               </td>
 
                               {/* Total (gross price × quantity) - matches backend rounding */}
-                              <td style={{ width: "12%", textAlign: "center", fontWeight: "600" }}>
+                              <td style={{ width: "8%", textAlign: "center", fontWeight: "600" }}>
                                 ${lineGross.toFixed(2)}
                               </td>
 
                               {/* First Location Selection */}
-                              <td style={{ width: "16%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                              <td style={{ width: "12%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
                                 <select
                                   value={firstLine.locationId || ''}
                                   onChange={(e) => handleLocationChange(product.id, 0, e.target.value)}
@@ -1144,7 +1169,7 @@ export default function POS() {
                               </td>
 
                               {/* First Location Quantity with action buttons inline */}
-                              <td style={{ width: "16%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                              <td style={{ width: "10%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
                                 <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
                                   <input
                                     type="number"
@@ -1187,7 +1212,7 @@ export default function POS() {
                               </td>
 
                               {/* Remove Product Button - Trash icon */}
-                              <td style={{ width: "10%", textAlign: "center" }}>
+                              <td style={{ width: "8%", textAlign: "center" }}>
                                 <button
                                   className="btn-remove-product"
                                   onClick={(e) => {
@@ -1214,18 +1239,20 @@ export default function POS() {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   {/* Empty product columns */}
-                                  <td style={{ width: "18%", paddingLeft: "2rem", textAlign: "left" }}>
+                                  <td style={{ width: "20%", paddingLeft: "2rem", textAlign: "left" }}>
                                     <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
                                       Location {lineIndex + 1}
                                     </span>
                                   </td>
+                                  <td style={{ width: "10%", textAlign: "left" }}></td>
+                                  <td style={{ width: "10%", textAlign: "left" }}></td>
                                   <td style={{ width: "6%", textAlign: "center" }}></td>
-                                  <td style={{ width: "10%", textAlign: "center" }}></td>
-                                  <td style={{ width: "12%", textAlign: "center" }}></td>
-                                  <td style={{ width: "12%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
 
                                   {/* Location Selection */}
-                                  <td style={{ width: "16%", textAlign: "left" }}>
+                                  <td style={{ width: "12%", textAlign: "left" }}>
                                     <select
                                       value={line.locationId || ''}
                                       onChange={(e) => handleLocationChange(product.id, lineIndex, e.target.value)}
@@ -1246,7 +1273,7 @@ export default function POS() {
                                   </td>
 
                                   {/* Location Quantity with action buttons inline */}
-                                  <td style={{ width: "16%", textAlign: "left" }}>
+                                  <td style={{ width: "10%", textAlign: "left" }}>
                                     <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
                                       <input
                                         type="number"
@@ -1274,7 +1301,7 @@ export default function POS() {
                                   </td>
 
                                   {/* Empty cell for product remove button */}
-                                  <td style={{ width: "10%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
                                 </tr>
                               );
                             })}

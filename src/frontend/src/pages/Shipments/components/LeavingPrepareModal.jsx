@@ -178,6 +178,18 @@ export default function LeavingPrepareModal({
     console.log("📍 Stock data for product:", stockData);
     console.log("📍 Warehouse locations:", stockData.locations);
 
+    // VALIDATION: Check if product has any stock in warehouse
+    if (stockData.totalQuantity === 0 || !stockData.locations || stockData.locations.length === 0) {
+      const productName = product.productName || product.name || product.Name || "Unknown";
+      setToast({
+        type: "error",
+        message: `Cannot add "${productName}": No stock available in warehouse`
+      });
+      setScanInput("");
+      setShowDropdown(false);
+      return;
+    }
+
     // Add product to prepared list (with fallback for different property names)
     const newProduct = {
       productId: product.productId,
