@@ -122,6 +122,12 @@ export default function Reports() {
 
   // Generate report
   const handleGenerateReport = async () => {
+    // Validate custom date range
+    if (datePreset === "custom" && (!dateFrom || !dateTo)) {
+      setToast({ type: "error", message: "Please select both From Date and To Date for custom range." });
+      return;
+    }
+
     setLoading(true);
     try {
       const params = {};
