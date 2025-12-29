@@ -258,6 +258,7 @@ namespace Backend.Api.Api.Services
                 query = query.Where(pw =>
                     pw.Product.Name.ToLower().Contains(term) ||
                     pw.Product.SKU.ToLower().Contains(term) ||
+                    (pw.Product.EAN != null && pw.Product.EAN == term) ||
                     pw.Product.Description.ToLower().Contains(term) ||
                     pw.Location.LocationCode.ToLower().Contains(term));
             }
@@ -453,6 +454,7 @@ namespace Backend.Api.Api.Services
                 query = query.Where(pw =>
                     pw.Product.Name.ToLower().Contains(term) ||
                     pw.Product.SKU.ToLower().Contains(term) ||
+                    (pw.Product.EAN != null && pw.Product.EAN == term) ||
                     pw.Product.Description.ToLower().Contains(term) ||
                     pw.Location.LocationCode.ToLower().Contains(term));
             }
@@ -499,6 +501,7 @@ namespace Backend.Api.Api.Services
                     pw.ProductId,
                     pw.Product.Name,
                     pw.Product.SKU,
+                    pw.Product.EAN,
                     pw.Product.Price,
                     pw.Product.Description,
                     pw.Product.CategoryId,
@@ -571,6 +574,7 @@ namespace Backend.Api.Api.Services
                 ProductId = p.ProductInfo.ProductId,
                 ProductName = p.ProductInfo.Name,
                 ProductSKU = p.ProductInfo.SKU,
+                ProductEAN = p.ProductInfo.EAN,
                 ProductPrice = p.ProductInfo.Price,
                 ProductDescription = p.ProductInfo.Description,
                 CategoryId = p.ProductInfo.CategoryId,

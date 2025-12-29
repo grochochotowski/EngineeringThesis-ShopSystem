@@ -155,6 +155,7 @@ namespace Backend.Api.Objects.DTOs
         public int ProductId { get; set; }
         public string ProductName { get; set; } = default!;
         public string ProductSKU { get; set; } = default!;
+        public string? ProductEAN { get; set; }
         public decimal ProductPrice { get; set; }
         public string ProductDescription { get; set; } = default!;
         public int CategoryId { get; set; }

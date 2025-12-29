@@ -43,12 +43,16 @@ namespace Backend.Api.Api.Controllers
             if (await _db.Products.AnyAsync(p => p.SKU == dto.SKU, ct))
                 throw new InvalidOperationException("SKU must be unique.");
 
+            if (!string.IsNullOrWhiteSpace(dto.EAN) && await _db.Products.AnyAsync(p => p.EAN == dto.EAN, ct))
+                throw new InvalidOperationException("EAN must be unique.");
+
             if (dto.Defective && string.IsNullOrWhiteSpace(dto.DefectDescription))
                 throw new InvalidOperationException("DefectDescription is required when Defective is true.");
 
             var entity = new Product
             {
                 SKU = dto.SKU.Trim(),
+                EAN = dto.EAN?.Trim(),
                 Name = dto.Name.Trim(),
                 Description = dto.Description.Trim(),
                 Price = dto.Price,
@@ -98,6 +102,7 @@ namespace Backend.Api.Api.Controllers
                 var term = q.Trim().ToLower();
                 qry = qry.Where(p =>
                     p.SKU.ToLower().Contains(term) ||
+                    (p.EAN != null && p.EAN == term) ||
                     p.Name.ToLower().Contains(term) ||
                     p.Description.ToLower().Contains(term));
             }
@@ -151,6 +156,7 @@ namespace Backend.Api.Api.Controllers
                 {
                     Id = x.Product.Id,
                     SKU = x.Product.SKU,
+                    EAN = x.Product.EAN,
                     Name = x.Product.Name,
                     Price = x.Product.Price,
                     Defective = x.Product.Defective,
@@ -174,6 +180,12 @@ namespace Backend.Api.Api.Controllers
                     throw new InvalidOperationException("SKU must be unique.");
             }
 
+            if (!string.IsNullOrWhiteSpace(dto.EAN) && !string.Equals(e.EAN, dto.EAN, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await _db.Products.AnyAsync(p => p.EAN == dto.EAN && p.Id != id, ct))
+                    throw new InvalidOperationException("EAN must be unique.");
+            }
+
             if (!await _db.Categories.AnyAsync(c => c.Id == dto.CategoryId, ct))
                 throw new InvalidOperationException("Category not found.");
 
@@ -184,6 +196,7 @@ namespace Backend.Api.Api.Controllers
                 throw new InvalidOperationException("DefectDescription is required when Defective is true.");
 
             e.SKU = dto.SKU.Trim();
+            e.EAN = dto.EAN?.Trim();
             e.Name = dto.Name.Trim();
             e.Description = dto.Description.Trim();
             e.Price = dto.Price;
@@ -235,6 +248,7 @@ namespace Backend.Api.Api.Controllers
                 {
                     ProductId = p.Id,
                     SKU = p.SKU,
+                    EAN = p.EAN,
                     Name = p.Name
                 })
                 .ToListAsync(ct);
@@ -247,6 +261,7 @@ namespace Backend.Api.Api.Controllers
         {
             Id = p.Id,
             SKU = p.SKU,
+            EAN = p.EAN,
             Name = p.Name,
             Description = p.Description,
             Price = p.Price,
