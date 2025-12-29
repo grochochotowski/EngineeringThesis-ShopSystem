@@ -1069,7 +1069,12 @@ export default function Warehouses() {
                                                     className="product-dropdown-item"
                                                     onClick={() => handleProductSelect(p.productId)}
                                                 >
-                                                    {p.sku} - {p.name}
+                                                    <div>
+                                                        <strong>{p.name}</strong>
+                                                        <div style={{ fontSize: "0.85em", color: "#666" }}>
+                                                            SKU: {p.sku}{p.ean ? ` | EAN: ${p.ean}` : ''}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

@@ -234,8 +234,9 @@ export default function StorageProducts() {
 
     // Columns for table
     const columns = [
-        { key: "productName", label: "Product Name", width: "30%", sortable: true },
-        { key: "productPrice", label: "Price", width: "13%", sortable: true },
+        { key: "productName", label: "Product Name", width: "25%", sortable: true },
+        { key: "productEan", label: "EAN", width: "13%", sortable: false },
+        { key: "productPrice", label: "Price", width: "12%", sortable: true },
         { key: "quantity", label: "Total Quantity", width: "15%", sortable: true },
         { key: "locationCount", label: "No. of Locations", width: "12%", sortable: true },
         { key: "categoryName", label: "Category", width: "30%", sortable: true },
@@ -245,6 +246,7 @@ export default function StorageProducts() {
         id: product.productId,
         productId: product.productId,
         productName: product.productName,
+        productEan: product.productEAN || "—",
         productPrice: `$${product.productPrice.toFixed(2)}`,
         quantity: product.totalQuantity,
         locationCount: product.locations?.length || 0,
@@ -983,7 +985,12 @@ export default function StorageProducts() {
                                                     className="product-dropdown-item"
                                                     onClick={() => handleProductSelect(p.productId)}
                                                 >
-                                                    {p.sku} - {p.name}
+                                                    <div>
+                                                        <strong>{p.name}</strong>
+                                                        <div style={{ fontSize: "0.85em", color: "#666" }}>
+                                                            SKU: {p.sku}{p.ean ? ` | EAN: ${p.ean}` : ''}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
