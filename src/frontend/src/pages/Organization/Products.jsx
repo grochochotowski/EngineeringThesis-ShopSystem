@@ -180,8 +180,9 @@ export default function Products() {
 
     // Columns for table
     const columns = [
-        { key: "sku", label: "SKU", width: "20%", sortable: true },
-        { key: "name", label: "Name", width: "30%", sortable: true },
+        { key: "sku", label: "SKU", width: "15%", sortable: true },
+        { key: "ean", label: "EAN", width: "15%", sortable: false },
+        { key: "name", label: "Name", width: "25%", sortable: true },
         { key: "price", label: "Price", width: "15%", sortable: true },
         { key: "defective", label: "Defective", width: "15%", sortable: true },
         { key: "category", label: "Category", width: "10%", sortable: true },
@@ -191,6 +192,7 @@ export default function Products() {
     const rows = products.map((p) => ({
         id: p.id,
         sku: p.sku,
+        ean: p.ean || "—",
         name: p.name,
         price: p.price.toFixed(2),
         defective: p.defective ? "Yes" : "No",
@@ -274,6 +276,7 @@ export default function Products() {
         fields: [
             { label: "Id", key: "id" },
             { label: "SKU", key: "sku" },
+            { label: "EAN", key: "ean" },
             { label: "Name", key: "name" },
             { label: "Price", key: "price" },
                         {
