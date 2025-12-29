@@ -99,6 +99,7 @@ namespace Backend.Api.Objects.DTOs
         public int ProductId { get; set; }
         public string Name { get; set; } = default!;
         public string SKU { get; set; } = default!;
+        public string? EAN { get; set; }
         public decimal Price { get; set; }
         public string CategoryName { get; set; } = default!;
         public int TotalQuantity { get; set; }

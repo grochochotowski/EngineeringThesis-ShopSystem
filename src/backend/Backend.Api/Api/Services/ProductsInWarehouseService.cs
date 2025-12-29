@@ -191,6 +191,7 @@ namespace Backend.Api.Api.Services
                 query = query.Where(p =>
                     p.Name.ToLower().Contains(term) ||
                     p.SKU.ToLower().Contains(term) ||
+                    (p.EAN != null && p.EAN == term) ||
                     p.Description.ToLower().Contains(term));
             }
 
@@ -209,6 +210,7 @@ namespace Backend.Api.Api.Services
                 ProductId = p.Id,
                 Name = p.Name,
                 SKU = p.SKU,
+                EAN = p.EAN,
                 Price = p.Price,
                 CategoryName = p.Category.Name,
                 TotalQuantity = p.ProductsInWarehouse.Sum(pw => pw.Quantity),
