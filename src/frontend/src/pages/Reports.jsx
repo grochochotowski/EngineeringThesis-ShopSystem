@@ -13,6 +13,7 @@ export default function Reports() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [includeProductDetails, setIncludeProductDetails] = useState(false);
 
   // Handle preset date selection
   const handlePresetChange = (e) => {
@@ -130,6 +131,7 @@ export default function Reports() {
         endDate.setHours(23, 59, 59, 999);
         params.dateTo = endDate.toISOString();
       }
+      if (includeProductDetails) params.includeProductDetails = true;
 
       const data = await api.get("/Reports/sales", { params });
       setReportData(data);
@@ -209,6 +211,18 @@ export default function Reports() {
               />
             </div>
 
+            <div className="filter-group checkbox-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={includeProductDetails}
+                  onChange={(e) => setIncludeProductDetails(e.target.checked)}
+                  className="checkbox-input"
+                />
+                <span>Include product details</span>
+              </label>
+            </div>
+
             <button
               className="btn-generate-report"
               onClick={handleGenerateReport}
@@ -286,60 +300,150 @@ export default function Reports() {
                   </table>
                 </section>
 
-                {/* Tax Breakdown Table */}
+                {/* Tax Breakdown Section */}
                 <section className="report-section">
-                  <h3>Tax Breakdown</h3>
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        <th>Tax Code</th>
-                        <th>Tax Rate</th>
-                        <th>Total Products</th>
-                        <th>Distinct Products</th>
-                        <th>Receipts Tax</th>
-                        <th>Invoices Personal Tax</th>
-                        <th>Invoices Company Tax</th>
-                        <th>Total Tax</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportData.taxBreakdown.map((tax, idx) => (
-                        <tr key={idx}>
-                          <td>{tax.taxCode}</td>
-                          <td>{formatPercentage(tax.taxRate)}</td>
-                          <td>{tax.totalProducts}</td>
-                          <td>{tax.distinctProducts}</td>
-                          <td>{formatCurrency(tax.taxReceipts)}</td>
-                          <td>{formatCurrency(tax.taxInvoicesPersonal)}</td>
-                          <td>{formatCurrency(tax.taxInvoicesCompany)}</td>
-                          <td className="total-cell">{formatCurrency(tax.taxTotal)}</td>
+                  <h2 className="report-section-title">Tax Breakdown</h2>
+
+                  {/* Products Table - Only show when NOT including product details */}
+                  {!includeProductDetails && (
+                    <div className="tax-breakdown-subsection">
+                      <h3 className="tax-breakdown-subtitle">Products</h3>
+                      <table className="report-table">
+                        <thead>
+                          <tr>
+                            <th>Tax Code</th>
+                            <th>Tax Rate</th>
+                            <th>Total Products</th>
+                            <th>Distinct Products</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.taxBreakdown.map((tax, idx) => (
+                            <tr key={idx}>
+                              <td>{tax.taxCode}</td>
+                              <td>{formatPercentage(tax.taxRate)}</td>
+                              <td>{tax.totalProducts}</td>
+                              <td>{tax.distinctProducts}</td>
+                            </tr>
+                          ))}
+                          {/* Total Row */}
+                          <tr className="tax-breakdown-total-row">
+                            <td colSpan="2" className="total-cell"><strong>Total</strong></td>
+                            <td className="total-cell">
+                              <strong>{reportData.taxBreakdown.reduce((sum, tax) => sum + tax.totalProducts, 0)}</strong>
+                            </td>
+                            <td className="total-cell">
+                              <strong>{reportData.taxBreakdown.reduce((sum, tax) => sum + tax.distinctProducts, 0)}</strong>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Values Table - Always show */}
+                  <div className="tax-breakdown-subsection">
+                    <h3 className="tax-breakdown-subtitle">Values</h3>
+                    <table className="report-table">
+                      <thead>
+                        <tr>
+                          <th>Tax Code</th>
+                          <th>Tax Rate</th>
+                          <th>Receipts Tax</th>
+                          <th>Invoices Personal Tax</th>
+                          <th>Invoices Company Tax</th>
+                          <th>Total Tax</th>
                         </tr>
-                      ))}
-                      {/* Total Row */}
-                      <tr className="tax-breakdown-total-row">
-                        <td colSpan="2" className="total-cell"><strong>Total</strong></td>
-                        <td className="total-cell">
-                          <strong>{reportData.taxBreakdown.reduce((sum, tax) => sum + tax.totalProducts, 0)}</strong>
-                        </td>
-                        <td className="total-cell">
-                          <strong>{reportData.taxBreakdown.reduce((sum, tax) => sum + tax.distinctProducts, 0)}</strong>
-                        </td>
-                        <td className="total-cell">
-                          <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxReceipts, 0))}</strong>
-                        </td>
-                        <td className="total-cell">
-                          <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxInvoicesPersonal, 0))}</strong>
-                        </td>
-                        <td className="total-cell">
-                          <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxInvoicesCompany, 0))}</strong>
-                        </td>
-                        <td className="total-cell">
-                          <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxTotal, 0))}</strong>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {reportData.taxBreakdown.map((tax, idx) => (
+                          <tr key={idx}>
+                            <td>{tax.taxCode}</td>
+                            <td>{formatPercentage(tax.taxRate)}</td>
+                            <td>{formatCurrency(tax.taxReceipts)}</td>
+                            <td>{formatCurrency(tax.taxInvoicesPersonal)}</td>
+                            <td>{formatCurrency(tax.taxInvoicesCompany)}</td>
+                            <td className="total-cell">{formatCurrency(tax.taxTotal)}</td>
+                          </tr>
+                        ))}
+                        {/* Total Row */}
+                        <tr className="tax-breakdown-total-row">
+                          <td colSpan="2" className="total-cell"><strong>Total</strong></td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxReceipts, 0))}</strong>
+                          </td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxInvoicesPersonal, 0))}</strong>
+                          </td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxInvoicesCompany, 0))}</strong>
+                          </td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.taxBreakdown.reduce((sum, tax) => sum + tax.taxTotal, 0))}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </section>
+
+                {/* Products Summary Section */}
+                {includeProductDetails && reportData.productDetails && reportData.productDetails.length > 0 && (
+                  <section className="report-section">
+                    <h2 className="report-section-title">Products Summary</h2>
+                    <table className="report-table">
+                      <thead>
+                        <tr>
+                          <th>Product Name</th>
+                          <th>SKU</th>
+                          <th>Location</th>
+                          <th>Amount Sold</th>
+                          <th>Net</th>
+                          <th>Tax %</th>
+                          <th>Tax Value</th>
+                          <th>Gross</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.productDetails.map((product, idx) => (
+                          <tr key={idx}>
+                            <td>{product.productName}</td>
+                            <td>{product.sku}</td>
+                            <td>
+                              <div className="location-badges-container">
+                                {product.locations.split(',').map((location, locIdx) => (
+                                  <span key={locIdx} className="location-badge">{location.trim()}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td>{product.amountSold}</td>
+                            <td>{formatCurrency(product.netAmount)}</td>
+                            <td>{formatPercentage(product.taxRate)}</td>
+                            <td>{formatCurrency(product.taxAmount)}</td>
+                            <td className="total-cell">{formatCurrency(product.grossAmount)}</td>
+                          </tr>
+                        ))}
+                        {/* Total Row */}
+                        <tr className="tax-breakdown-total-row">
+                          <td colSpan="3" className="total-cell"><strong>Total</strong></td>
+                          <td className="total-cell">
+                            <strong>{reportData.productDetails.reduce((sum, p) => sum + p.amountSold, 0)}</strong>
+                          </td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.productDetails.reduce((sum, p) => sum + p.netAmount, 0))}</strong>
+                          </td>
+                          <td className="total-cell"></td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.productDetails.reduce((sum, p) => sum + p.taxAmount, 0))}</strong>
+                          </td>
+                          <td className="total-cell">
+                            <strong>{formatCurrency(reportData.productDetails.reduce((sum, p) => sum + p.grossAmount, 0))}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </section>
+                )}
 
                 {/* Footer */}
                 <footer className="report-footer">
