@@ -579,6 +579,59 @@ export async function printSalesReportPDF(reportData, formatters) {
         </div>
       </div>
 
+      ${reportData.productDetails && reportData.productDetails.length > 0 ? `
+        <div style="page-break-before: always; margin-top: 20px;">
+          <h2 style="font-size: 13px; margin: 0 0 10px 0; color: #0f1624; font-weight: 600;">Products Summary</h2>
+          <div style="overflow-x: auto; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Product Name</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">SKU</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Location</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Amount Sold</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Net</th>
+                  <th style="padding: 6px 8px; text-align: center; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Tax %</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Tax Value</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Gross</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.productDetails.map(product => {
+                  const locations = product.locations.split(',').map(loc => loc.trim());
+                  const locationBadges = locations.map(loc =>
+                    `<span style="display: inline-block; padding: 2px 6px; margin: 1px; background: #e2e8f0; color: #475569; border-radius: 3px; font-size: 7px; font-weight: 600; font-family: 'Courier New', monospace; border: 1px solid #cbd5e1;">${loc}</span>`
+                  ).join(' ');
+
+                  return `
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                      <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">${product.productName}</td>
+                      <td style="padding: 5px 8px; color: #0f1624;">${product.sku}</td>
+                      <td style="padding: 5px 8px;">${locationBadges}</td>
+                      <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${product.amountSold}</td>
+                      <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(product.netAmount)}</td>
+                      <td style="padding: 5px 8px; text-align: center; font-size: 8px; color: #64748b;">${formatPercentage(product.taxRate)}</td>
+                      <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${formatCurrency(product.taxAmount)}</td>
+                      <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">${formatCurrency(product.grossAmount)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+              <tfoot style="background: #f1f5f9; font-weight: 600;">
+                <tr>
+                  <td colspan="3" style="padding: 6px 8px; text-align: right; font-weight: 700; color: #475569; border-top: 2px solid #e2e8f0; font-size: 9px;">Total:</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${reportData.productDetails.reduce((sum, p) => sum + p.amountSold, 0)}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.productDetails.reduce((sum, p) => sum + p.netAmount, 0))}</td>
+                  <td style="padding: 6px 8px; border-top: 2px solid #e2e8f0;"></td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.productDetails.reduce((sum, p) => sum + p.taxAmount, 0))}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${formatCurrency(reportData.productDetails.reduce((sum, p) => sum + p.grossAmount, 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+
       <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 8px; color: #94a3b8; font-style: italic;">
         Report generated on ${formatDate(reportData.generatedAt)} at ${formatTime(reportData.generatedAt)} by ${reportData.generatedBy}
       </div>

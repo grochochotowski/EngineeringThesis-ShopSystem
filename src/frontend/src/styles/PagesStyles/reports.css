@@ -186,14 +186,14 @@
 
 /* Location Badge */
 .location-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  background-color: #dcfce7;
-  color: #166534;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  border: 1px solid #86efac;
+  display: inline-block !important;
+  padding: 0.25rem 0.5rem !important;
+  background-color: #eff6ff !important;
+  color: #3b82f6 !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  border: 1px solid #bfdbfe !important;
 }
 
 /* Report Tables */
