@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../../api/apiClient";
 import Header from "../../components/Header";
 import MessageBox from "../../components/MessageBox";
+import { printInventoryReportPDF } from "../../utils/printService";
 import "../../styles/PagesStyles/baseListPage.css";
 import "../../styles/PagesStyles/reports.css";
 
@@ -16,6 +17,7 @@ const CHANGE_TYPES = {
 };
 
 export default function InventoryReports() {
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const [datePreset, setDatePreset] = useState("custom");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -211,6 +213,38 @@ export default function InventoryReports() {
 
   const summary = calculateSummary();
 
+  // Handle print to PDF
+  const handlePrint = async () => {
+    if (!reportData) {
+      setToast({ type: "error", message: "No report data to print. Please generate a report first." });
+      return;
+    }
+
+    try {
+      const fileName = await printInventoryReportPDF(
+        {
+          items: reportData.items,
+          summary: summary,
+          dateFrom: dateFrom,
+          dateTo: dateTo,
+          generatedAt: new Date().toISOString(),
+          generatedBy: currentUser?.name || "Unknown User",
+        },
+        {
+          formatDate: formatDateForDisplay,
+          formatTime: formatTimeForDisplay,
+          getChangeTypeInfo: (changeType) => {
+            return CHANGE_TYPES[changeType] || { label: changeType || "Unknown", color: "#757575" };
+          },
+        }
+      );
+      setToast({ type: "success", message: `Report saved as ${fileName}` });
+    } catch (error) {
+      console.error("Failed to print report:", error);
+      setToast({ type: "error", message: "Failed to generate PDF. Please try again." });
+    }
+  };
+
   return (
     <div className="page-container">
       <Header />
@@ -293,6 +327,14 @@ export default function InventoryReports() {
                 >
                   {loading ? "Generating..." : "Generate Report"}
                 </button>
+                {reportData && (
+                  <button
+                    className="btn-print-report"
+                    onClick={handlePrint}
+                  >
+                    Print Report
+                  </button>
+                )}
               </div>
             </aside>
 

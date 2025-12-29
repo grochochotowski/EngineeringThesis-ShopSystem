@@ -664,3 +664,172 @@ export async function printSalesReportPDF(reportData, formatters) {
   pdf.save(fileName);
   return fileName;
 }
+
+/**
+ * Print inventory changes report to PDF
+ * @param {object} reportData - The inventory report data
+ * @param {object} formatters - Helper functions for formatting
+ */
+export async function printInventoryReportPDF(reportData, formatters) {
+  const { formatDate, formatTime, getChangeTypeInfo } = formatters;
+
+  const printContainer = document.createElement('div');
+  printContainer.style.position = 'absolute';
+  printContainer.style.left = '-9999px';
+  printContainer.style.top = '0';
+  printContainer.style.width = '210mm';
+  printContainer.style.background = 'white';
+  printContainer.style.padding = '15mm';
+  printContainer.style.fontFamily = 'Arial, sans-serif';
+  printContainer.style.fontSize = '10px';
+  printContainer.style.color = '#0f1624';
+
+  document.body.appendChild(printContainer);
+
+  const html = `
+    <div style="max-width: 170mm; margin: 0 auto;">
+      <div style="margin-bottom: 20px;">
+        <h1 style="font-size: 18px; margin: 0 0 5px 0; color: #0f1624; font-weight: 700; text-align: center;">Inventory Changes Report</h1>
+        <div style="font-size: 11px; color: #64748b; font-weight: 500; text-align: center;">
+          ${reportData.dateFrom && reportData.dateTo ?
+            `From ${formatDate(reportData.dateFrom)} to ${formatDate(reportData.dateTo)}` :
+            'All Time'}
+        </div>
+      </div>
+
+      ${reportData.summary ? `
+        <div style="margin-bottom: 20px;">
+          <h2 style="font-size: 13px; margin: 0 0 10px 0; color: #0f1624; font-weight: 600;">Summary</h2>
+          <div style="overflow-x: auto; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Change Type</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Count</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Total Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(reportData.summary.byType)
+                  .filter(([_, value]) => value.count > 0)
+                  .map(([key, value]) => {
+                    const typeInfo = getChangeTypeInfo(key);
+                    return `
+                      <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 5px 8px;">
+                          <span style="display: inline-block; padding: 4px 8px; border-radius: 3px; background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; font-size: 8px; font-weight: 600;">
+                            ${typeInfo.label}
+                          </span>
+                        </td>
+                        <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${value.count}</td>
+                        <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">${value.quantity}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+              </tbody>
+              <tfoot style="background: #f1f5f9; font-weight: 600;">
+                <tr>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #475569; border-top: 2px solid #e2e8f0; font-size: 9px;">Total</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">${reportData.summary.totalChanges}</td>
+                  <td style="padding: 6px 8px; font-weight: 700; color: #0f1624; font-size: 10px; text-align: right; border-top: 2px solid #e2e8f0;">
+                    +${reportData.summary.totalAdded} / -${reportData.summary.totalRemoved}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 13px; margin: 0 0 10px 0; color: #0f1624; font-weight: 600;">Detailed Changes</h2>
+        ${reportData.items && reportData.items.length > 0 ? `
+          <div style="overflow-x: auto; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">Timestamp</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">Type</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">Product</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">SKU</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">EAN</th>
+                  <th style="padding: 6px 8px; text-align: center; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">From</th>
+                  <th style="padding: 6px 8px; text-align: center; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">To</th>
+                  <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">Qty</th>
+                  <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em;">User</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.items.map(change => {
+                  const typeInfo = getChangeTypeInfo(change.changeType);
+                  return `
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                      <td style="padding: 5px 8px;">
+                        <div style="color: #0f1624; font-weight: 500; font-size: 8px;">${formatDate(change.timestamp)}</div>
+                        <div style="color: #64748b; font-size: 7px;">${formatTime(change.timestamp)}</div>
+                      </td>
+                      <td style="padding: 5px 8px;">
+                        <span style="display: inline-block; padding: 3px 6px; border-radius: 3px; background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; font-size: 7px; font-weight: 600;">
+                          ${typeInfo.label}
+                        </span>
+                      </td>
+                      <td style="padding: 5px 8px; color: #0f1624; font-weight: 500;">${change.productName || "N/A"}</td>
+                      <td style="padding: 5px 8px; font-family: 'Courier New', monospace; font-size: 7px; color: #64748b;">${change.productSku || "—"}</td>
+                      <td style="padding: 5px 8px; font-family: 'Courier New', monospace; font-size: 7px; color: #64748b;">${change.productEan || "—"}</td>
+                      <td style="padding: 5px 8px; text-align: center;">
+                        ${change.fromLocationCode ?
+                          `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 3px; font-size: 7px; font-weight: 600; font-family: 'Courier New', monospace; border: 1px solid #cbd5e1;">${change.fromLocationCode}</span>` :
+                          `<span style="color: #cbd5e1;">—</span>`}
+                      </td>
+                      <td style="padding: 5px 8px; text-align: center;">
+                        ${change.toLocationCode ?
+                          `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 3px; font-size: 7px; font-weight: 600; font-family: 'Courier New', monospace; border: 1px solid #cbd5e1;">${change.toLocationCode}</span>` :
+                          `<span style="color: #cbd5e1;">—</span>`}
+                      </td>
+                      <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624;">
+                        ${change.quantity > 0 ? '+' : ''}${change.quantity}
+                      </td>
+                      <td style="padding: 5px 8px; color: #64748b; font-size: 8px;">${change.userName || "System"}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <p style="text-align: center; color: #94a3b8; font-style: italic; padding: 30px; background: #f8fafc; border-radius: 8px;">No changes found for the selected criteria.</p>
+        `}
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 8px; color: #94a3b8; font-style: italic;">
+        Report generated on ${formatDate(reportData.generatedAt)} at ${formatTime(reportData.generatedAt)} by ${reportData.generatedBy}
+      </div>
+    </div>
+  `;
+
+  printContainer.innerHTML = html;
+  await new Promise(resolve => setTimeout(resolve, 500));
+  const canvas = await html2canvas(printContainer, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+  document.body.removeChild(printContainer);
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const imgData = canvas.toDataURL('image/png');
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pdfWidth;
+  const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+  let heightLeft = imgHeight;
+  let position = 0;
+  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  heightLeft -= pdfHeight;
+  while (heightLeft > 0) {
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+  }
+  const fromDate = reportData.dateFrom ? formatDate(reportData.dateFrom).replace(/\//g, '-') : 'AllTime';
+  const toDate = reportData.dateTo ? formatDate(reportData.dateTo).replace(/\//g, '-') : 'AllTime';
+  const fileName = `Inventory_Report_${fromDate}_to_${toDate}_${new Date().getTime()}.pdf`;
+  pdf.save(fileName);
+  return fileName;
+}
