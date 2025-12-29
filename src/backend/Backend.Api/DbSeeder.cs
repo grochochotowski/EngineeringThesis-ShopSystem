@@ -96,10 +96,28 @@ namespace Backend.Api.Infrastructure
             if (!_db.Products.Any())
             {
                 _db.Products.AddRange(
-                    new() { SKU = "SKU-0001", Name = "Example Product 1", Description = "Demo cat 1", Price = 19.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
-                    new() { SKU = "SKU-0002", Name = "Example Product 2", Description = "Demo cat 2", Price = 29.99m, CategoryId = foodCatId, TaxRateId = vat23Id },
-                    new() { SKU = "SKU-0003", Name = "Example Product 3", Description = "Demo cat 3", Price = 39.99m, CategoryId = drinksCatId, TaxRateId = vat23Id },
-                    new() { SKU = "SKU-0004", Name = "Example Product 4", Description = "Demo cat 1", Price = 49.99m, CategoryId = defaultCatId, TaxRateId = vat23Id }
+                    // Default Category Products
+                    new() { SKU = "SKU-0001", EAN = "5901234500016", Name = "Wireless Mouse", Description = "Ergonomic wireless mouse with USB receiver", Price = 29.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0002", EAN = "5901234500023", Name = "USB Cable Type-C", Description = "High-speed USB Type-C cable, 2m", Price = 12.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0003", EAN = "5901234500030", Name = "Bluetooth Headphones", Description = "Over-ear wireless headphones with noise cancellation", Price = 89.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0004", EAN = "5901234500047", Name = "Laptop Stand", Description = "Adjustable aluminum laptop stand", Price = 45.50m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-0005", EAN = "5901234500054", Name = "Phone Case", Description = "Protective silicone phone case", Price = 15.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+
+                    // Food Category Products
+                    new() { SKU = "SKU-1001", EAN = "5901234501013", Name = "Organic Pasta", Description = "Whole wheat organic pasta, 500g", Price = 4.99m, CategoryId = foodCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-1002", EAN = "5901234501020", Name = "Extra Virgin Olive Oil", Description = "Cold-pressed extra virgin olive oil, 750ml", Price = 12.50m, CategoryId = foodCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-1003", EAN = "5901234501037", Name = "Dark Chocolate Bar", Description = "70% cocoa dark chocolate, 100g", Price = 3.99m, CategoryId = foodCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-1004", EAN = "5901234501044", Name = "Honey Jar", Description = "Natural wildflower honey, 500g", Price = 8.99m, CategoryId = foodCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-1005", EAN = "5901234501051", Name = "Almonds Pack", Description = "Roasted and salted almonds, 200g", Price = 6.75m, CategoryId = foodCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-1006", EAN = "5901234501068", Name = "Green Tea Box", Description = "Premium green tea, 20 bags", Price = 5.50m, CategoryId = foodCatId, TaxRateId = vat23Id },
+
+                    // Drinks Category Products
+                    new() { SKU = "SKU-2001", EAN = "5901234502010", Name = "Mineral Water", Description = "Still mineral water, 1.5L bottle", Price = 1.99m, CategoryId = drinksCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-2002", EAN = "5901234502027", Name = "Orange Juice", Description = "Fresh squeezed orange juice, 1L", Price = 4.50m, CategoryId = drinksCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-2003", EAN = "5901234502034", Name = "Energy Drink", Description = "Energy drink with vitamins, 250ml", Price = 2.99m, CategoryId = drinksCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-2004", EAN = "5901234502041", Name = "Coffee Beans", Description = "Premium arabica coffee beans, 500g", Price = 15.99m, CategoryId = drinksCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-2005", EAN = "5901234502058", Name = "Sparkling Water", Description = "Carbonated mineral water, 1L", Price = 2.25m, CategoryId = drinksCatId, TaxRateId = vat23Id },
+                    new() { SKU = "SKU-2006", EAN = "5901234502065", Name = "Iced Tea", Description = "Lemon flavored iced tea, 500ml", Price = 2.75m, CategoryId = drinksCatId, TaxRateId = vat23Id }
                 );
                 _db.SaveChanges();
             }

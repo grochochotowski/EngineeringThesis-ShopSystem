@@ -101,66 +101,67 @@ namespace Backend.Api.Infrastructure
             var taxIds = _db.TaxRates.Select(x => x.Id).ToList();
             var locationIds = _db.Locations.Select(x => x.Id).ToList();
 
-            var products = new List<(string Cat, string Name, string Desc, decimal Price)>
+            var products = new List<(string Cat, string Name, string Desc, decimal Price, string EAN)>
             {
                 // --- FOOD ---
-                ("Food", "Bread", "Freshly baked wholegrain bread", 4.20m),
-                ("Food", "Butter", "Natural Polish butter 200g", 7.90m),
-                ("Food", "Cheese", "Mature cheddar block 250g", 11.50m),
+                ("Food", "Bread", "Freshly baked wholegrain bread", 4.20m, "5901234500016"),
+                ("Food", "Butter", "Natural Polish butter 200g", 7.90m, "5901234500023"),
+                ("Food", "Cheese", "Mature cheddar block 250g", 11.50m, "5901234500030"),
 
                 // --- DRINKS ---
-                ("Drinks", "Orange Juice", "100% squeezed orange juice 1L", 5.99m),
-                ("Drinks", "Mineral Water", "Still mineral water 1.5L", 2.49m),
-                ("Drinks", "Coffee Beans", "Arabica 1kg premium roast", 42.90m),
+                ("Drinks", "Orange Juice", "100% squeezed orange juice 1L", 5.99m, "5901234501013"),
+                ("Drinks", "Mineral Water", "Still mineral water 1.5L", 2.49m, "5901234501020"),
+                ("Drinks", "Coffee Beans", "Arabica 1kg premium roast", 42.90m, "5901234501037"),
 
                 // --- ELECTRONICS ---
-                ("Electronics", "Wireless Mouse", "2.4GHz ergonomic wireless mouse", 79.99m),
-                ("Electronics", "Mechanical Keyboard", "RGB mechanical keyboard (blue switches)", 249.00m),
-                ("Electronics", "USB-C Cable", "Fast charging cable 1m", 19.99m),
+                ("Electronics", "Wireless Mouse", "2.4GHz ergonomic wireless mouse", 79.99m, "5901234502014"),
+                ("Electronics", "Mechanical Keyboard", "RGB mechanical keyboard (blue switches)", 249.00m, "5901234502021"),
+                ("Electronics", "USB-C Cable", "Fast charging cable 1m", 19.99m, "5901234502038"),
 
                 // --- CLOTHING ---
-                ("Clothing", "Men's T-Shirt", "Cotton slim-fit t-shirt", 39.90m),
-                ("Clothing", "Women's Jeans", "Classic blue denim jeans", 119.00m),
-                ("Clothing", "Hoodie", "Unisex black hoodie with pocket", 89.00m),
+                ("Clothing", "Men's T-Shirt", "Cotton slim-fit t-shirt", 39.90m, "5901234503011"),
+                ("Clothing", "Women's Jeans", "Classic blue denim jeans", 119.00m, "5901234503028"),
+                ("Clothing", "Hoodie", "Unisex black hoodie with pocket", 89.00m, "5901234503035"),
 
                 // --- BOOKS ---
-                ("Books", "C# in Depth", "Programming guide by Jon Skeet", 189.00m),
-                ("Books", "Clean Code", "A Handbook of Agile Software Craftsmanship", 149.00m),
-                ("Books", "Atomic Habits", "Transform your habits and productivity", 69.00m),
+                ("Books", "C# in Depth", "Programming guide by Jon Skeet", 189.00m, "5901234504018"),
+                ("Books", "Clean Code", "A Handbook of Agile Software Craftsmanship", 149.00m, "5901234504025"),
+                ("Books", "Atomic Habits", "Transform your habits and productivity", 69.00m, "5901234504032"),
 
                 // --- FURNITURE ---
-                ("Furniture", "Office Chair", "Ergonomic chair with adjustable armrests", 449.00m),
-                ("Furniture", "Standing Desk", "Height adjustable electric desk", 1299.00m),
-                ("Furniture", "Bookshelf", "5-tier oak bookshelf 180cm", 299.00m),
+                ("Furniture", "Office Chair", "Ergonomic chair with adjustable armrests", 449.00m, "5901234505015"),
+                ("Furniture", "Standing Desk", "Height adjustable electric desk", 1299.00m, "5901234505022"),
+                ("Furniture", "Bookshelf", "5-tier oak bookshelf 180cm", 299.00m, "5901234505039"),
 
                 // --- COSMETICS ---
-                ("Cosmetics", "Shampoo", "Natural herbal shampoo 400ml", 14.90m),
-                ("Cosmetics", "Face Cream", "Moisturizing day cream 50ml", 39.90m),
-                ("Cosmetics", "Toothpaste", "Whitening toothpaste 100ml", 9.99m),
+                ("Cosmetics", "Shampoo", "Natural herbal shampoo 400ml", 14.90m, "5901234506012"),
+                ("Cosmetics", "Face Cream", "Moisturizing day cream 50ml", 39.90m, "5901234506029"),
+                ("Cosmetics", "Toothpaste", "Whitening toothpaste 100ml", 9.99m, "5901234506036"),
 
                 // --- SPORT ---
-                ("Sport", "Running Shoes", "Lightweight men's running shoes", 299.00m),
-                ("Sport", "Yoga Mat", "Non-slip mat 6mm", 89.00m),
-                ("Sport", "Dumbbell Set", "Adjustable dumbbells 20kg", 499.00m),
+                ("Sport", "Running Shoes", "Lightweight men's running shoes", 299.00m, "5901234507019"),
+                ("Sport", "Yoga Mat", "Non-slip mat 6mm", 89.00m, "5901234507026"),
+                ("Sport", "Dumbbell Set", "Adjustable dumbbells 20kg", 499.00m, "5901234507033"),
 
                 // --- TOOLS ---
-                ("Tools", "Cordless Drill", "18V Li-ion drill with 2 batteries", 399.00m),
-                ("Tools", "Hammer", "Carbon steel hammer 500g", 29.00m),
-                ("Tools", "Screwdriver Set", "Precision screwdriver set 24pcs", 79.00m),
+                ("Tools", "Cordless Drill", "18V Li-ion drill with 2 batteries", 399.00m, "5901234508016"),
+                ("Tools", "Hammer", "Carbon steel hammer 500g", 29.00m, "5901234508023"),
+                ("Tools", "Screwdriver Set", "Precision screwdriver set 24pcs", 79.00m, "5901234508030"),
 
                 // --- MISCELLANEOUS ---
-                ("Miscellaneous", "Gift Card 100 PLN", "Store gift card 100 PLN", 100.00m),
-                ("Miscellaneous", "Reusable Bag", "Eco-friendly shopping bag", 5.00m),
-                ("Miscellaneous", "Notebook", "A5 lined notebook 100 pages", 8.90m)
+                ("Miscellaneous", "Gift Card 100 PLN", "Store gift card 100 PLN", 100.00m, "5901234509013"),
+                ("Miscellaneous", "Reusable Bag", "Eco-friendly shopping bag", 5.00m, "5901234509020"),
+                ("Miscellaneous", "Notebook", "A5 lined notebook 100 pages", 8.90m, "5901234509037")
             };
 
             // add products
             int i = 1;
-            foreach (var (cat, name, desc, price) in products)
+            foreach (var (cat, name, desc, price, ean) in products)
             {
                 var product = new Product
                 {
                     SKU = $"SKU-{i:D4}",
+                    EAN = ean,
                     Name = name,
                     Description = desc,
                     Price = price,
