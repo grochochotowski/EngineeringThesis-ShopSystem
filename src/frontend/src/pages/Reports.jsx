@@ -312,8 +312,8 @@ export default function Reports() {
                 <section className="report-section">
                   <h2 className="report-section-title">Tax Breakdown</h2>
 
-                  {/* Products Table - Only show when NOT including product details */}
-                  {!includeProductDetails && (
+                  {/* Products Table - Only show when product details NOT in response */}
+                  {(!reportData.productDetails || reportData.productDetails.length === 0) && (
                     <div className="tax-breakdown-subsection">
                       <h3 className="tax-breakdown-subtitle">Products</h3>
                       <table className="report-table">
@@ -395,8 +395,8 @@ export default function Reports() {
                   </div>
                 </section>
 
-                {/* Products Summary Section */}
-                {includeProductDetails && reportData.productDetails && reportData.productDetails.length > 0 && (
+                {/* Products Summary Section - Show when data exists */}
+                {reportData.productDetails && reportData.productDetails.length > 0 && (
                   <section className="report-section">
                     <h2 className="report-section-title">Products Summary</h2>
                     <table className="report-table">
