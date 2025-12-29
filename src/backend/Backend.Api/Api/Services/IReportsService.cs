@@ -8,6 +8,7 @@ namespace Backend.Api.Api.Services
             DateTime? dateFrom,
             DateTime? dateTo,
             int userId,
+            bool includeProductDetails = false,
             CancellationToken ct = default);
     }
 }

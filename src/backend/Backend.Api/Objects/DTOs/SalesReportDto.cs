@@ -9,6 +9,7 @@ public class SalesReportDto
     public DocumentTypeStats InvoicesCompany { get; set; } = new();
     public DocumentTypeStats Total { get; set; } = new();
     public List<TaxBreakdownDto> TaxBreakdown { get; set; } = new();
+    public List<ProductDetailDto>? ProductDetails { get; set; }
     public string GeneratedBy { get; set; } = string.Empty;
     public DateTime GeneratedAt { get; set; }
 }
@@ -31,4 +32,16 @@ public class TaxBreakdownDto
     public decimal TaxInvoicesPersonal { get; set; }
     public decimal TaxInvoicesCompany { get; set; }
     public decimal TaxTotal { get; set; }
+}
+
+public class ProductDetailDto
+{
+    public string ProductName { get; set; } = string.Empty;
+    public string SKU { get; set; } = string.Empty;
+    public string Locations { get; set; } = string.Empty;
+    public int AmountSold { get; set; }
+    public decimal NetAmount { get; set; }
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
+    public decimal GrossAmount { get; set; }
 }

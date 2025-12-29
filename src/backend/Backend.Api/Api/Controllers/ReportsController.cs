@@ -26,7 +26,8 @@ namespace Backend.Api.Api.Controllers
         public async Task<ActionResult<SalesReportDto>> GetSalesReport(
             [FromQuery] DateTime? dateFrom,
             [FromQuery] DateTime? dateTo,
-            CancellationToken ct)
+            [FromQuery] bool includeProductDetails = false,
+            CancellationToken ct = default)
         {
             try
             {
@@ -37,7 +38,7 @@ namespace Backend.Api.Api.Controllers
                     return Unauthorized("User ID not found in token.");
                 }
 
-                var report = await _service.GetSalesReportAsync(dateFrom, dateTo, userId, ct);
+                var report = await _service.GetSalesReportAsync(dateFrom, dateTo, userId, includeProductDetails, ct);
                 return Ok(report);
             }
             catch (InvalidOperationException ex)

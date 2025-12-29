@@ -15,6 +15,7 @@ namespace Backend.Api.Api.Services
             DateTime? dateFrom,
             DateTime? dateTo,
             int userId,
+            bool includeProductDetails = false,
             CancellationToken ct = default)
         {
             // Validate date range
@@ -162,6 +163,64 @@ namespace Backend.Api.Api.Services
             var actualDateFrom = dateFrom ?? (documents.Any() ? documents.Min(d => d.IssueDate).DateTime : DateTime.MinValue);
             var actualDateTo = dateTo ?? (documents.Any() ? documents.Max(d => d.IssueDate).DateTime : DateTime.MaxValue);
 
+            // Generate product details if requested
+            List<ProductDetailDto>? productDetails = null;
+            if (includeProductDetails)
+            {
+                IQueryable<SalesDocumentItem> itemDetailsQuery = _db.SalesDocumentItems
+                    .AsNoTracking()
+                    .Include(i => i.Product)
+                    .Include(i => i.TaxRate)
+                    .Include(i => i.FromLocation)
+                    .Include(i => i.SalesDocument);
+
+                // Apply date filters conditionally
+                if (dateFrom.HasValue)
+                {
+                    itemDetailsQuery = itemDetailsQuery.Where(i => i.SalesDocument.IssueDate >= dateFrom.Value);
+                }
+                if (dateTo.HasValue)
+                {
+                    itemDetailsQuery = itemDetailsQuery.Where(i => i.SalesDocument.IssueDate <= dateTo.Value);
+                }
+
+                var itemDetails = await itemDetailsQuery.ToListAsync(ct);
+
+                // Group by product and tax rate, collecting all locations
+                productDetails = itemDetails
+                    .GroupBy(i => new
+                    {
+                        i.ProductId,
+                        i.Product.Name,
+                        i.Product.SKU,
+                        i.TaxRateId,
+                        i.TaxRate.Rate
+                    })
+                    .Select(g =>
+                    {
+                        var locations = g
+                            .Where(i => i.FromLocation != null && !string.IsNullOrEmpty(i.FromLocation.LocationCode))
+                            .Select(i => i.FromLocation!.LocationCode)
+                            .Distinct()
+                            .OrderBy(l => l)
+                            .ToList();
+
+                        return new ProductDetailDto
+                        {
+                            ProductName = g.Key.Name,
+                            SKU = g.Key.SKU,
+                            Locations = locations.Any() ? string.Join(",", locations) : "N/A",
+                            AmountSold = g.Sum(i => i.Quantity),
+                            NetAmount = g.Sum(i => i.LineNet),
+                            TaxRate = g.Key.Rate * 100, // Convert to percentage
+                            TaxAmount = g.Sum(i => i.LineTax),
+                            GrossAmount = g.Sum(i => i.LineGross)
+                        };
+                    })
+                    .OrderBy(p => p.ProductName)
+                    .ToList();
+            }
+
             return new SalesReportDto
             {
                 DateFrom = actualDateFrom,
@@ -171,6 +230,7 @@ namespace Backend.Api.Api.Services
                 InvoicesCompany = invoicesCompanyStats,
                 Total = totalStats,
                 TaxBreakdown = taxBreakdownDict.Values.OrderBy(t => t.TaxCode).ToList(),
+                ProductDetails = productDetails,
                 GeneratedBy = generatedBy,
                 GeneratedAt = DateTime.UtcNow
             };
