@@ -24,9 +24,15 @@
   color: var(--text-dark);
 }
 
+/* Date Group - Reduced spacing */
+.date-group {
+  margin-bottom: 0.3rem;
+}
+
 /* Checkbox Group */
 .checkbox-group {
   margin-top: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .checkbox-label {
@@ -44,6 +50,18 @@
   height: 18px;
   cursor: pointer;
   accent-color: var(--accent-main);
+  flex-shrink: 0;
+}
+
+.checkbox-text {
+  white-space: nowrap;
+}
+
+/* Button Group */
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .filter-input {
@@ -74,7 +92,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: 1rem;
 }
 
 .btn-generate-report {

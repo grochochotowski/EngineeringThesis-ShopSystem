@@ -197,8 +197,8 @@ export default function Reports() {
               </select>
             </div>
 
-            <div className="filter-group">
-              <label>From Date</label>
+            <div className="filter-group date-group">
+              <label>Date From</label>
               <input
                 type="date"
                 value={dateFrom}
@@ -207,8 +207,8 @@ export default function Reports() {
               />
             </div>
 
-            <div className="filter-group">
-              <label>To Date</label>
+            <div className="filter-group date-group">
+              <label>Date To</label>
               <input
                 type="date"
                 value={dateTo}
@@ -225,25 +225,27 @@ export default function Reports() {
                   onChange={(e) => setIncludeProductDetails(e.target.checked)}
                   className="checkbox-input"
                 />
-                <span>Include product details</span>
+                <span className="checkbox-text">Include product details</span>
               </label>
             </div>
 
-            <button
-              className="btn-generate-report"
-              onClick={handleGenerateReport}
-              disabled={loading}
-            >
-              {loading ? "Generating..." : "Generate Report"}
-            </button>
+            <div className="button-group">
+              <button
+                className="btn-generate-report"
+                onClick={handleGenerateReport}
+                disabled={loading}
+              >
+                {loading ? "Generating..." : "Generate Report"}
+              </button>
 
-            <button
-              className="btn-print-report"
-              onClick={handlePrintReport}
-              disabled={!reportData}
-            >
-              Print to PDF
-            </button>
+              <button
+                className="btn-print-report"
+                onClick={handlePrintReport}
+                disabled={!reportData}
+              >
+                Print to PDF
+              </button>
+            </div>
           </aside>
 
           {/* MAIN CONTENT */}
