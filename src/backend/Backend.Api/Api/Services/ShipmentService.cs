@@ -10,10 +10,13 @@ namespace Backend.Api.Api.Services
     {
         private readonly AppDbContext _db;
         private readonly IAddressService _addressService;
-        public ShipmentService(AppDbContext db, IAddressService addressService)
+        private readonly IInventoryChangeService _inventoryChangeService;
+
+        public ShipmentService(AppDbContext db, IAddressService addressService, IInventoryChangeService inventoryChangeService)
         {
             _db = db;
             _addressService = addressService;
+            _inventoryChangeService = inventoryChangeService;
         }
 
         // --- GET ALL SHIPMENTS (pagination and filters) ---
@@ -497,7 +500,7 @@ namespace Backend.Api.Api.Services
                     });
                 }
 
-                // Update warehouse inventory for each location
+                // Update warehouse inventory for each location and log changes
                 if (collectedProduct.CollectedQuantity > 0)
                 {
                     // Distribute collected quantity across locations
@@ -530,6 +533,17 @@ namespace Backend.Api.Api.Services
                                     Quantity = qtyForThisLocation
                                 });
                             }
+
+                            // Log inventory change for incoming shipment collection
+                            await _inventoryChangeService.LogInventoryChangeAsync(
+                                changeType: Objects.Entities.Enums.InventoryChangeType.Collect,
+                                productId: collectedProduct.ProductId,
+                                quantity: qtyForThisLocation,
+                                fromLocationId: null,
+                                toLocationId: locationId,
+                                userId: userId,
+                                notes: $"Incoming shipment #{shipmentId} collection",
+                                ct: ct);
                         }
                     }
                 }
@@ -746,6 +760,17 @@ namespace Backend.Api.Api.Services
                             {
                                 _db.ProductsInWarehouse.Remove(warehouseEntry);
                             }
+
+                            // Log inventory change for outgoing shipment (negative quantity for removal)
+                            await _inventoryChangeService.LogInventoryChangeAsync(
+                                changeType: Objects.Entities.Enums.InventoryChangeType.Send,
+                                productId: preparedProduct.ProductId,
+                                quantity: -sourceLocation.Quantity,
+                                fromLocationId: sourceLocation.LocationId,
+                                toLocationId: null,
+                                userId: userId,
+                                notes: $"Outgoing shipment #{shipmentId} preparation",
+                                ct: ct);
                         }
                     }
 

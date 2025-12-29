@@ -3,6 +3,7 @@ using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend.Api.Api.Controllers
 {
@@ -14,6 +15,12 @@ namespace Backend.Api.Api.Controllers
         private readonly IProductsInWarehouseService _service;
         public ProductsInWarehouseController(IProductsInWarehouseService service) => _service = service;
 
+        private int GetUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdClaim, out var userId) ? userId : 0;
+        }
+
         // --- ADD PRODUCT TO LOCATION ---
         [HttpPost("add")]
         public async Task<IActionResult> AddProductToLocation([FromBody] AddProductToLocationDto dto, CancellationToken ct)
@@ -23,7 +30,8 @@ namespace Backend.Api.Api.Controllers
 
             try
             {
-                await _service.AddProductToLocationAsync(dto.ProductId, dto.LocationId, dto.Quantity, ct);
+                var userId = GetUserId();
+                await _service.AddProductToLocationAsync(dto.ProductId, dto.LocationId, dto.Quantity, userId, ct);
                 return Ok(new { message = "Product added to location successfully." });
             }
             catch (ArgumentException ex)
@@ -45,7 +53,8 @@ namespace Backend.Api.Api.Controllers
 
             try
             {
-                await _service.RemoveProductFromLocationAsync(dto.ProductId, dto.LocationId, dto.Quantity, ct);
+                var userId = GetUserId();
+                await _service.RemoveProductFromLocationAsync(dto.ProductId, dto.LocationId, dto.Quantity, userId, ct);
                 return Ok(new { message = "Product removed from location successfully." });
             }
             catch (ArgumentException ex)
@@ -71,7 +80,8 @@ namespace Backend.Api.Api.Controllers
 
             try
             {
-                await _service.TransferProductAsync(dto.ProductId, dto.FromLocationId, dto.ToLocationId, dto.Quantity, ct);
+                var userId = GetUserId();
+                await _service.TransferProductAsync(dto.ProductId, dto.FromLocationId, dto.ToLocationId, dto.Quantity, userId, ct);
                 return Ok(new { message = "Product transferred between locations successfully." });
             }
             catch (ArgumentException ex)

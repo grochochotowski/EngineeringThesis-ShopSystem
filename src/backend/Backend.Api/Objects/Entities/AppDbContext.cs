@@ -15,6 +15,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Address>           Addresses           => Set<Address>();
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
+        public DbSet<InventoryChange>   InventoryChanges    => Set<InventoryChange>();
         public DbSet<Location>          Locations           => Set<Location>();
         public DbSet<Product>           Products            => Set<Product>();
         public DbSet<RefreshToken>      RefreshTokens       => Set<RefreshToken>();
@@ -79,6 +80,62 @@ namespace Backend.Api.Objects.Entities
                  .WithMany()
                  .HasForeignKey(x => x.AddressId)
                  .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // inventory change
+            modelBuilder.Entity<InventoryChange>(b =>
+            {
+                // Indexes for common queries
+                b.HasIndex(x => x.ProductId);
+                b.HasIndex(x => x.UserId);
+                b.HasIndex(x => x.Timestamp);
+                b.HasIndex(x => x.ChangeType);
+                b.HasIndex(x => x.FromLocationId);
+                b.HasIndex(x => x.ToLocationId);
+
+                // String length configurations
+                b.Property(x => x.ProductSku).HasMaxLength(64).IsRequired();
+                b.Property(x => x.ProductEan).HasMaxLength(64);
+                b.Property(x => x.Notes).HasMaxLength(512);
+
+                // Enum conversion
+                b.Property(x => x.ChangeType).HasConversion<string>().HasMaxLength(32);
+
+                // Default timestamp to UTC now
+                b.Property(x => x.Timestamp).HasDefaultValueSql("GETUTCDATE()");
+
+                // Relationships
+                b.HasOne(x => x.Product)
+                 .WithMany()
+                 .HasForeignKey(x => x.ProductId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.FromLocation)
+                 .WithMany()
+                 .HasForeignKey(x => x.FromLocationId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.ToLocation)
+                 .WithMany()
+                 .HasForeignKey(x => x.ToLocationId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.User)
+                 .WithMany()
+                 .HasForeignKey(x => x.UserId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                // Check constraints
+                b.ToTable(t =>
+                {
+                    // At least one of FromLocationId or ToLocationId must be non-null
+                    t.HasCheckConstraint("CK_InventoryChange_Location_Required",
+                        "[FromLocationId] IS NOT NULL OR [ToLocationId] IS NOT NULL");
+
+                    // Quantity must be non-zero (positive or negative)
+                    t.HasCheckConstraint("CK_InventoryChange_Qty_NonZero",
+                        "[Quantity] != 0");
+                });
             });
 
 

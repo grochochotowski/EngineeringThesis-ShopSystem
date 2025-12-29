@@ -29,7 +29,13 @@ namespace Backend.Api.Api.Services
     public class SalesDocumentService : ISalesDocumentService
     {
         private readonly AppDbContext _db;
-        public SalesDocumentService(AppDbContext db) => _db = db;
+        private readonly IInventoryChangeService _inventoryChangeService;
+
+        public SalesDocumentService(AppDbContext db, IInventoryChangeService inventoryChangeService)
+        {
+            _db = db;
+            _inventoryChangeService = inventoryChangeService;
+        }
 
         // --- CREATE DOCUMENT ---
         public async Task<int> CreateAsync(CreateSalesDocumentDto dto, CancellationToken ct = default)
@@ -475,7 +481,7 @@ namespace Backend.Api.Api.Services
 
                 var change = totalPaid - doc.TotalGross;
 
-                // 8. Deduct inventory quantities
+                // 8. Deduct inventory quantities and log changes
                 foreach (var item in dto.Items)
                 {
                     var inventory = await _db.ProductsInWarehouse
@@ -494,6 +500,17 @@ namespace Backend.Api.Api.Services
                         {
                             _db.ProductsInWarehouse.Update(inventory);
                         }
+
+                        // Log inventory change for this sale (negative quantity for removal)
+                        await _inventoryChangeService.LogInventoryChangeAsync(
+                            changeType: Objects.Entities.Enums.InventoryChangeType.Sell,
+                            productId: item.ProductId,
+                            quantity: -item.Quantity,
+                            fromLocationId: item.FromLocationId,
+                            toLocationId: null,
+                            userId: dto.UserId,
+                            notes: $"POS sale - Document: {documentNumber}",
+                            ct: ct);
                     }
                 }
 

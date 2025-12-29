@@ -10,6 +10,7 @@ namespace Backend.Api.Objects.DTOs
                                         public int? ClientId                        { get; set; }
         [Required]                      public List<POSCartItemDto> Items           { get; set; } = new();
         [Required]                      public List<POSPaymentDto> Payments         { get; set; } = new();
+        [Required]                      public int UserId                           { get; set; } // User performing the transaction
     }
 
     // --- POS CART ITEM ---

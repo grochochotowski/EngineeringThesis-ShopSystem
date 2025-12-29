@@ -151,6 +151,74 @@ namespace Backend.Api.Migrations
                     b.ToTable("Clients");
                 });
 
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.InventoryChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int?>("FromLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("ProductEan")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductSku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int?>("ToLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeType");
+
+                    b.HasIndex("FromLocationId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("ToLocationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("InventoryChanges", t =>
+                        {
+                            t.HasCheckConstraint("CK_InventoryChange_Location_Required", "[FromLocationId] IS NOT NULL OR [ToLocationId] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_InventoryChange_Qty_NonZero", "[Quantity] != 0");
+                        });
+                });
+
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Location", b =>
                 {
                     b.Property<int>("Id")
@@ -770,6 +838,39 @@ namespace Backend.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Address");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.InventoryChange", b =>
+                {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "FromLocation")
+                        .WithMany()
+                        .HasForeignKey("FromLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "ToLocation")
+                        .WithMany()
+                        .HasForeignKey("ToLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromLocation");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ToLocation");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Product", b =>

@@ -8,9 +8,9 @@ namespace Backend.Api.Api.Services
 {
     public interface IProductsInWarehouseService
     {
-        Task<bool> AddProductToLocationAsync(int productId, int locationId, int quantity, CancellationToken ct = default);
-        Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, CancellationToken ct = default);
-        Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, CancellationToken ct = default);
+        Task<bool> AddProductToLocationAsync(int productId, int locationId, int quantity, int userId, CancellationToken ct = default);
+        Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, int userId, CancellationToken ct = default);
+        Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, int userId, CancellationToken ct = default);
         Task<PagedResult<ProductSearchResultDto>> SearchProductAsync(string? searchTerm, PaginationParams pagination, CancellationToken ct = default);
         Task<PagedResult<ProductLocationRowDto>> SearchProductLocationRowsAsync(
             string? searchTerm,
@@ -43,10 +43,16 @@ namespace Backend.Api.Api.Services
     public class ProductsInWarehouseService : IProductsInWarehouseService
     {
         private readonly AppDbContext _db;
-        public ProductsInWarehouseService(AppDbContext db) => _db = db;
+        private readonly IInventoryChangeService _inventoryChangeService;
+
+        public ProductsInWarehouseService(AppDbContext db, IInventoryChangeService inventoryChangeService)
+        {
+            _db = db;
+            _inventoryChangeService = inventoryChangeService;
+        }
 
         // --- ADD PRODUCT TO LOCATION ---
-        public async Task<bool> AddProductToLocationAsync(int productId, int locationId, int quantity, CancellationToken ct = default)
+        public async Task<bool> AddProductToLocationAsync(int productId, int locationId, int quantity, int userId, CancellationToken ct = default)
         {
             // Validate product exists
             if (!await _db.Products.AnyAsync(p => p.Id == productId, ct))
@@ -79,11 +85,23 @@ namespace Backend.Api.Api.Services
             }
 
             await _db.SaveChangesAsync(ct);
+
+            // Log inventory change
+            await _inventoryChangeService.LogInventoryChangeAsync(
+                changeType: Objects.Entities.Enums.InventoryChangeType.Add,
+                productId: productId,
+                quantity: quantity,
+                fromLocationId: null,
+                toLocationId: locationId,
+                userId: userId,
+                notes: $"Manual addition of {quantity} units to warehouse",
+                ct: ct);
+
             return true;
         }
 
         // --- REMOVE PRODUCT FROM LOCATION ---
-        public async Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, CancellationToken ct = default)
+        public async Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, int userId, CancellationToken ct = default)
         {
             var entry = await _db.ProductsInWarehouse
                 .FirstOrDefaultAsync(pw => pw.ProductId == productId && pw.LocationId == locationId, ct);
@@ -107,11 +125,23 @@ namespace Backend.Api.Api.Services
             }
 
             await _db.SaveChangesAsync(ct);
+
+            // Log inventory change (negative quantity for removal)
+            await _inventoryChangeService.LogInventoryChangeAsync(
+                changeType: Objects.Entities.Enums.InventoryChangeType.Remove,
+                productId: productId,
+                quantity: -quantityToRemove,
+                fromLocationId: locationId,
+                toLocationId: null,
+                userId: userId,
+                notes: $"Manual removal of {quantityToRemove} units from warehouse",
+                ct: ct);
+
             return true;
         }
 
         // --- TRANSFER PRODUCT BETWEEN LOCATIONS ---
-        public async Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, CancellationToken ct = default)
+        public async Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, int userId, CancellationToken ct = default)
         {
             // Validate product exists
             if (!await _db.Products.AnyAsync(p => p.Id == productId, ct))
@@ -171,6 +201,18 @@ namespace Backend.Api.Api.Services
             }
 
             await _db.SaveChangesAsync(ct);
+
+            // Log inventory change (movement between locations)
+            await _inventoryChangeService.LogInventoryChangeAsync(
+                changeType: Objects.Entities.Enums.InventoryChangeType.Move,
+                productId: productId,
+                quantity: quantity,
+                fromLocationId: fromLocationId,
+                toLocationId: toLocationId,
+                userId: userId,
+                notes: $"Manual transfer of {quantity} units between locations",
+                ct: ct);
+
             return true;
         }
 
