@@ -158,7 +158,7 @@
   position: sticky;
   top: 0;
   background: var(--accent-main);
-  z-index: 1;
+  z-index: 10;
 }
 
 .pos-products-table th {
@@ -167,6 +167,7 @@
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--text-white);
+  background: var(--accent-main);
 }
 
 .pos-products-table td {
@@ -196,7 +197,7 @@
   position: sticky;
   top: 0;
   background: var(--bg-card);
-  z-index: 1;
+  z-index: 10;
 }
 
 .pos-products-table-clean-header th {
@@ -205,7 +206,7 @@
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--text-dark);
-  background: transparent;
+  background: var(--bg-card);
   border-bottom: 2px solid var(--border);
 }
 
@@ -874,6 +875,7 @@
 .pos-client-list {
   flex: 1;
   overflow-y: auto;
+  min-height: 400px;
   max-height: 400px;
 }
 
@@ -891,8 +893,8 @@
 .pos-client-table thead {
   position: sticky;
   top: 0;
-  background: rgba(59, 130, 246, 0.15);
-  z-index: 1;
+  background: #dbeafe;
+  z-index: 10;
 }
 
 .pos-client-table th {
@@ -901,6 +903,8 @@
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--text-dark);
+  background: #dbeafe;
+  border-bottom: 2px solid var(--border);
 }
 
 .pos-client-table td {

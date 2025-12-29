@@ -99,8 +99,6 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
       address: addressPayload,
     };
 
-    console.log("Submitting client payload:", clientPayload);
-
     try {
       setLoading(true);
       if (mode === "create") {
