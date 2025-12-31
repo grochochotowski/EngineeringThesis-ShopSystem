@@ -16,7 +16,7 @@ export default function Warehouses() {
     const [showFilters, setShowFilters] = useState(false);
     const [isDelayedRefresh, setIsDelayedRefresh] = useState(false);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
-    const [sortColumn, setSortColumn] = useState("");
+    const [sortColumn, setSortColumn] = useState("locationCode");
     const [sortDirection, setSortDirection] = useState("asc");
     const [toast, setToast] = useState(null);
 
@@ -175,6 +175,8 @@ export default function Warehouses() {
         productId: item.productId,
         locationId: item.locationId,
         productName: item.productName,
+        productSku: item.productSKU || "—",
+        productEan: item.productEAN || "—",
         locationCode: item.locationCode,
         productPrice: `$${item.productPrice.toFixed(2)}`,
         quantity: item.quantity,
@@ -255,10 +257,11 @@ export default function Warehouses() {
 
     // Columns for table
     const columns = [
-        { key: "productName", label: "Product Name", width: "25%", sortable: true, sortKey: "productName" },
-        { key: "locationCode", label: "Location Code", width: "20%", sortable: true, sortKey: "locationCode" },
-        { key: "quantity", label: "Quantity", width: "15%", sortable: true, sortKey: "quantity" },
-        { key: "categoryName", label: "Category", width: "25%", sortable: true, sortKey: "categoryName" },
+        { key: "productName", label: "Product Name", width: "20%", sortable: true, sortKey: "productName" },
+        { key: "productSku", label: "SKU", width: "12%", sortable: true, sortKey: "productSku" },
+        { key: "locationCode", label: "Location Code", width: "18%", sortable: true, sortKey: "locationCode" },
+        { key: "quantity", label: "Quantity", width: "12%", sortable: true, sortKey: "quantity" },
+        { key: "categoryName", label: "Category", width: "23%", sortable: true, sortKey: "categoryName" },
         { key: "productPrice", label: "Price", width: "15%", sortable: true, sortKey: "productPrice" },
     ];
 

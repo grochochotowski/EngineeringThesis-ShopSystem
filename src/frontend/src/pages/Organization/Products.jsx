@@ -124,10 +124,10 @@ export default function Products() {
         if (searchParam && initialDataLoaded) {
             setSearchQuery(searchParam);
             setIsDelayedRefresh(false);
-            // Clear the search param after using it
-            setSearchParams({});
+            // Clear the search param after setting the query
+            setSearchParams({}, { replace: true });
         }
-    }, [searchParams, initialDataLoaded, setSearchParams]);
+    }, [searchParams, initialDataLoaded]);
 
     const debouncedFetchProducts = useCallback(() => {
         if (!initialDataLoaded) return;

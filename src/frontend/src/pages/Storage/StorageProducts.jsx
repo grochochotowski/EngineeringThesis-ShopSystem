@@ -234,18 +234,20 @@ export default function StorageProducts() {
 
     // Columns for table
     const columns = [
-        { key: "productName", label: "Product Name", width: "25%", sortable: true },
-        { key: "productEan", label: "EAN", width: "13%", sortable: false },
-        { key: "productPrice", label: "Price", width: "12%", sortable: true },
-        { key: "quantity", label: "Total Quantity", width: "15%", sortable: true },
+        { key: "productName", label: "Product Name", width: "20%", sortable: true },
+        { key: "productSku", label: "SKU", width: "12%", sortable: true },
+        { key: "productEan", label: "EAN", width: "12%", sortable: false },
+        { key: "productPrice", label: "Price", width: "10%", sortable: true },
+        { key: "quantity", label: "Total Quantity", width: "12%", sortable: true },
         { key: "locationCount", label: "No. of Locations", width: "12%", sortable: true },
-        { key: "categoryName", label: "Category", width: "30%", sortable: true },
+        { key: "categoryName", label: "Category", width: "22%", sortable: true },
     ];
 
     const rows = products.map((product) => ({
         id: product.productId,
         productId: product.productId,
         productName: product.productName,
+        productSku: product.productSKU || "—",
         productEan: product.productEAN || "—",
         productPrice: `$${product.productPrice.toFixed(2)}`,
         quantity: product.totalQuantity,
@@ -914,6 +916,9 @@ export default function StorageProducts() {
                             </li>
                             <li>
                                 <strong>SKU:</strong> {selectedProduct.rawData.productSKU}
+                            </li>
+                            <li>
+                                <strong>EAN:</strong> {selectedProduct.rawData.productEAN || "—"}
                             </li>
                             <li>
                                 <strong>Price:</strong> ${selectedProduct.rawData.productPrice.toFixed(2)}
