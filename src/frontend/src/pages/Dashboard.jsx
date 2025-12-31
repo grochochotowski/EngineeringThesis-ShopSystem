@@ -23,8 +23,8 @@ export default function Dashboard() {
     const quickActions = [
         { name: "POS", icon: <FaCashRegister />, path: "/pos" },
         { name: "Warehouse Products", icon: <FaBoxes />, path: "/storage/products" },
-        { name: "Incoming Shipments", icon: <FaFileImport />, path: "/deliveries/shipments/incoming" },
-        { name: "Leaving Shipments", icon: <FaFileExport />, path: "/deliveries/shipments/leaving" },
+        { name: "Incoming Shipments", icon: <FaFileImport />, path: "/shipments/incoming" },
+        { name: "Leaving Shipments", icon: <FaFileExport />, path: "/shipments/leaving" },
         { name: "Events", icon: <FaClipboardList />, path: "/events" },
     ];
 
