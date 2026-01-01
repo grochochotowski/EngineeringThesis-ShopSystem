@@ -24,4 +24,14 @@ export const salesDocumentTypesData = [
         value: "InvoiceCompany",
         description: "Invoice issued to business entity"
     },
+    {
+        id: 4,
+        value: "ReturnReceipt",
+        description: "Return of receipt transaction"
+    },
+    {
+        id: 5,
+        value: "ReturnInvoice",
+        description: "Return of invoice transaction"
+    },
 ];

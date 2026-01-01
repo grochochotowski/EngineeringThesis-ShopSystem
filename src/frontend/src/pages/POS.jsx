@@ -77,8 +77,11 @@ export default function POS() {
   // Returns mode state
   const [saleDocumentNumber, setSaleDocumentNumber] = useState('');
   const [saleDocumentLocked, setSaleDocumentLocked] = useState(false);
-  const [returnItems, setReturnItems] = useState([]);
+  const [originalDocument, setOriginalDocument] = useState(null);
+  const [returnItems, setReturnItems] = useState([]); // Array of items with returnQuantity and locations
+  const [returnLocationLines, setReturnLocationLines] = useState({}); // Map of itemId -> array of { locationId, quantity }
   const [refundMethod, setRefundMethod] = useState(null);
+  const [availableLocationsForReturn, setAvailableLocationsForReturn] = useState(new Map()); // Map of productId -> available locations
 
   // Confirmation dialogs
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
@@ -894,7 +897,7 @@ export default function POS() {
     }
   };
 
-  // Returns mode
+  // Returns mode - Load sale document
   const handleSaleDocumentSearch = async () => {
     if (!saleDocumentNumber.trim()) {
       setToast({ type: 'error', message: 'Please enter a sale document number' });
@@ -902,46 +905,221 @@ export default function POS() {
     }
 
     try {
-      // Search by document number
-      const { items } = await api.get('/SalesDocuments', {
-        params: {
-          q: saleDocumentNumber,
-          PageSize: 1
-        }
+      // Fetch document by document number (using query parameter)
+      const fullDoc = await api.get('/SalesDocument/by-number', {
+        params: { documentNumber: saleDocumentNumber.trim() }
       });
 
-      if (!items || items.length === 0) {
+      if (!fullDoc) {
         setToast({ type: 'error', message: 'Sale document not found' });
         return;
       }
 
-      const doc = items[0];
+      // Validate document type (cannot return a return document)
+      if (fullDoc.documentType === 4 || fullDoc.documentType === 5) { // ReturnReceipt or ReturnInvoice
+        setToast({ type: 'error', message: 'Cannot return a return document' });
+        return;
+      }
 
-      // Fetch full document details
-      const fullDoc = await api.get(`/SalesDocuments/${doc.id}`);
+      // Store original document
+      setOriginalDocument(fullDoc);
 
-      // Convert to return items
+      // Initialize return items with location lines
       const returnableItems = fullDoc.items.map(item => ({
         ...item,
         returnQuantity: 0,
-        maxQuantity: item.quantity
+        maxQuantity: Math.abs(item.quantity), // Use absolute value
+        ean: item.ean || null
       }));
 
       setReturnItems(returnableItems);
+
+      // Initialize location lines for each item (one empty line to start)
+      const initialLocationLines = {};
+      returnableItems.forEach(item => {
+        initialLocationLines[item.id] = [{ locationId: null, quantity: 1 }];
+      });
+      setReturnLocationLines(initialLocationLines);
+
+      // Fetch available locations for each product
+      const locationsMap = new Map();
+      for (const item of returnableItems) {
+        try {
+          const locations = await api.get(`/products-in-warehouse/product/${item.productId}`);
+          locationsMap.set(item.productId, locations || []);
+        } catch (error) {
+          console.error(`Failed to load locations for product ${item.productId}:`, error);
+          locationsMap.set(item.productId, []);
+        }
+      }
+      setAvailableLocationsForReturn(locationsMap);
+
       setSaleDocumentLocked(true);
-      setToast({ type: 'success', message: 'Sale document loaded' });
+      setToast({ type: 'success', message: `Sale document ${fullDoc.documentNumber} loaded` });
     } catch (error) {
       console.error('Failed to load sale document:', error);
-      setToast({ type: 'error', message: 'Failed to load sale document' });
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to load sale document';
+      setToast({ type: 'error', message: errorMsg });
     }
   };
 
-  const handleReturnQuantityChange = (itemId, value) => {
-    const qty = parseInt(value) || 0;
-    const updated = returnItems.map(item =>
-      item.id === itemId ? { ...item, returnQuantity: Math.min(qty, item.maxQuantity) } : item
-    );
-    setReturnItems(updated);
+  // Handle return location quantity change
+  const handleReturnLocationQuantityChange = (itemId, lineIndex, value) => {
+    // Allow empty string (user is clearing the input)
+    if (value === '' || value === null || value === undefined) {
+      setReturnLocationLines(prev => {
+        const lines = [...(prev[itemId] || [])];
+        lines[lineIndex] = {
+          ...lines[lineIndex],
+          quantity: ''
+        };
+        return {
+          ...prev,
+          [itemId]: lines
+        };
+      });
+      return;
+    }
+
+    const newQuantity = parseInt(value);
+    if (isNaN(newQuantity) || newQuantity < 1) return;
+
+    setReturnLocationLines(prev => {
+      const lines = [...(prev[itemId] || [])];
+      const item = returnItems.find(i => i.id === itemId);
+
+      // Don't allow total to exceed max quantity
+      const otherLinesTotal = lines.reduce((sum, line, idx) => {
+        if (idx === lineIndex) return sum;
+        return sum + (typeof line.quantity === 'number' ? line.quantity : 0);
+      }, 0);
+
+      const maxForThisLine = item.maxQuantity - otherLinesTotal;
+      const finalQuantity = Math.min(newQuantity, maxForThisLine);
+
+      lines[lineIndex] = {
+        ...lines[lineIndex],
+        quantity: finalQuantity
+      };
+
+      // Update total return quantity
+      const totalReturnQty = lines.reduce((sum, line) => {
+        return sum + (typeof line.quantity === 'number' ? line.quantity : 0);
+      }, 0);
+
+      setReturnItems(items => items.map(i =>
+        i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
+      ));
+
+      return {
+        ...prev,
+        [itemId]: lines
+      };
+    });
+  };
+
+  // Handle return location quantity blur
+  const handleReturnLocationQuantityBlur = (itemId, lineIndex) => {
+    setReturnLocationLines(prev => {
+      const lines = [...(prev[itemId] || [])];
+      const currentQty = lines[lineIndex].quantity;
+
+      if (currentQty === '' || currentQty === null || currentQty === undefined || isNaN(currentQty)) {
+        lines[lineIndex] = {
+          ...lines[lineIndex],
+          quantity: 1
+        };
+
+        const totalReturnQty = lines.reduce((sum, line) => {
+          return sum + (typeof line.quantity === 'number' ? line.quantity : 1);
+        }, 0);
+
+        setReturnItems(items => items.map(i =>
+          i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
+        ));
+
+        setToast({
+          type: 'warning',
+          message: 'Empty quantity set to 1'
+        });
+
+        return {
+          ...prev,
+          [itemId]: lines
+        };
+      }
+
+      return prev;
+    });
+  };
+
+  // Handle return location selection
+  const handleReturnLocationChange = (itemId, lineIndex, locationId) => {
+    const parsedLocationId = locationId ? parseInt(locationId) : null;
+
+    // Check for duplicate location selection
+    if (parsedLocationId) {
+      const lines = returnLocationLines[itemId] || [];
+      const isDuplicate = lines.some((line, idx) => idx !== lineIndex && line.locationId === parsedLocationId);
+
+      if (isDuplicate) {
+        setToast({ type: 'error', message: 'This location is already selected for this product' });
+        return;
+      }
+    }
+
+    setReturnLocationLines(prev => {
+      const lines = [...(prev[itemId] || [])];
+      lines[lineIndex] = {
+        ...lines[lineIndex],
+        locationId: parsedLocationId
+      };
+
+      return {
+        ...prev,
+        [itemId]: lines
+      };
+    });
+  };
+
+  // Add return location line
+  const handleAddReturnLocationLine = (itemId) => {
+    setReturnLocationLines(prev => {
+      const lines = [...(prev[itemId] || [])];
+      lines.push({ locationId: null, quantity: 1 });
+
+      // Update total return quantity
+      const totalReturnQty = lines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 1), 0);
+      setReturnItems(items => items.map(i =>
+        i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
+      ));
+
+      return {
+        ...prev,
+        [itemId]: lines
+      };
+    });
+  };
+
+  // Remove return location line
+  const handleRemoveReturnLocationLine = (itemId, lineIndex) => {
+    setReturnLocationLines(prev => {
+      const lines = [...(prev[itemId] || [])];
+      if (lines.length <= 1) return prev;
+
+      lines.splice(lineIndex, 1);
+
+      // Update total return quantity
+      const totalReturnQty = lines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 1), 0);
+      setReturnItems(items => items.map(i =>
+        i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
+      ));
+
+      return {
+        ...prev,
+        [itemId]: lines
+      };
+    });
   };
 
   const handleProcessReturn = () => {
@@ -957,23 +1135,77 @@ export default function POS() {
       return;
     }
 
+    // Validate all items have all locations selected
+    const itemsWithMissingLocations = [];
+    for (const item of returningItems) {
+      const lines = returnLocationLines[item.id] || [];
+      const hasEmptyLocation = lines.some(line => !line.locationId);
+      if (hasEmptyLocation) {
+        itemsWithMissingLocations.push(item.productName);
+      }
+    }
+
+    if (itemsWithMissingLocations.length > 0) {
+      setToast({
+        type: 'error',
+        message: `Please select locations for: ${itemsWithMissingLocations.join(', ')}`
+      });
+      return;
+    }
+
     setShowReturnConfirm(true);
   };
 
   const handleReturnConfirm = async () => {
     try {
-      // For now, just show success (actual implementation would create return document)
-      setToast({ type: 'success', message: 'Return processed successfully (placeholder)' });
+      const returningItems = returnItems.filter(item => item.returnQuantity > 0);
+
+      // Build return DTO
+      const returnDto = {
+        originalDocumentNumber: saleDocumentNumber.trim(),
+        refundMethod: refundMethod === 'Card' ? 1 : refundMethod === 'Cash' ? 2 : 3,
+        userId: currentUser?.id || 0,
+        items: returningItems.map(item => {
+          const lines = returnLocationLines[item.id] || [];
+          return {
+            originalItemId: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            productSKU: item.productSKU,
+            returnQuantity: item.returnQuantity,
+            unitPriceNet: item.unitPriceNet,
+            taxRateId: item.taxRateId,
+            locations: lines
+              .filter(line => line.locationId && line.quantity > 0)
+              .map(line => ({
+                toLocationId: line.locationId,
+                quantity: typeof line.quantity === 'number' ? line.quantity : 1
+              }))
+          };
+        })
+      };
+
+      const response = await api.post('/SalesDocument/process-return', returnDto);
+
+      setToast({
+        type: 'success',
+        message: `Return processed successfully. Document: ${response.returnDocumentNumber}`
+      });
       setShowReturnConfirm(false);
 
       // Reset returns state
       setSaleDocumentNumber('');
       setSaleDocumentLocked(false);
+      setOriginalDocument(null);
       setReturnItems([]);
+      setReturnLocationLines({});
       setRefundMethod(null);
+      setAvailableLocationsForReturn(new Map());
     } catch (error) {
       console.error('Failed to process return:', error);
-      setToast({ type: 'error', message: 'Return failed' });
+      const errorMsg = error.response?.data?.error || error.message || 'Return failed';
+      setToast({ type: 'error', message: `Return failed: ${errorMsg}` });
+      setShowReturnConfirm(false);
     }
   };
 
@@ -1326,39 +1558,208 @@ export default function POS() {
                 {returnItems.length === 0 ? (
                   <div className="pos-empty-message">Load a sale document to begin return</div>
                 ) : (
-                  <table className="pos-products-table">
+                  <table className="pos-products-table pos-products-table-clean-header">
                     <thead>
                       <tr>
-                        <th>Product</th>
-                        <th>Orig Qty</th>
-                        <th>Return Qty</th>
-                        <th>Price</th>
-                        <th>Refund</th>
+                        <th style={{ width: "20%", textAlign: "left" }}>Product</th>
+                        <th style={{ width: "10%", textAlign: "left" }}>SKU</th>
+                        <th style={{ width: "10%", textAlign: "left" }}>EAN</th>
+                        <th style={{ width: "6%", textAlign: "center" }}>Orig Qty</th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Price</th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Tax</th>
+                        <th style={{ width: "8%", textAlign: "center" }}>Return Total</th>
+                        <th style={{ width: "12%", textAlign: "left" }}>Return Location</th>
+                        <th style={{ width: "10%", textAlign: "left" }}>Return Qty</th>
+                        <th style={{ width: "8%", textAlign: "center" }}></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {returnItems.map(item => {
-                        const refund = item.unitPriceNet * item.returnQuantity;
+                      {returnItems.map((item) => {
+                        const locations = availableLocationsForReturn.get(item.productId) || [];
+                        const locationLines = returnLocationLines[item.id] || [];
+                        const firstLine = locationLines[0] || { locationId: null, quantity: 1 };
+                        const additionalLines = locationLines.slice(1);
+
+                        // Calculate refund for this item
                         const taxRate = taxRates.get(item.taxRateId)?.rate || 0;
-                        const refundWithTax = refund + (refund * taxRate);
+                        const lineNet = round2(item.unitPriceNet * item.returnQuantity);
+                        const lineTax = round2(lineNet * taxRate);
+                        const lineGross = round2(lineNet + lineTax);
 
                         return (
-                          <tr key={item.id}>
-                            <td>{item.productName}</td>
-                            <td>{item.quantity}</td>
-                            <td>
-                              <input
-                                type="number"
-                                min="0"
-                                max={item.maxQuantity}
-                                value={item.returnQuantity}
-                                onChange={(e) => handleReturnQuantityChange(item.id, e.target.value)}
-                                className="return-qty-input"
-                              />
-                            </td>
-                            <td>${item.unitPriceNet.toFixed(2)}</td>
-                            <td>${refundWithTax.toFixed(2)}</td>
-                          </tr>
+                          <React.Fragment key={item.id}>
+                            {/* Main return item row with first location inline */}
+                            <tr className="pos-product-main-row">
+                              {/* Product Name */}
+                              <td style={{ width: "20%", textAlign: "left", fontWeight: "600" }}>
+                                {item.productName}
+                              </td>
+
+                              {/* SKU */}
+                              <td style={{ width: "10%", textAlign: "left", fontSize: "0.9rem" }}>
+                                {item.productSKU}
+                              </td>
+
+                              {/* EAN */}
+                              <td style={{ width: "10%", textAlign: "left", fontSize: "0.9rem" }}>
+                                {item.ean || '-'}
+                              </td>
+
+                              {/* Original Quantity */}
+                              <td style={{ width: "6%", textAlign: "center" }}>
+                                {item.maxQuantity}
+                              </td>
+
+                              {/* Unit Price Net */}
+                              <td style={{ width: "8%", textAlign: "center" }}>
+                                ${item.unitPriceNet.toFixed(2)}
+                              </td>
+
+                              {/* Tax Rate */}
+                              <td style={{ width: "8%", textAlign: "center" }}>
+                                {(taxRate * 100).toFixed(0)}%
+                              </td>
+
+                              {/* Return Total (with tax) */}
+                              <td style={{ width: "8%", textAlign: "center", fontWeight: "600" }}>
+                                ${lineGross.toFixed(2)}
+                              </td>
+
+                              {/* First Return Location Selection */}
+                              <td style={{ width: "12%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={firstLine.locationId || ''}
+                                  onChange={(e) => handleReturnLocationChange(item.id, 0, e.target.value)}
+                                  className={`pos-location-select ${!firstLine.locationId ? 'not-selected' : ''}`}
+                                >
+                                  <option value="">Select location...</option>
+                                  {locations.map(loc => {
+                                    const isAlreadySelected = locationLines.some((line, idx) => idx !== 0 && line.locationId === loc.locationId);
+                                    return (
+                                      <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
+                                        {loc.locationCode} {isAlreadySelected ? '- Already selected' : ''}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </td>
+
+                              {/* First Return Location Quantity with action buttons */}
+                              <td style={{ width: "10%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                                <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={item.maxQuantity}
+                                    value={firstLine.quantity}
+                                    onChange={(e) => handleReturnLocationQuantityChange(item.id, 0, e.target.value)}
+                                    onBlur={() => handleReturnLocationQuantityBlur(item.id, 0)}
+                                    className="pos-quantity-input"
+                                  />
+                                  {/* Show + button only if there are still unselected locations */}
+                                  {locationLines.length < locations.length && item.returnQuantity < item.maxQuantity && (
+                                    <button
+                                      className="btn-add-location-line"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddReturnLocationLine(item.id);
+                                      }}
+                                      title="Add another location"
+                                    >
+                                      +
+                                    </button>
+                                  )}
+                                  {locationLines.length > 1 && (
+                                    <button
+                                      className="btn-remove-location-line"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveReturnLocationLine(item.id, 0);
+                                      }}
+                                      title="Remove this location line"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Empty cell */}
+                              <td style={{ width: "8%", textAlign: "center" }}></td>
+                            </tr>
+
+                            {/* Additional location lines as sub-rows (if any) */}
+                            {additionalLines.map((line, additionalIndex) => {
+                              const lineIndex = additionalIndex + 1;
+                              return (
+                                <tr
+                                  key={`${item.id}-line-${lineIndex}`}
+                                  className="pos-location-line-row"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {/* Empty product columns */}
+                                  <td style={{ width: "20%", paddingLeft: "2rem", textAlign: "left" }}>
+                                    <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                                      Location {lineIndex + 1}
+                                    </span>
+                                  </td>
+                                  <td style={{ width: "10%", textAlign: "left" }}></td>
+                                  <td style={{ width: "10%", textAlign: "left" }}></td>
+                                  <td style={{ width: "6%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
+
+                                  {/* Return Location Selection */}
+                                  <td style={{ width: "12%", textAlign: "left" }}>
+                                    <select
+                                      value={line.locationId || ''}
+                                      onChange={(e) => handleReturnLocationChange(item.id, lineIndex, e.target.value)}
+                                      className={`pos-location-select ${!line.locationId ? 'not-selected' : ''}`}
+                                    >
+                                      <option value="">Select location...</option>
+                                      {locations.map(loc => {
+                                        const isAlreadySelected = locationLines.some((l, idx) => idx !== lineIndex && l.locationId === loc.locationId);
+                                        return (
+                                          <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
+                                            {loc.locationCode} {isAlreadySelected ? '- Already selected' : ''}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </td>
+
+                                  {/* Return Location Quantity with action buttons */}
+                                  <td style={{ width: "10%", textAlign: "left" }}>
+                                    <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max={item.maxQuantity}
+                                        value={line.quantity}
+                                        onChange={(e) => handleReturnLocationQuantityChange(item.id, lineIndex, e.target.value)}
+                                        onBlur={() => handleReturnLocationQuantityBlur(item.id, lineIndex)}
+                                        className="pos-quantity-input"
+                                      />
+                                      <button
+                                        className="btn-remove-location-line"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveReturnLocationLine(item.id, lineIndex);
+                                        }}
+                                        title="Remove this location line"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  {/* Empty cell */}
+                                  <td style={{ width: "8%", textAlign: "center" }}></td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -1606,8 +2007,8 @@ export default function POS() {
           {/* Returns Mode Options */}
           {activeMode === 'Returns' && (
             <div className="pos-options">
-              {/* Refund Method */}
-              <div className="pos-option-section">
+              {/* Section 1: Refund Method */}
+              <div className="pos-section">
                 <h4>Refund Method</h4>
                 <div className="pos-radio-group">
                   <label className={refundMethod === 'Card' ? 'active' : ''}>
@@ -1617,6 +2018,7 @@ export default function POS() {
                       value="Card"
                       checked={refundMethod === 'Card'}
                       onChange={(e) => setRefundMethod(e.target.value)}
+                      disabled={!saleDocumentLocked}
                     />
                     Card
                   </label>
@@ -1627,30 +2029,55 @@ export default function POS() {
                       value="Cash"
                       checked={refundMethod === 'Cash'}
                       onChange={(e) => setRefundMethod(e.target.value)}
+                      disabled={!saleDocumentLocked}
                     />
                     Cash
                   </label>
-                  <label className="disabled" title="Coming soon">
+                  <label className={refundMethod === 'Gift Card' ? 'active' : ''}>
                     <input
                       type="radio"
                       name="refundMethod"
-                      value="GiftCard"
-                      disabled
+                      value="Gift Card"
+                      checked={refundMethod === 'Gift Card'}
+                      onChange={(e) => setRefundMethod(e.target.value)}
+                      disabled={!saleDocumentLocked}
                     />
                     Gift Card
                   </label>
                 </div>
               </div>
 
-              {/* Process Return Button */}
-              <div className="pos-action-section">
-                <button
-                  className="pos-pay-button"
-                  onClick={handleProcessReturn}
-                  disabled={returnItems.length === 0}
-                >
-                  Process Return ${returnTotals.totalGross}
-                </button>
+              <div className="pos-section-divider"></div>
+
+              {/* Section 2: Return Actions */}
+              <div className="pos-section">
+                <h4>Actions</h4>
+                <div className="pos-payment-buttons">
+                  <button
+                    className="pos-pay-button"
+                    onClick={handleProcessReturn}
+                    disabled={returnItems.length === 0 || returnItems.every(item => item.returnQuantity === 0)}
+                  >
+                    Process Return
+                  </button>
+                  {saleDocumentLocked && (
+                    <button
+                      className="pos-revert-button"
+                      onClick={() => {
+                        setSaleDocumentNumber('');
+                        setSaleDocumentLocked(false);
+                        setOriginalDocument(null);
+                        setReturnItems([]);
+                        setReturnLocationLines({});
+                        setRefundMethod(null);
+                        setAvailableLocationsForReturn(new Map());
+                        setToast({ type: 'success', message: 'Return cleared' });
+                      }}
+                    >
+                      Clear Return
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
