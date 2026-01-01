@@ -1754,19 +1754,23 @@ export default function POS() {
                                     onBlur={() => handleReturnLocationQuantityBlur(item.id, 0)}
                                     className="pos-quantity-input"
                                   />
-                                  {/* Show + button only if there are still unselected locations */}
-                                  {locationLines.length < locationsWithStock.length && (
-                                    <button
-                                      className="btn-add-location-line"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddReturnLocationLine(item.id);
-                                      }}
-                                      title="Add another location"
-                                    >
-                                      +
-                                    </button>
-                                  )}
+                                  {/* Show + button only if there are still unselected locations AND not all quantity is allocated */}
+                                  {(() => {
+                                    const allocatedQty = locationLines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 0), 0);
+                                    const canAddMore = allocatedQty < item.returnQuantity && locationLines.length < locationsWithStock.length;
+                                    return canAddMore && (
+                                      <button
+                                        className="btn-add-location-line"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAddReturnLocationLine(item.id);
+                                        }}
+                                        title="Add another location"
+                                      >
+                                        +
+                                      </button>
+                                    );
+                                  })()}
                                   {locationLines.length > 1 && (
                                     <button
                                       className="btn-remove-location-line"
