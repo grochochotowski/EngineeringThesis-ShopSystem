@@ -958,7 +958,7 @@ export default function POS() {
       }
 
       // Validate document type (cannot return a return document)
-      if (fullDoc.documentType === 4 || fullDoc.documentType === 5) { // ReturnReceipt or ReturnInvoice
+      if (fullDoc.documentType === 4 || fullDoc.documentType === 5) { // ReceiptReturn or InvoiceReturn
         setToast({ type: 'error', message: 'Cannot return a return document' });
         return;
       }

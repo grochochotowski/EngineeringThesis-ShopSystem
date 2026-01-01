@@ -26,12 +26,12 @@ export const salesDocumentTypesData = [
     },
     {
         id: 4,
-        value: "ReturnReceipt",
+        value: "ReceiptReturn",
         description: "Return of receipt transaction"
     },
     {
         id: 5,
-        value: "ReturnInvoice",
+        value: "InvoiceReturn",
         description: "Return of invoice transaction"
     },
 ];

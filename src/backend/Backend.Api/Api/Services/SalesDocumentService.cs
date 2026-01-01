@@ -576,8 +576,8 @@ namespace Backend.Api.Api.Services
                     throw new InvalidOperationException($"Original document '{dto.OriginalDocumentNumber}' not found.");
 
                 // Verify original document is not already a return
-                if (originalDoc.DocumentType == SalesDocumentType.ReturnReceipt ||
-                    originalDoc.DocumentType == SalesDocumentType.ReturnInvoice)
+                if (originalDoc.DocumentType == SalesDocumentType.ReceiptReturn ||
+                    originalDoc.DocumentType == SalesDocumentType.InvoiceReturn)
                     throw new InvalidOperationException("Cannot return a return document.");
 
                 // 2. Validate return items exist in original document
@@ -604,9 +604,9 @@ namespace Backend.Api.Api.Services
                 // 4. Determine return document type based on original
                 var returnDocType = originalDoc.DocumentType switch
                 {
-                    SalesDocumentType.Receipt => SalesDocumentType.ReturnReceipt,
-                    SalesDocumentType.InvoicePersonal => SalesDocumentType.ReturnInvoice,
-                    SalesDocumentType.InvoiceCompany => SalesDocumentType.ReturnInvoice,
+                    SalesDocumentType.Receipt => SalesDocumentType.ReceiptReturn,
+                    SalesDocumentType.InvoicePersonal => SalesDocumentType.InvoiceReturn,
+                    SalesDocumentType.InvoiceCompany => SalesDocumentType.InvoiceReturn,
                     _ => throw new InvalidOperationException($"Cannot create return for document type: {originalDoc.DocumentType}")
                 };
 

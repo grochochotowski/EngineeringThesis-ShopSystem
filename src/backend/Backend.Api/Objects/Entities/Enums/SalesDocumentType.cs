@@ -6,7 +6,7 @@
         Receipt = 1,
         InvoicePersonal = 2,
         InvoiceCompany = 3,
-        ReturnReceipt = 4,
-        ReturnInvoice = 5
+        ReceiptReturn = 4,
+        InvoiceReturn = 5
     }
 }

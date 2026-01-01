@@ -608,7 +608,7 @@ export default function SalesDocuments() {
                                                             );
                                                         }
                                                         if (col.key === "documentType") {
-                                                            const isReturn = row.documentType === "ReturnReceipt" || row.documentType === "ReturnInvoice";
+                                                            const isReturn = row.documentType === "ReceiptReturn" || row.documentType === "InvoiceReturn";
                                                             return (
                                                                 <td key={col.key}>
                                                                     <span className={isReturn ? "doc-badge-return" : "doc-badge-sale"}>
@@ -640,7 +640,7 @@ export default function SalesDocuments() {
             {showDetailsModal && selectedDocumentDetails && (
                 <Modal
                     title={
-                        selectedDocumentDetails.documentType === "ReturnReceipt" || selectedDocumentDetails.documentType === "ReturnInvoice"
+                        selectedDocumentDetails.documentType === "ReceiptReturn" || selectedDocumentDetails.documentType === "InvoiceReturn"
                             ? `Return Document #${selectedDocumentDetails.documentNumber}`
                             : `Sales Document #${selectedDocumentDetails.documentNumber}`
                     }
