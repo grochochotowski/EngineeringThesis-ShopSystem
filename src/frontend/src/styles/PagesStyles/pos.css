@@ -83,6 +83,75 @@
   background: var(--accent-hover);
 }
 
+/* Buy Gift Card Button */
+.btn-buy-gift-card {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: #10b981;
+  color: var(--text-white);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-buy-gift-card:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-buy-gift-card:disabled {
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Gift Card Modal */
+.pos-gift-card-modal {
+  padding: 1rem;
+  min-width: 400px;
+}
+
+.pos-gift-card-modal p {
+  margin-bottom: 1rem;
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.pos-gift-card-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+/* Gift Card Validated Display */
+.pos-gift-card-validated {
+  background: #d1fae5;
+  border: 2px solid #10b981;
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.pos-gift-card-validated .validation-success {
+  color: #065f46;
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.pos-gift-card-validated .gift-card-balance {
+  color: #047857;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+}
+
 /* Product dropdown autocomplete */
 .pos-product-dropdown {
   position: absolute;

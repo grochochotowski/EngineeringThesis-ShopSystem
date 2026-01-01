@@ -100,10 +100,35 @@ namespace Backend.Api.Infrastructure
             var taxIds = _db.TaxRates.Select(x => x.Id).ToList();
             var locationIds = _db.Locations.Select(x => x.Id).ToList();
 
+            // Create Gift Card product FIRST with special SKU "_gc"
+            var giftCardProduct = new Product
+            {
+                SKU = "_gc",
+                EAN = "0000000000001",
+                Name = "Gift Card",
+                Description = "Digital gift card - value set during purchase",
+                Price = 0.00m,
+                CategoryId = categories.GetValueOrDefault("Miscellaneous", categories.First().Value),
+                TaxRateId = taxIds[0],
+                IsActive = true
+            };
+            _db.Products.Add(giftCardProduct);
+            _db.SaveChanges();
+
+            // Assign gift card to random location
+            var giftCardLocationId = locationIds[_rand.Next(locationIds.Count)];
+            _db.ProductsInWarehouse.Add(new()
+            {
+                ProductId = giftCardProduct.Id,
+                LocationId = giftCardLocationId,
+                Quantity = _rand.Next(50, 100)
+            });
+            _db.SaveChanges();
+
+            // Create remaining products starting from SKU-0001
             var products = new List<(string Cat, string Name, string Desc, decimal Price, string EAN)>
             {
                 // --- MISCELLANEOUS ---
-                ("Miscellaneous", "Gift Card", "Digital gift card - value set during purchase", 0.00m, "0000000000001"),
                 ("Miscellaneous", "Reusable Bag", "Eco-friendly shopping bag", 5.00m, "5901234509020"),
 
                 // --- FOOD ---

@@ -97,7 +97,7 @@ namespace Backend.Api.Infrastructure
             {
                 _db.Products.AddRange(
                     // Gift Card - Special Product (MUST BE FIRST)
-                    new() { SKU = "GIFTCARD", EAN = "0000000000001", Name = "Gift Card", Description = "Digital gift card - value set during purchase", Price = 0.00m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+                    new() { SKU = "_gc", EAN = "0000000000001", Name = "Gift Card", Description = "Digital gift card - value set during purchase", Price = 0.00m, CategoryId = defaultCatId, TaxRateId = vat23Id },
 
                     // Default Category Products
                     new() { SKU = "SKU-0001", EAN = "5901234500016", Name = "Wireless Mouse", Description = "Ergonomic wireless mouse with USB receiver", Price = 29.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },

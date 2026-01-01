@@ -74,6 +74,15 @@ export default function POS() {
   const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
   const [newPrice, setNewPrice] = useState('');
 
+  // Buy Gift Card modal
+  const [showBuyGiftCardModal, setShowBuyGiftCardModal] = useState(false);
+  const [giftCardValue, setGiftCardValue] = useState('');
+
+  // Gift Card Payment modal
+  const [showGiftCardPaymentModal, setShowGiftCardPaymentModal] = useState(false);
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [validatedGiftCard, setValidatedGiftCard] = useState(null); // { id, code, value }
+
   // Returns mode state
   const [saleDocumentNumber, setSaleDocumentNumber] = useState('');
   const [saleDocumentLocked, setSaleDocumentLocked] = useState(false);
@@ -743,6 +752,107 @@ export default function POS() {
     setToast({ type: 'success', message: 'All payments reverted' });
   };
 
+  // Gift Card Payment handlers
+  const handleGiftCardPaymentClick = () => {
+    // Show modal to input gift card code
+    setGiftCardCode('');
+    setValidatedGiftCard(null);
+    setShowGiftCardPaymentModal(true);
+  };
+
+  const handleGiftCardValidate = async () => {
+    if (!giftCardCode.trim()) {
+      setToast({ type: 'error', message: 'Please enter a gift card code' });
+      return;
+    }
+
+    try {
+      const result = await api.post('/GiftCard/validate', { code: giftCardCode.trim() });
+
+      if (result.isValid) {
+        setValidatedGiftCard({
+          id: result.giftCardId,
+          code: giftCardCode.trim(),
+          value: result.value
+        });
+
+        // Auto-set payment amount to min(giftCardValue, remainingBalance)
+        const autoAmount = Math.min(result.value, remainingBalance);
+        setPaymentAmount(autoAmount.toFixed(2));
+
+        setToast({
+          type: 'success',
+          message: `Gift card validated. Balance: $${result.value.toFixed(2)}`
+        });
+      } else {
+        setValidatedGiftCard(null);
+        setToast({ type: 'error', message: result.errorMessage || 'Invalid gift card' });
+      }
+    } catch (error) {
+      console.error('Gift card validation failed:', error);
+      setValidatedGiftCard(null);
+      setToast({
+        type: 'error',
+        message: error.response?.data?.error || 'Failed to validate gift card'
+      });
+    }
+  };
+
+  const handleGiftCardPaymentConfirm = () => {
+    if (!validatedGiftCard) {
+      setToast({ type: 'error', message: 'Please validate gift card first' });
+      return;
+    }
+
+    const enteredAmount = parseFloat(paymentAmount);
+    if (isNaN(enteredAmount) || enteredAmount <= 0) {
+      setToast({ type: 'error', message: 'Please enter a valid payment amount' });
+      return;
+    }
+
+    // Validate amount doesn't exceed gift card balance
+    if (enteredAmount > validatedGiftCard.value) {
+      setToast({
+        type: 'error',
+        message: `Amount exceeds gift card balance of $${validatedGiftCard.value.toFixed(2)}`
+      });
+      return;
+    }
+
+    // Validate amount doesn't exceed remaining balance
+    if (enteredAmount > remainingBalance) {
+      setToast({
+        type: 'error',
+        message: `Amount exceeds remaining balance of $${remainingBalance.toFixed(2)}`
+      });
+      return;
+    }
+
+    // Add gift card payment with ID
+    const newPayment = {
+      method: 'Gift Card',
+      amount: enteredAmount,
+      giftCardId: validatedGiftCard.id
+    };
+    const allPayments = [...payments, newPayment];
+    setPayments(allPayments);
+
+    // Clear payment method selection and reset amount
+    setPaymentMethod(null);
+    const newRemaining = parseFloat(totals.totalGross) - allPayments.reduce((sum, p) => sum + p.amount, 0);
+    setPaymentAmount(Math.max(0, newRemaining).toFixed(2));
+
+    // Close modal and reset state
+    setShowGiftCardPaymentModal(false);
+    setGiftCardCode('');
+    setValidatedGiftCard(null);
+
+    setToast({
+      type: 'success',
+      message: `Gift card payment of $${enteredAmount.toFixed(2)} recorded`
+    });
+  };
+
   // Payment Step 1: Record a payment
   const handlePayClick = () => {
     // Validation
@@ -758,6 +868,12 @@ export default function POS() {
 
     if (documentType === 'Invoice' && !selectedClient) {
       setToast({ type: 'error', message: 'Please select a client for invoice' });
+      return;
+    }
+
+    // Gift Card payment uses separate modal flow
+    if (paymentMethod === 'Gift Card') {
+      handleGiftCardPaymentClick();
       return;
     }
 
@@ -784,7 +900,7 @@ export default function POS() {
         changeAmount = 0;
       }
     } else {
-      // For Card and Gift Card: charge the entered amount
+      // For Card: charge the entered amount
       actualAmount = enteredAmount;
       tenderedAmount = null;
       changeAmount = null;
@@ -832,6 +948,77 @@ export default function POS() {
       ? `${paymentMethod} payment of $${actualAmount.toFixed(2)} recorded. Change: $${changeAmount.toFixed(2)}`
       : `${paymentMethod} payment of $${actualAmount.toFixed(2)} recorded`;
     setToast({ type: 'success', message: successMsg });
+  };
+
+  // Buy Gift Card handlers
+  const handleBuyGiftCardClick = () => {
+    setGiftCardValue('');
+    setShowBuyGiftCardModal(true);
+  };
+
+  const handleBuyGiftCardConfirm = async () => {
+    const value = parseFloat(giftCardValue);
+
+    // Validation
+    if (isNaN(value) || value < 20 || value > 1000) {
+      setToast({ type: 'error', message: 'Gift card value must be between $20 and $1000' });
+      return;
+    }
+
+    try {
+      // Find Gift Card product by SKU
+      const products = await api.get('/Products', { params: { sku: '_gc' } });
+      const giftCardProduct = products.items?.find(p => p.sku === '_gc');
+
+      if (!giftCardProduct) {
+        setToast({ type: 'error', message: 'Gift Card product not found in system' });
+        return;
+      }
+
+      // Fetch locations for gift card product
+      const locations = await api.get(`/products-in-warehouse/product/${giftCardProduct.id}`);
+
+      if (!locations || locations.length === 0) {
+        setToast({ type: 'error', message: 'Gift Card product has no warehouse locations configured' });
+        return;
+      }
+
+      // Initialize location lines (one empty line to start)
+      setProductLocationLines(prev => ({
+        ...prev,
+        [giftCardProduct.id]: [{ locationId: null, quantity: 1 }]
+      }));
+
+      // Add gift card to cart with custom price
+      const taxRate = taxRates.get(giftCardProduct.taxRateId)?.rate || 0;
+      const grossPrice = value;
+      const netPrice = grossPrice / (1 + taxRate);
+      const taxAmount = grossPrice - netPrice;
+
+      setScannedProducts([...scannedProducts, {
+        id: giftCardProduct.id,
+        sku: giftCardProduct.sku,
+        ean: giftCardProduct.ean || null,
+        name: giftCardProduct.name,
+        unitPriceGross: grossPrice,
+        unitPriceNet: netPrice,
+        unitTaxAmount: taxAmount,
+        quantity: 1,
+        taxRateId: giftCardProduct.taxRateId,
+        taxRate: taxRate,
+        taxCode: taxRates.get(giftCardProduct.taxRateId)?.code || '',
+        availableLocations: locations || [],
+        isGiftCard: true, // Mark as gift card for later processing
+        giftCardValue: value // Store the value for gift card creation
+      }]);
+
+      setToast({ type: 'success', message: `Gift card ($${value.toFixed(2)}) added to cart` });
+      setShowBuyGiftCardModal(false);
+      setGiftCardValue('');
+    } catch (error) {
+      console.error('Failed to add gift card:', error);
+      setToast({ type: 'error', message: `Failed to add gift card: ${error.message}` });
+    }
   };
 
   // Payment Step 2: Finalize transaction
@@ -893,7 +1080,8 @@ export default function POS() {
           paymentOption: payment.method === 'Card' ? 1 : payment.method === 'Cash' ? 2 : 3,
           amount: payment.amount,
           amountTendered: payment.amountTendered || null,
-          change: payment.change || null
+          change: payment.change || null,
+          giftCardId: payment.giftCardId || null
         })),
         userId: currentUser?.id || 0
       };
@@ -903,10 +1091,54 @@ export default function POS() {
       // Call finalization endpoint
       const response = await api.post('/SalesDocument/finalize', finalizationDto);
 
-      setToast({
-        type: 'success',
-        message: response.documentNumber
-      });
+      // Use gift cards for payments
+      const giftCardPayments = payments.filter(p => p.giftCardId);
+      if (giftCardPayments.length > 0) {
+        try {
+          for (const payment of giftCardPayments) {
+            await api.post('/GiftCard/use', {
+              giftCardId: payment.giftCardId,
+              amount: payment.amount
+            });
+          }
+        } catch (error) {
+          console.error('Failed to use gift card:', error);
+          setToast({
+            type: 'warning',
+            message: `${response.documentNumber} - Transaction completed but gift card use failed: ${error.message}`
+          });
+        }
+      }
+
+      // Check if any products are gift cards and create them
+      const giftCardProducts = scannedProducts.filter(p => p.isGiftCard);
+      if (giftCardProducts.length > 0) {
+        try {
+          const createdCodes = [];
+          for (const giftCard of giftCardProducts) {
+            const created = await api.post('/GiftCard', {
+              value: giftCard.giftCardValue
+            });
+            createdCodes.push(created.code);
+          }
+          setToast({
+            type: 'success',
+            message: `${response.documentNumber} - Gift card(s) created: ${createdCodes.join(', ')}`
+          });
+        } catch (error) {
+          console.error('Failed to create gift card:', error);
+          setToast({
+            type: 'warning',
+            message: `${response.documentNumber} - Transaction completed but gift card creation failed: ${error.message}`
+          });
+        }
+      } else {
+        setToast({
+          type: 'success',
+          message: response.documentNumber
+        });
+      }
+
       setShowFinishConfirm(false);
 
       // Reset entire state
@@ -1269,10 +1501,29 @@ export default function POS() {
       console.log('Sending return DTO:', JSON.stringify(returnDto, null, 2));
       const response = await api.post('/SalesDocument/process-return', returnDto);
 
-      setToast({
-        type: 'success',
-        message: `Return processed successfully. Document: ${response.returnDocumentNumber}`
-      });
+      // If refund method is Gift Card, automatically create a gift card with return value
+      if (refundMethod === 'Gift Card') {
+        try {
+          const giftCard = await api.post('/GiftCard', {
+            value: response.totalGross || returnTotals.totalGross
+          });
+          setToast({
+            type: 'success',
+            message: `Return processed. Document: ${response.returnDocumentNumber}. Gift card created: ${giftCard.code}`
+          });
+        } catch (error) {
+          console.error('Failed to create gift card for return:', error);
+          setToast({
+            type: 'warning',
+            message: `Return processed (${response.returnDocumentNumber}), but gift card creation failed: ${error.message}`
+          });
+        }
+      } else {
+        setToast({
+          type: 'success',
+          message: `Return processed successfully. Document: ${response.returnDocumentNumber}`
+        });
+      }
       setShowReturnConfirm(false);
 
       // Reset returns state
@@ -1335,34 +1586,44 @@ export default function POS() {
         <section className="pos-left-section">
           {/* Product Search (Sale mode only) */}
           {activeMode === 'Sale' && (
-            <div className="pos-search-bar">
-              <input
-                type="text"
-                placeholder="Search products by SKU or name..."
-                value={productSearchQuery}
-                onChange={(e) => setProductSearchQuery(e.target.value)}
-                onKeyDown={handleScanKeyPress}
-                onFocus={() => productSearchResults.length > 0 && setShowProductDropdown(true)}
-                disabled={isFullyPaid}
-                className="pos-product-search"
-              />
-              {showProductDropdown && productSearchResults.length > 0 && (
-                <div className="pos-product-dropdown">
-                  {productSearchResults.map(product => (
-                    <div
-                      key={product.id}
-                      className="pos-product-dropdown-item"
-                      onClick={() => handleAddProduct(product)}
-                    >
-                      <div className="product-dropdown-name">{product.name}</div>
-                      <div className="product-dropdown-details">
-                        SKU: {product.sku}{product.ean ? ` | EAN: ${product.ean}` : ''} | ${product.price.toFixed(2)}
+            <>
+              <div className="pos-search-bar">
+                <input
+                  type="text"
+                  placeholder="Search products by SKU or name..."
+                  value={productSearchQuery}
+                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  onKeyDown={handleScanKeyPress}
+                  onFocus={() => productSearchResults.length > 0 && setShowProductDropdown(true)}
+                  disabled={isFullyPaid}
+                  className="pos-product-search"
+                />
+                <button
+                  className="btn-buy-gift-card"
+                  onClick={handleBuyGiftCardClick}
+                  disabled={isFullyPaid}
+                  title="Buy a Gift Card"
+                >
+                  Buy Gift Card
+                </button>
+                {showProductDropdown && productSearchResults.length > 0 && (
+                  <div className="pos-product-dropdown">
+                    {productSearchResults.map(product => (
+                      <div
+                        key={product.id}
+                        className="pos-product-dropdown-item"
+                        onClick={() => handleAddProduct(product)}
+                      >
+                        <div className="product-dropdown-name">{product.name}</div>
+                        <div className="product-dropdown-details">
+                          SKU: {product.sku}{product.ean ? ` | EAN: ${product.ean}` : ''} | ${product.price.toFixed(2)}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* Sale Document Search (Returns mode only) */}
@@ -2307,6 +2568,127 @@ export default function POS() {
               >
                 Save
               </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Buy Gift Card Modal */}
+      {showBuyGiftCardModal && (
+        <Modal
+          title="Buy Gift Card"
+          onClose={() => setShowBuyGiftCardModal(false)}
+        >
+          <div className="pos-gift-card-modal">
+            <p>Enter the value for the gift card</p>
+            <label>
+              Gift Card Value ($20 - $1000):
+              <input
+                type="number"
+                step="0.01"
+                min="20"
+                max="1000"
+                value={giftCardValue}
+                onChange={(e) => setGiftCardValue(e.target.value)}
+                className="pos-price-input"
+                placeholder="Enter amount..."
+                autoFocus
+              />
+            </label>
+            <div className="pos-modal-actions">
+              <button
+                className="btn-action btn-cancel-modal"
+                onClick={() => setShowBuyGiftCardModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-action btn-choose-modal"
+                onClick={handleBuyGiftCardConfirm}
+                disabled={!giftCardValue || parseFloat(giftCardValue) < 20 || parseFloat(giftCardValue) > 1000}
+              >
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Gift Card Payment Modal */}
+      {showGiftCardPaymentModal && (
+        <Modal
+          title="Gift Card Payment"
+          onClose={() => {
+            setShowGiftCardPaymentModal(false);
+            setGiftCardCode('');
+            setValidatedGiftCard(null);
+          }}
+        >
+          <div className="pos-gift-card-modal">
+            <p>Enter the gift card number to validate</p>
+            <label>
+              Gift Card Number:
+              <input
+                type="text"
+                value={giftCardCode}
+                onChange={(e) => setGiftCardCode(e.target.value)}
+                className="pos-price-input"
+                placeholder="Enter gift card code..."
+                autoFocus
+              />
+            </label>
+
+            {validatedGiftCard && (
+              <div className="pos-gift-card-validated">
+                <p className="validation-success">✓ Gift card validated</p>
+                <p className="gift-card-balance">Balance: ${validatedGiftCard.value.toFixed(2)}</p>
+              </div>
+            )}
+
+            {validatedGiftCard && (
+              <label>
+                Payment Amount:
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={Math.min(validatedGiftCard.value, remainingBalance)}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="pos-price-input"
+                  placeholder="Enter amount..."
+                />
+              </label>
+            )}
+
+            <div className="pos-modal-actions">
+              <button
+                className="btn-action btn-cancel-modal"
+                onClick={() => {
+                  setShowGiftCardPaymentModal(false);
+                  setGiftCardCode('');
+                  setValidatedGiftCard(null);
+                }}
+              >
+                Cancel
+              </button>
+              {!validatedGiftCard ? (
+                <button
+                  className="btn-action btn-choose-modal"
+                  onClick={handleGiftCardValidate}
+                  disabled={!giftCardCode.trim()}
+                >
+                  Validate
+                </button>
+              ) : (
+                <button
+                  className="btn-action btn-choose-modal"
+                  onClick={handleGiftCardPaymentConfirm}
+                  disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                >
+                  Pay
+                </button>
+              )}
             </div>
           </div>
         </Modal>
