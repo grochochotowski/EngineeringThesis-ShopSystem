@@ -51,7 +51,7 @@ namespace Backend.Api.Api.Services
 
             // --- validate dto fields ---
             if (dto.Quantity <= 0) throw new ArgumentException("Quantity must be > 0.", nameof(dto.Quantity));
-            if (dto.UnitPriceNet < 0) throw new ArgumentException("UnitPriceNet must be >= 0.", nameof(dto.UnitPriceNet));
+            if (dto.UnitGross < 0) throw new ArgumentException("UnitGross must be >= 0.", nameof(dto.UnitGross));
 
             // --- validate tax rate exists and is active ---
             var tax = await _db.TaxRates.AsNoTracking()
@@ -63,9 +63,9 @@ namespace Backend.Api.Api.Services
                 throw new ArgumentException($"Product {dto.ProductId} not found.", nameof(dto.ProductId));
 
             // --- calculate line amounts ---
-            var lineNet = Round2(dto.UnitPriceNet * dto.Quantity);
-            var lineTax = Round2(lineNet * tax.Rate);
-            var lineGross = Round2(lineNet + lineTax);
+            var lineGross = Round2(dto.UnitGross * dto.Quantity);
+            var lineNet = Round2(lineGross / (1 + tax.Rate));
+            var lineTax = Round2(lineGross - lineNet);
 
             // --- create entity ---
             var entity = new SalesDocumentItem
@@ -75,7 +75,7 @@ namespace Backend.Api.Api.Services
                 ProductName = dto.ProductName,
                 ProductSKU = dto.ProductSKU,
                 Quantity = dto.Quantity,
-                UnitPriceNet = Round4(dto.UnitPriceNet),
+                UnitGross = Round4(dto.UnitGross),
                 TaxRateId = dto.TaxRateId,
                 LineNet = lineNet,
                 LineTax = lineTax,
@@ -98,7 +98,7 @@ namespace Backend.Api.Api.Services
             ProductName = e.ProductName,
             ProductSKU = e.ProductSKU,
             Quantity = e.Quantity,
-            UnitPriceNet = e.UnitPriceNet,
+            UnitGross = e.UnitGross,
             TaxRateId = e.TaxRateId,
             TaxCode = e.TaxRate.Code,
             LineNet = e.LineNet,
