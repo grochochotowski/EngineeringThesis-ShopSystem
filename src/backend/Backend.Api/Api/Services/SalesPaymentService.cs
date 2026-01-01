@@ -21,6 +21,7 @@ namespace Backend.Api.Api.Services
         {
             var list = await _db.SalesPayments
                 .AsNoTracking()
+                .Include(x => x.GiftCard)
                 .Where(x => x.SalesDocumentId == salesDocumentId)
                 .OrderBy(x => x.Id)
                 .ToListAsync(ct);
@@ -32,7 +33,9 @@ namespace Backend.Api.Api.Services
                 PaymentOption = x.PaymentOption,
                 Amount = x.Amount,
                 AmountTendered = x.AmountTendered,
-                Change = x.Change
+                Change = x.Change,
+                GiftCardId = x.GiftCardId,
+                GiftCardCode = x.GiftCard != null ? x.GiftCard.Code : null
             });
         }
 
@@ -51,7 +54,8 @@ namespace Backend.Api.Api.Services
                 PaymentOption = dto.PaymentOption,
                 Amount = Math.Round(dto.Amount, 2, MidpointRounding.AwayFromZero),
                 AmountTendered = dto.AmountTendered.HasValue ? Math.Round(dto.AmountTendered.Value, 2, MidpointRounding.AwayFromZero) : null,
-                Change = dto.Change.HasValue ? Math.Round(dto.Change.Value, 2, MidpointRounding.AwayFromZero) : null
+                Change = dto.Change.HasValue ? Math.Round(dto.Change.Value, 2, MidpointRounding.AwayFromZero) : null,
+                GiftCardId = dto.GiftCardId
             };
 
             _db.SalesPayments.Add(payment);

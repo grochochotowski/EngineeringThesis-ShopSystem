@@ -8,9 +8,9 @@ namespace Backend.Api.Api.Services
 {
     public interface ISalesDocumentService
     {
-        Task<int> CreateAsync(CreateSalesDocumentDto dto, CancellationToken ct = default);
-        Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, CancellationToken ct = default);
-        Task<POSReturnResponseDto> ProcessReturnAsync(POSReturnDto dto, CancellationToken ct = default);
+        Task<int> CreateAsync(CreateSalesDocumentDto dto, int userId, CancellationToken ct = default);
+        Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, int userId, CancellationToken ct = default);
+        Task<POSReturnResponseDto> ProcessReturnAsync(POSReturnDto dto, int userId, CancellationToken ct = default);
         Task<GetSalesDocumentDto?> GetByIdAsync(int id, CancellationToken ct = default);
         Task<GetSalesDocumentDto?> GetByDocumentNumberAsync(string documentNumber, CancellationToken ct = default);
         Task<PagedResult<GetSalesDocumentListItemDto>> GetAllAsync(
@@ -41,7 +41,7 @@ namespace Backend.Api.Api.Services
         }
 
         // --- CREATE DOCUMENT ---
-        public async Task<int> CreateAsync(CreateSalesDocumentDto dto, CancellationToken ct = default)
+        public async Task<int> CreateAsync(CreateSalesDocumentDto dto, int userId, CancellationToken ct = default)
         {
             // basic validations
             if (dto.Items is null || dto.Items.Count == 0)
@@ -79,6 +79,7 @@ namespace Backend.Api.Api.Services
                 Description = dto.Description,
                 DocumentNumber = dto.DocumentNumber.Trim(),
                 ClientId = dto.ClientId,
+                UserId = userId,
                 Items = new List<SalesDocumentItem>(),
                 Payments = new List<SalesPayment>()
             };
@@ -150,7 +151,7 @@ namespace Backend.Api.Api.Services
                 .AsNoTracking()
                 .Include(d => d.Items).ThenInclude(i => i.TaxRate)
                 .Include(d => d.Items).ThenInclude(i => i.FromLocation)
-                .Include(d => d.Payments)
+                .Include(d => d.Payments).ThenInclude(p => p.GiftCard)
                 .Include(d => d.User)
                 .Include(d => d.OriginalDocument)
                 .FirstOrDefaultAsync(d => d.Id == id, ct);
@@ -196,7 +197,9 @@ namespace Backend.Api.Api.Services
                     PaymentOption = p.PaymentOption,
                     Amount = p.Amount,
                     AmountTendered = p.AmountTendered,
-                    Change = p.Change
+                    Change = p.Change,
+                    GiftCardId = p.GiftCardId,
+                    GiftCardCode = p.GiftCard != null ? p.GiftCard.Code : null
                 }).ToList()
             };
         }
@@ -221,7 +224,7 @@ namespace Backend.Api.Api.Services
             var qry = _db.SalesDocuments
                 .AsNoTracking()
                 .Include(d => d.Items)
-                .Include(d => d.Payments)
+                .Include(d => d.Payments).ThenInclude(p => p.GiftCard)
                 .Include(d => d.User)
                 .AsQueryable();
 
@@ -334,7 +337,7 @@ namespace Backend.Api.Api.Services
         {
             // find document
             var doc = await _db.SalesDocuments
-                .Include(d => d.Payments)
+                .Include(d => d.Payments).ThenInclude(p => p.GiftCard)
                 .FirstOrDefaultAsync(d => d.Id == id, ct)
                 ?? throw new KeyNotFoundException($"SalesDocument {id} not found.");
 
@@ -364,7 +367,7 @@ namespace Backend.Api.Api.Services
         }
 
         // --- FINALIZE POS TRANSACTION ---
-        public async Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, CancellationToken ct = default)
+        public async Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, int userId, CancellationToken ct = default)
         {
             // Validations
             if (dto.Items is null || dto.Items.Count == 0)
@@ -432,7 +435,7 @@ namespace Backend.Api.Api.Services
                     IssueDate = now,
                     DocumentNumber = documentNumber,
                     ClientId = dto.ClientId,
-                    UserId = dto.UserId,
+                    UserId = userId,
                     Items = new List<SalesDocumentItem>(),
                     Payments = new List<SalesPayment>()
                 };
@@ -483,7 +486,8 @@ namespace Backend.Api.Api.Services
                         PaymentOption = p.PaymentOption,
                         Amount = Round2(p.Amount),
                         AmountTendered = p.AmountTendered.HasValue ? Round2(p.AmountTendered.Value) : null,
-                        Change = p.Change.HasValue ? Round2(p.Change.Value) : null
+                        Change = p.Change.HasValue ? Round2(p.Change.Value) : null,
+                        GiftCardId = p.GiftCardId
                     });
                     totalPaid += Round2(p.Amount);
                 }
@@ -553,7 +557,7 @@ namespace Backend.Api.Api.Services
         }
 
         // --- PROCESS RETURN ---
-        public async Task<POSReturnResponseDto> ProcessReturnAsync(POSReturnDto dto, CancellationToken ct = default)
+        public async Task<POSReturnResponseDto> ProcessReturnAsync(POSReturnDto dto, int userId, CancellationToken ct = default)
         {
             // Validations
             if (string.IsNullOrWhiteSpace(dto.OriginalDocumentNumber))
@@ -630,7 +634,7 @@ namespace Backend.Api.Api.Services
                     DocumentNumber = documentNumber,
                     ClientId = originalDoc.ClientId,
                     OriginalDocumentId = originalDoc.Id,
-                    UserId = dto.UserId,
+                    UserId = userId,
                     Description = $"Return of ##{originalDoc.DocumentNumber}##",
                     Items = new List<SalesDocumentItem>(),
                     Payments = new List<SalesPayment>()
@@ -788,7 +792,7 @@ namespace Backend.Api.Api.Services
                 .AsNoTracking()
                 .Include(d => d.Items).ThenInclude(i => i.TaxRate)
                 .Include(d => d.Items).ThenInclude(i => i.FromLocation)
-                .Include(d => d.Payments)
+                .Include(d => d.Payments).ThenInclude(p => p.GiftCard)
                 .Include(d => d.User)
                 .Include(d => d.OriginalDocument)
                 .FirstOrDefaultAsync(d => d.DocumentNumber == documentNumber.Trim(), ct);
@@ -834,7 +838,9 @@ namespace Backend.Api.Api.Services
                     PaymentOption = p.PaymentOption,
                     Amount = p.Amount,
                     AmountTendered = p.AmountTendered,
-                    Change = p.Change
+                    Change = p.Change,
+                    GiftCardId = p.GiftCardId,
+                    GiftCardCode = p.GiftCard != null ? p.GiftCard.Code : null
                 }).ToList()
             };
         }

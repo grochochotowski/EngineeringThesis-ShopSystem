@@ -4,6 +4,7 @@ using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Backend.Api.Api.Controllers
 {
@@ -25,7 +26,13 @@ namespace Backend.Api.Api.Controllers
         public async Task<ActionResult<int>> Create([FromBody] CreateSalesDocumentDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
-            var id = await _service.CreateAsync(dto, ct);
+
+            // Extract userId from JWT claims
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out int userId))
+                return Unauthorized(new { error = "Invalid user authentication" });
+
+            var id = await _service.CreateAsync(dto, userId, ct);
             return CreatedAtAction(nameof(GetById), new { id }, id);
         }
 
@@ -79,7 +86,12 @@ namespace Backend.Api.Api.Controllers
             {
                 if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-                var result = await _service.FinalizePOSTransactionAsync(dto, ct);
+                // Extract userId from JWT claims
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!int.TryParse(userIdClaim, out int userId))
+                    return Unauthorized(new { error = "Invalid user authentication" });
+
+                var result = await _service.FinalizePOSTransactionAsync(dto, userId, ct);
                 return Ok(result);
             }
             catch (ArgumentException ex)
@@ -116,7 +128,12 @@ namespace Backend.Api.Api.Controllers
             {
                 if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-                var result = await _service.ProcessReturnAsync(dto, ct);
+                // Extract userId from JWT claims
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!int.TryParse(userIdClaim, out int userId))
+                    return Unauthorized(new { error = "Invalid user authentication" });
+
+                var result = await _service.ProcessReturnAsync(dto, userId, ct);
                 return Ok(result);
             }
             catch (ArgumentException ex)
