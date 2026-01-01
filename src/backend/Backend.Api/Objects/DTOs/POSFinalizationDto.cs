@@ -20,7 +20,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, MaxLength(128)]          public string ProductName       { get; set; } = default!;
         [Required, MaxLength(64)]           public string ProductSKU        { get; set; } = default!;
         [Required, Range(1, int.MaxValue)]  public int Quantity             { get; set; }
-        [Required]                          public decimal UnitPriceNet     { get; set; }
+        [Required]                          public decimal UnitGross        { get; set; }
         [Required]                          public int TaxRateId            { get; set; }
         [Required]                          public int FromLocationId       { get; set; } // REQUIRED for POS
     }

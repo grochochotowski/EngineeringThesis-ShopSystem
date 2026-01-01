@@ -92,9 +92,9 @@ namespace Backend.Api.Api.Services
                     throw new ArgumentException($"TaxRateId {i.TaxRateId} not found or inactive.", nameof(dto.Items));
 
                 var vat = taxRates[i.TaxRateId].Rate;
-                var lineNet = Round2(i.UnitPriceNet * i.Quantity);
-                var lineTax = Round2(lineNet * vat);
-                var lineGross = Round2(lineNet + lineTax);
+                var lineGross = Round2(i.UnitGross * i.Quantity);
+                var lineNet = Round2(lineGross / (1 + vat));
+                var lineTax = Round2(lineGross - lineNet);
 
                 doc.Items.Add(new SalesDocumentItem
                 {
@@ -102,7 +102,7 @@ namespace Backend.Api.Api.Services
                     ProductName = i.ProductName,
                     ProductSKU = i.ProductSKU,
                     Quantity = i.Quantity,
-                    UnitPriceNet = Round4(i.UnitPriceNet),
+                    UnitGross = Round4(i.UnitGross),
                     TaxRateId = i.TaxRateId,
                     FromLocationId = i.FromLocationId,
                     LineNet = lineNet,
@@ -174,7 +174,7 @@ namespace Backend.Api.Api.Services
                     ProductName = i.ProductName,
                     ProductSKU = i.ProductSKU,
                     Quantity = i.Quantity,
-                    UnitPriceNet = i.UnitPriceNet,
+                    UnitGross = i.UnitGross,
                     TaxRateId = i.TaxRateId,
                     TaxCode = i.TaxRate.Code,
                     LineNet = i.LineNet,
@@ -379,7 +379,7 @@ namespace Backend.Api.Api.Services
             {
                 // 1. Generate document number
                 var now = DateTimeOffset.Now;
-                var documentNumber = await GenerateDocumentNumberAsync(now.Year, ct);
+                var documentNumber = await GenerateDocumentNumberAsync(now.Year, false, ct);
 
                 // 2. Fetch and validate tax rates
                 var taxRateIds = dto.Items.Select(i => i.TaxRateId).Distinct().ToList();
@@ -437,9 +437,9 @@ namespace Backend.Api.Api.Services
                 foreach (var i in dto.Items)
                 {
                     var vat = taxRates[i.TaxRateId].Rate;
-                    var lineNet = Round2(i.UnitPriceNet * i.Quantity);
-                    var lineTax = Round2(lineNet * vat);
-                    var lineGross = Round2(lineNet + lineTax);
+                    var lineGross = Round2(i.UnitGross * i.Quantity);
+                    var lineNet = Round2(lineGross / (1 + vat));
+                    var lineTax = Round2(lineGross - lineNet);
 
                     doc.Items.Add(new SalesDocumentItem
                     {
@@ -447,7 +447,7 @@ namespace Backend.Api.Api.Services
                         ProductName = i.ProductName,
                         ProductSKU = i.ProductSKU,
                         Quantity = i.Quantity,
-                        UnitPriceNet = Round4(i.UnitPriceNet),
+                        UnitGross = Round4(i.UnitGross),
                         TaxRateId = i.TaxRateId,
                         FromLocationId = i.FromLocationId,
                         LineNet = lineNet,
@@ -589,7 +589,7 @@ namespace Backend.Api.Api.Services
 
                 // 3. Generate return document number
                 var now = DateTimeOffset.Now;
-                var documentNumber = await GenerateDocumentNumberAsync(now.Year, ct);
+                var documentNumber = await GenerateDocumentNumberAsync(now.Year, true, ct);
 
                 // 4. Determine return document type based on original
                 var returnDocType = originalDoc.DocumentType switch
@@ -632,19 +632,13 @@ namespace Backend.Api.Api.Services
                 {
                     var vat = taxRates[returnItem.TaxRateId].Rate;
 
-                    // IMPORTANT: Use NEGATIVE quantity for returns
-                    var negativeQuantity = -returnItem.ReturnQuantity;
-                    var lineNet = Round2(returnItem.UnitPriceNet * negativeQuantity);
-                    var lineTax = Round2(lineNet * vat);
-                    var lineGross = Round2(lineNet + lineTax);
-
                     // Create separate line items for each location
                     foreach (var location in returnItem.Locations)
                     {
                         var locationNegativeQty = -location.Quantity;
-                        var locationLineNet = Round2(returnItem.UnitPriceNet * locationNegativeQty);
-                        var locationLineTax = Round2(locationLineNet * vat);
-                        var locationLineGross = Round2(locationLineNet + locationLineTax);
+                        var locationLineGross = Round2(returnItem.UnitGross * locationNegativeQty);
+                        var locationLineNet = Round2(locationLineGross / (1 + vat));
+                        var locationLineTax = Round2(locationLineGross - locationLineNet);
 
                         returnDoc.Items.Add(new SalesDocumentItem
                         {
@@ -652,7 +646,7 @@ namespace Backend.Api.Api.Services
                             ProductName = returnItem.ProductName,
                             ProductSKU = returnItem.ProductSKU,
                             Quantity = locationNegativeQty, // NEGATIVE
-                            UnitPriceNet = Round4(returnItem.UnitPriceNet),
+                            UnitGross = Round4(returnItem.UnitGross),
                             TaxRateId = returnItem.TaxRateId,
                             FromLocationId = location.ToLocationId, // Where product is being returned TO
                             LineNet = locationLineNet,
@@ -717,14 +711,44 @@ namespace Backend.Api.Api.Services
                     }
                 }
 
-                // 10. Save return document
+                // 10. Update original document quantities (reduce by returned amount)
+                foreach (var returnItem in dto.Items)
+                {
+                    var originalItem = originalDoc.Items.FirstOrDefault(i => i.Id == returnItem.OriginalItemId);
+                    if (originalItem != null)
+                    {
+                        // Reduce quantity by returned amount
+                        originalItem.Quantity -= returnItem.ReturnQuantity;
+
+                        // Recalculate line totals based on new quantity
+                        var vat = taxRates[returnItem.TaxRateId].Rate;
+                        var lineGross = Round2(originalItem.UnitGross * originalItem.Quantity);
+                        var lineNet = Round2(lineGross / (1 + vat));
+                        var lineTax = Round2(lineGross - lineNet);
+
+                        originalItem.LineNet = lineNet;
+                        originalItem.LineTax = lineTax;
+                        originalItem.LineGross = lineGross;
+                    }
+                }
+
+                // Recalculate original document totals
+                originalDoc.TotalNet = Round2(originalDoc.Items.Sum(i => i.LineNet));
+                originalDoc.TotalTax = Round2(originalDoc.Items.Sum(i => i.LineTax));
+                originalDoc.TotalGross = Round2(originalDoc.Items.Sum(i => i.LineGross));
+
+                // Note: Payments will no longer match totals after partial returns
+                // This is expected - the original payment was for the full amount
+                _db.SalesDocuments.Update(originalDoc);
+
+                // 11. Save return document
                 _db.SalesDocuments.Add(returnDoc);
                 await _db.SaveChangesAsync(ct);
 
-                // 11. Commit transaction
+                // 12. Commit transaction
                 await transaction.CommitAsync(ct);
 
-                // 12. Return response
+                // 13. Return response
                 return new POSReturnResponseDto
                 {
                     ReturnDocumentId = returnDoc.Id,
@@ -777,7 +801,7 @@ namespace Backend.Api.Api.Services
                     ProductName = i.ProductName,
                     ProductSKU = i.ProductSKU,
                     Quantity = i.Quantity,
-                    UnitPriceNet = i.UnitPriceNet,
+                    UnitGross = i.UnitGross,
                     TaxRateId = i.TaxRateId,
                     TaxCode = i.TaxRate.Code,
                     LineNet = i.LineNet,
@@ -799,16 +823,18 @@ namespace Backend.Api.Api.Services
         }
 
         // --- GENERATE DOCUMENT NUMBER ---
-        private async Task<string> GenerateDocumentNumberAsync(int year, CancellationToken ct = default)
+        private async Task<string> GenerateDocumentNumberAsync(int year, bool isReturn = false, CancellationToken ct = default)
         {
-            // Format: S1C1/YYYY/Yno
+            // Format: S1C1/YYYY/XXXX for sales
+            // Format: S1C1/YYYY/RR/XXXX for returns (separate sequence)
             // S1C1 = Fixed prefix (Store 1, Cash register 1)
             // YYYY = Current year
-            // Yno = Sequential number for this year
+            // RR = Return indicator (only for returns)
+            // XXXX = Sequential number for this year (separate for sales and returns)
 
-            var prefix = $"S1C1/{year}/";
+            var prefix = isReturn ? $"S1C1/{year}/RR/" : $"S1C1/{year}/";
 
-            // Get ALL document numbers for this year to find gaps and the highest number
+            // Get ALL document numbers for this year and type to find gaps and the highest number
             var existingNumbers = await _db.SalesDocuments
                 .Where(d => d.DocumentNumber.StartsWith(prefix))
                 .Select(d => d.DocumentNumber)
@@ -818,7 +844,10 @@ namespace Backend.Api.Api.Services
             var usedNumbers = existingNumbers
                 .Select(docNum => {
                     var parts = docNum.Split('/');
-                    if (parts.Length == 3 && int.TryParse(parts[2], out int num))
+                    int expectedLength = isReturn ? 4 : 3;
+                    int numberIndex = isReturn ? 3 : 2;
+
+                    if (parts.Length == expectedLength && int.TryParse(parts[numberIndex], out int num))
                         return num;
                     return 0;
                 })
@@ -843,15 +872,23 @@ namespace Backend.Api.Api.Services
         // --- HELPER: Extract year and sequence number from document number ---
         private static (int year, int sequenceNumber) ExtractDocumentNumberParts(string documentNumber)
         {
-            // Format: S1C1/YYYY/SequenceNumber
-            // Example: S1C1/2025/0013 or S1C1/2025/13 (old format)
+            // Format: S1C1/YYYY/XXXX (sales)
+            // Format: S1C1/YYYY/RR/XXXX (returns)
             try
             {
                 var parts = documentNumber.Split('/');
                 if (parts.Length == 3)
                 {
+                    // Sales document: S1C1/YYYY/XXXX
                     var year = int.TryParse(parts[1], out var y) ? y : 0;
                     var seqNum = int.TryParse(parts[2], out var s) ? s : 0;
+                    return (year, seqNum);
+                }
+                else if (parts.Length == 4 && parts[2] == "RR")
+                {
+                    // Return document: S1C1/YYYY/RR/XXXX
+                    var year = int.TryParse(parts[1], out var y) ? y : 0;
+                    var seqNum = int.TryParse(parts[3], out var s) ? s : 0;
                     return (year, seqNum);
                 }
             }
