@@ -1,6 +1,7 @@
 ﻿using Backend.Api.Objects.DTOs;
 using Backend.Api.Objects.Entities;
 using Backend.Api.Objects.Entities.Models;
+using Backend.Api.Objects.Entities.Models.Relations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Api.Services
@@ -9,7 +10,9 @@ namespace Backend.Api.Api.Services
     {
         Task<int> CreateAsync(CreateSalesDocumentDto dto, CancellationToken ct = default);
         Task<POSFinalizationResponseDto> FinalizePOSTransactionAsync(POSFinalizationDto dto, CancellationToken ct = default);
+        Task<POSReturnResponseDto> ProcessReturnAsync(POSReturnDto dto, CancellationToken ct = default);
         Task<GetSalesDocumentDto?> GetByIdAsync(int id, CancellationToken ct = default);
+        Task<GetSalesDocumentDto?> GetByDocumentNumberAsync(string documentNumber, CancellationToken ct = default);
         Task<PagedResult<GetSalesDocumentListItemDto>> GetAllAsync(
             SalesDocumentType? type = null,
             int? clientId = null,
@@ -537,6 +540,262 @@ namespace Backend.Api.Api.Services
                 await transaction.RollbackAsync(ct);
                 throw;
             }
+        }
+
+        // --- PROCESS RETURN ---
+        public async Task<POSReturnResponseDto> ProcessReturnAsync(POSReturnDto dto, CancellationToken ct = default)
+        {
+            // Validations
+            if (string.IsNullOrWhiteSpace(dto.OriginalDocumentNumber))
+                throw new ArgumentException("Original document number is required.", nameof(dto.OriginalDocumentNumber));
+
+            if (dto.Items is null || dto.Items.Count == 0)
+                throw new ArgumentException("Return must contain at least one item.", nameof(dto.Items));
+
+            // Start database transaction for atomicity
+            using var transaction = await _db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                // 1. Find original document by document number
+                var originalDoc = await _db.SalesDocuments
+                    .Include(d => d.Items)
+                    .Include(d => d.Client)
+                    .FirstOrDefaultAsync(d => d.DocumentNumber == dto.OriginalDocumentNumber.Trim(), ct);
+
+                if (originalDoc == null)
+                    throw new InvalidOperationException($"Original document '{dto.OriginalDocumentNumber}' not found.");
+
+                // Verify original document is not already a return
+                if (originalDoc.DocumentType == SalesDocumentType.ReturnReceipt ||
+                    originalDoc.DocumentType == SalesDocumentType.ReturnInvoice)
+                    throw new InvalidOperationException("Cannot return a return document.");
+
+                // 2. Validate return items exist in original document
+                foreach (var returnItem in dto.Items)
+                {
+                    var originalItem = originalDoc.Items.FirstOrDefault(i => i.Id == returnItem.OriginalItemId);
+                    if (originalItem == null)
+                        throw new ArgumentException($"Item with ID {returnItem.OriginalItemId} not found in original document.", nameof(dto.Items));
+
+                    // Validate return quantity doesn't exceed original quantity
+                    if (returnItem.ReturnQuantity > originalItem.Quantity)
+                        throw new InvalidOperationException($"Cannot return {returnItem.ReturnQuantity} units of '{returnItem.ProductName}'. Original quantity: {originalItem.Quantity}");
+
+                    // Validate location quantities sum matches return quantity
+                    var totalLocationQty = returnItem.Locations.Sum(l => l.Quantity);
+                    if (totalLocationQty != returnItem.ReturnQuantity)
+                        throw new ArgumentException($"Sum of location quantities ({totalLocationQty}) must equal return quantity ({returnItem.ReturnQuantity}) for '{returnItem.ProductName}'.", nameof(dto.Items));
+                }
+
+                // 3. Generate return document number
+                var now = DateTimeOffset.Now;
+                var documentNumber = await GenerateDocumentNumberAsync(now.Year, ct);
+
+                // 4. Determine return document type based on original
+                var returnDocType = originalDoc.DocumentType switch
+                {
+                    SalesDocumentType.Receipt => SalesDocumentType.ReturnReceipt,
+                    SalesDocumentType.InvoicePersonal => SalesDocumentType.ReturnInvoice,
+                    SalesDocumentType.InvoiceCompany => SalesDocumentType.ReturnInvoice,
+                    _ => throw new InvalidOperationException($"Cannot create return for document type: {originalDoc.DocumentType}")
+                };
+
+                // 5. Fetch tax rates
+                var taxRateIds = dto.Items.Select(i => i.TaxRateId).Distinct().ToList();
+                var taxRates = await _db.TaxRates
+                    .Where(t => taxRateIds.Contains(t.Id) && t.IsActive)
+                    .ToDictionaryAsync(t => t.Id, ct);
+
+                foreach (var item in dto.Items)
+                {
+                    if (!taxRates.ContainsKey(item.TaxRateId))
+                        throw new ArgumentException($"TaxRateId {item.TaxRateId} not found or inactive.", nameof(dto.Items));
+                }
+
+                // 6. Create return document
+                var returnDoc = new SalesDocument
+                {
+                    DocumentType = returnDocType,
+                    IssueDate = now,
+                    DocumentNumber = documentNumber,
+                    ClientId = originalDoc.ClientId,
+                    OriginalDocumentId = originalDoc.Id,
+                    Description = $"Return of ##{originalDoc.DocumentNumber}##",
+                    Items = new List<SalesDocumentItem>(),
+                    Payments = new List<SalesPayment>()
+                };
+
+                // 7. Calculate totals and create line items with NEGATIVE quantities
+                decimal totalNet = 0m, totalTax = 0m, totalGross = 0m;
+
+                foreach (var returnItem in dto.Items)
+                {
+                    var vat = taxRates[returnItem.TaxRateId].Rate;
+
+                    // IMPORTANT: Use NEGATIVE quantity for returns
+                    var negativeQuantity = -returnItem.ReturnQuantity;
+                    var lineNet = Round2(returnItem.UnitPriceNet * negativeQuantity);
+                    var lineTax = Round2(lineNet * vat);
+                    var lineGross = Round2(lineNet + lineTax);
+
+                    // Create separate line items for each location
+                    foreach (var location in returnItem.Locations)
+                    {
+                        var locationNegativeQty = -location.Quantity;
+                        var locationLineNet = Round2(returnItem.UnitPriceNet * locationNegativeQty);
+                        var locationLineTax = Round2(locationLineNet * vat);
+                        var locationLineGross = Round2(locationLineNet + locationLineTax);
+
+                        returnDoc.Items.Add(new SalesDocumentItem
+                        {
+                            ProductId = returnItem.ProductId,
+                            ProductName = returnItem.ProductName,
+                            ProductSKU = returnItem.ProductSKU,
+                            Quantity = locationNegativeQty, // NEGATIVE
+                            UnitPriceNet = Round4(returnItem.UnitPriceNet),
+                            TaxRateId = returnItem.TaxRateId,
+                            FromLocationId = location.ToLocationId, // Where product is being returned TO
+                            LineNet = locationLineNet,
+                            LineTax = locationLineTax,
+                            LineGross = locationLineGross
+                        });
+
+                        totalNet += locationLineNet;
+                        totalTax += locationLineTax;
+                        totalGross += locationLineGross;
+                    }
+                }
+
+                returnDoc.TotalNet = Round2(totalNet);
+                returnDoc.TotalTax = Round2(totalTax);
+                returnDoc.TotalGross = Round2(totalGross); // Will be negative
+
+                // 8. Create refund payment record with NEGATIVE amount
+                var refundAmount = Math.Abs(returnDoc.TotalGross);
+                returnDoc.Payments.Add(new SalesPayment
+                {
+                    PaymentOption = dto.RefundMethod,
+                    Amount = returnDoc.TotalGross, // NEGATIVE (refund)
+                    AmountTendered = null,
+                    Change = null
+                });
+
+                // 9. Add returned products back to inventory at specified locations
+                foreach (var returnItem in dto.Items)
+                {
+                    foreach (var location in returnItem.Locations)
+                    {
+                        var inventory = await _db.ProductsInWarehouse
+                            .FirstOrDefaultAsync(pw => pw.ProductId == returnItem.ProductId && pw.LocationId == location.ToLocationId, ct);
+
+                        if (inventory != null)
+                        {
+                            // Location exists - add to existing quantity
+                            inventory.Quantity += location.Quantity;
+                            _db.ProductsInWarehouse.Update(inventory);
+                        }
+                        else
+                        {
+                            // Location doesn't exist - create new entry
+                            _db.ProductsInWarehouse.Add(new ProductsInWarehouse
+                            {
+                                ProductId = returnItem.ProductId,
+                                LocationId = location.ToLocationId,
+                                Quantity = location.Quantity
+                            });
+                        }
+
+                        // Log inventory change for this return (positive quantity for addition)
+                        await _inventoryChangeService.LogInventoryChangeAsync(
+                            changeType: Objects.Entities.Enums.InventoryChangeType.Return,
+                            productId: returnItem.ProductId,
+                            quantity: location.Quantity, // POSITIVE for return
+                            fromLocationId: null,
+                            toLocationId: location.ToLocationId,
+                            userId: dto.UserId,
+                            ct: ct);
+                    }
+                }
+
+                // 10. Save return document
+                _db.SalesDocuments.Add(returnDoc);
+                await _db.SaveChangesAsync(ct);
+
+                // 11. Commit transaction
+                await transaction.CommitAsync(ct);
+
+                // 12. Return response
+                return new POSReturnResponseDto
+                {
+                    ReturnDocumentId = returnDoc.Id,
+                    ReturnDocumentNumber = returnDoc.DocumentNumber,
+                    IssueDate = returnDoc.IssueDate,
+                    TotalNet = returnDoc.TotalNet,
+                    TotalTax = returnDoc.TotalTax,
+                    TotalGross = returnDoc.TotalGross,
+                    RefundAmount = refundAmount
+                };
+            }
+            catch
+            {
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
+        }
+
+        // --- GET DOCUMENT BY DOCUMENT NUMBER ---
+        public async Task<GetSalesDocumentDto?> GetByDocumentNumberAsync(string documentNumber, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(documentNumber))
+                return null;
+
+            var doc = await _db.SalesDocuments
+                .AsNoTracking()
+                .Include(d => d.Items).ThenInclude(i => i.TaxRate)
+                .Include(d => d.Items).ThenInclude(i => i.FromLocation)
+                .Include(d => d.Payments)
+                .FirstOrDefaultAsync(d => d.DocumentNumber == documentNumber.Trim(), ct);
+
+            if (doc is null) return null;
+
+            return new GetSalesDocumentDto
+            {
+                Id = doc.Id,
+                DocumentType = doc.DocumentType,
+                IssueDate = doc.IssueDate,
+                Description = doc.Description,
+                DocumentNumber = doc.DocumentNumber,
+                ClientId = doc.ClientId,
+                TotalNet = doc.TotalNet,
+                TotalTax = doc.TotalTax,
+                TotalGross = doc.TotalGross,
+                Items = doc.Items.Select(i => new GetSalesDocumentItemDto
+                {
+                    Id = i.Id,
+                    SalesDocumentId = i.SalesDocumentId,
+                    ProductId = i.ProductId,
+                    ProductName = i.ProductName,
+                    ProductSKU = i.ProductSKU,
+                    Quantity = i.Quantity,
+                    UnitPriceNet = i.UnitPriceNet,
+                    TaxRateId = i.TaxRateId,
+                    TaxCode = i.TaxRate.Code,
+                    LineNet = i.LineNet,
+                    LineTax = i.LineTax,
+                    LineGross = i.LineGross,
+                    FromLocationId = i.FromLocationId,
+                    FromLocationCode = i.FromLocation?.LocationCode
+                }).ToList(),
+                Payments = doc.Payments.Select(p => new GetSalesPaymentDto
+                {
+                    Id = p.Id,
+                    SalesDocumentId = p.SalesDocumentId,
+                    PaymentOption = p.PaymentOption,
+                    Amount = p.Amount,
+                    AmountTendered = p.AmountTendered,
+                    Change = p.Change
+                }).ToList()
+            };
         }
 
         // --- GENERATE DOCUMENT NUMBER ---

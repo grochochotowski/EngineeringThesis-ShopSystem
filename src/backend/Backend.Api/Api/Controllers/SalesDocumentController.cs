@@ -104,5 +104,50 @@ namespace Backend.Api.Api.Controllers
                 });
             }
         }
+
+        // --- PROCESS RETURN ---
+        [HttpPost("process-return")]
+        [Authorize(Roles = "Cashier,ShopAssistant,DeputyManager,Manager,SeniorManager,Director,Administrator,Root")]
+        public async Task<ActionResult<POSReturnResponseDto>> ProcessReturn(
+            [FromBody] POSReturnDto dto,
+            CancellationToken ct)
+        {
+            try
+            {
+                if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+                var result = await _service.ProcessReturnAsync(dto, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing return: {Message}", ex.Message);
+                var innerMsg = ex.InnerException?.Message ?? "";
+                return StatusCode(500, new {
+                    error = "An unexpected error occurred during return processing.",
+                    details = ex.Message,
+                    innerException = innerMsg
+                });
+            }
+        }
+
+        // --- GET SALES DOCUMENT BY DOCUMENT NUMBER ---
+        [HttpGet("by-number")]
+        public async Task<ActionResult<GetSalesDocumentDto>> GetByDocumentNumber([FromQuery] string documentNumber, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(documentNumber))
+                return BadRequest(new { error = "Document number is required" });
+
+            var dto = await _service.GetByDocumentNumberAsync(documentNumber, ct);
+            return dto is null ? NotFound() : Ok(dto);
+        }
     }
 }
