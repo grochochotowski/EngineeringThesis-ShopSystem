@@ -490,6 +490,9 @@ namespace Backend.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ClientId");
@@ -498,6 +501,8 @@ namespace Backend.Api.Migrations
                         .IsUnique();
 
                     b.HasIndex("OriginalDocumentId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("SalesDocuments");
                 });
@@ -972,9 +977,17 @@ namespace Backend.Api.Migrations
                         .WithMany()
                         .HasForeignKey("OriginalDocumentId");
 
+                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Client");
 
                     b.Navigation("OriginalDocument");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>

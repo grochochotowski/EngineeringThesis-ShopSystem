@@ -12,6 +12,10 @@ namespace Backend.Api.Objects.DTOs
                                         public string? Description                          { get; set; }
                                         public string DocumentNumber                        { get; set; } = default!;
                                         public int? ClientId                                { get; set; }
+                                        public int? OriginalDocumentId                      { get; set; }
+                                        public string? OriginalDocumentNumber               { get; set; }
+                                        public int UserId                                   { get; set; }
+                                        public string UserName                              { get; set; } = default!;
                                         public decimal TotalNet                             { get; set; }
                                         public decimal TotalTax                             { get; set; }
                                         public decimal TotalGross                           { get; set; }
@@ -27,6 +31,8 @@ namespace Backend.Api.Objects.DTOs
                                         public DateTimeOffset IssueDate                     { get; set; }
                                         public string DocumentNumber                        { get; set; } = default!;
                                         public int? ClientId                                { get; set; }
+                                        public int UserId                                   { get; set; }
+                                        public string UserName                              { get; set; } = default!;
                                         public decimal TotalNet                             { get; set; }
                                         public decimal TotalTax                             { get; set; }
                                         public decimal TotalGross                           { get; set; }

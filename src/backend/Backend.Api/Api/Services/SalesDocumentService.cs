@@ -151,6 +151,8 @@ namespace Backend.Api.Api.Services
                 .Include(d => d.Items).ThenInclude(i => i.TaxRate)
                 .Include(d => d.Items).ThenInclude(i => i.FromLocation)
                 .Include(d => d.Payments)
+                .Include(d => d.User)
+                .Include(d => d.OriginalDocument)
                 .FirstOrDefaultAsync(d => d.Id == id, ct);
 
             if (doc is null) return null;
@@ -163,6 +165,10 @@ namespace Backend.Api.Api.Services
                 Description = doc.Description,
                 DocumentNumber = doc.DocumentNumber,
                 ClientId = doc.ClientId,
+                OriginalDocumentId = doc.OriginalDocumentId,
+                OriginalDocumentNumber = doc.OriginalDocument?.DocumentNumber,
+                UserId = doc.UserId,
+                UserName = doc.User.FirstName + " " + doc.User.LastName,
                 TotalNet = doc.TotalNet,
                 TotalTax = doc.TotalTax,
                 TotalGross = doc.TotalGross,
@@ -216,6 +222,7 @@ namespace Backend.Api.Api.Services
                 .AsNoTracking()
                 .Include(d => d.Items)
                 .Include(d => d.Payments)
+                .Include(d => d.User)
                 .AsQueryable();
 
             if (type.HasValue)
@@ -265,6 +272,8 @@ namespace Backend.Api.Api.Services
                 IssueDate = d.IssueDate,
                 DocumentNumber = d.DocumentNumber,
                 ClientId = d.ClientId,
+                UserId = d.UserId,
+                UserName = d.User.FirstName + " " + d.User.LastName,
                 TotalNet = d.TotalNet,
                 TotalTax = d.TotalTax,
                 TotalGross = d.TotalGross,
@@ -423,6 +432,7 @@ namespace Backend.Api.Api.Services
                     IssueDate = now,
                     DocumentNumber = documentNumber,
                     ClientId = dto.ClientId,
+                    UserId = dto.UserId,
                     Items = new List<SalesDocumentItem>(),
                     Payments = new List<SalesPayment>()
                 };
@@ -620,6 +630,7 @@ namespace Backend.Api.Api.Services
                     DocumentNumber = documentNumber,
                     ClientId = originalDoc.ClientId,
                     OriginalDocumentId = originalDoc.Id,
+                    UserId = dto.UserId,
                     Description = $"Return of ##{originalDoc.DocumentNumber}##",
                     Items = new List<SalesDocumentItem>(),
                     Payments = new List<SalesPayment>()
@@ -778,6 +789,8 @@ namespace Backend.Api.Api.Services
                 .Include(d => d.Items).ThenInclude(i => i.TaxRate)
                 .Include(d => d.Items).ThenInclude(i => i.FromLocation)
                 .Include(d => d.Payments)
+                .Include(d => d.User)
+                .Include(d => d.OriginalDocument)
                 .FirstOrDefaultAsync(d => d.DocumentNumber == documentNumber.Trim(), ct);
 
             if (doc is null) return null;
@@ -790,6 +803,10 @@ namespace Backend.Api.Api.Services
                 Description = doc.Description,
                 DocumentNumber = doc.DocumentNumber,
                 ClientId = doc.ClientId,
+                OriginalDocumentId = doc.OriginalDocumentId,
+                OriginalDocumentNumber = doc.OriginalDocument?.DocumentNumber,
+                UserId = doc.UserId,
+                UserName = doc.User.FirstName + " " + doc.User.LastName,
                 TotalNet = doc.TotalNet,
                 TotalTax = doc.TotalTax,
                 TotalGross = doc.TotalGross,
