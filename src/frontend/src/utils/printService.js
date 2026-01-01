@@ -123,7 +123,7 @@ export async function printSalesDocumentPDF(documentData, formatters) {
                       ${item.fromLocationCode ? `<span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 3px; font-size: 7px; font-weight: 600; font-family: 'Courier New', monospace; border: 1px solid #cbd5e1;">${item.fromLocationCode}</span>` : `<span style="color: #cbd5e1; font-style: italic;">—</span>`}
                     </td>
                     <td style="padding: 5px 8px; text-align: center; font-weight: 600;">${item.quantity}</td>
-                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">$${item.unitPriceNet.toFixed(2)}</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace;">$${item.unitGross.toFixed(2)}</td>
                     <td style="padding: 5px 8px; font-size: 8px; color: #64748b; text-align: center;">
                       ${item.taxCode ? (() => {
                         const match = item.taxCode.match(/\d+/);

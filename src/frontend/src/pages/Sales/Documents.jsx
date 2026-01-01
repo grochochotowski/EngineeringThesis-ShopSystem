@@ -688,7 +688,7 @@ export default function SalesDocuments() {
                                                 <th>SKU</th>
                                                 <th>Location</th>
                                                 <th>Qty</th>
-                                                <th>Unit Price (Net)</th>
+                                                <th>Unit Price (Gross)</th>
                                                 <th>Tax Rate</th>
                                                 <th>Line Net</th>
                                                 <th>Line Tax</th>
@@ -708,7 +708,7 @@ export default function SalesDocuments() {
                                                         )}
                                                     </td>
                                                     <td className="quantity">{item.quantity}</td>
-                                                    <td className="price">${item.unitPriceNet.toFixed(2)}</td>
+                                                    <td className="price">${item.unitGross.toFixed(2)}</td>
                                                     <td className="tax-rate">
                                                         {item.taxCode ? (
                                                             (() => {
