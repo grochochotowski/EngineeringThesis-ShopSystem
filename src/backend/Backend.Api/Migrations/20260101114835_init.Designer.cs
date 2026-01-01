@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251229142947_EAN-init")]
-    partial class EANinit
+    [Migration("20260101114835_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -152,6 +152,70 @@ namespace Backend.Api.Migrations
                         .HasFilter("[TaxId] IS NOT NULL");
 
                     b.ToTable("Clients");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.InventoryChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int?>("FromLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductEan")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductSku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int?>("ToLocationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeType");
+
+                    b.HasIndex("FromLocationId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("ToLocationId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("InventoryChanges", t =>
+                        {
+                            t.HasCheckConstraint("CK_InventoryChange_Location_Required", "[FromLocationId] IS NOT NULL OR [ToLocationId] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_InventoryChange_Qty_NonZero", "[Quantity] != 0");
+                        });
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Location", b =>
@@ -414,6 +478,9 @@ namespace Backend.Api.Migrations
                     b.Property<DateTimeOffset>("IssueDate")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int?>("OriginalDocumentId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("TotalGross")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -433,10 +500,9 @@ namespace Backend.Api.Migrations
                     b.HasIndex("DocumentNumber")
                         .IsUnique();
 
-                    b.ToTable("SalesDocuments", t =>
-                        {
-                            t.HasCheckConstraint("CK_SalesDocument_PositiveTotals", "[TotalNet] >= 0 AND [TotalTax] >= 0 AND [TotalGross] >= 0");
-                        });
+                    b.HasIndex("OriginalDocumentId");
+
+                    b.ToTable("SalesDocuments");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>
@@ -498,12 +564,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("TaxRateId");
 
-                    b.ToTable("SalesDocumentItems", t =>
-                        {
-                            t.HasCheckConstraint("CK_SalesItem_Line_Positive", "[LineNet] >= 0 AND [LineTax] >= 0 AND [LineGross] >= 0");
-
-                            t.HasCheckConstraint("CK_SalesItem_Qty_Positive", "[Quantity] >= 1");
-                        });
+                    b.ToTable("SalesDocumentItems");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesPayment", b =>
@@ -536,14 +597,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("SalesDocumentId");
 
-                    b.ToTable("SalesPayments", t =>
-                        {
-                            t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
-
-                            t.HasCheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
-
-                            t.HasCheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
-                        });
+                    b.ToTable("SalesPayments");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Shipment", b =>
@@ -775,6 +829,39 @@ namespace Backend.Api.Migrations
                     b.Navigation("Address");
                 });
 
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.InventoryChange", b =>
+                {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "FromLocation")
+                        .WithMany()
+                        .HasForeignKey("FromLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Location", "ToLocation")
+                        .WithMany()
+                        .HasForeignKey("ToLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromLocation");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ToLocation");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Product", b =>
                 {
                     b.HasOne("Backend.Api.Objects.Entities.Models.Category", "Category")
@@ -884,7 +971,13 @@ namespace Backend.Api.Migrations
                         .HasForeignKey("ClientId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Backend.Api.Objects.Entities.Models.SalesDocument", "OriginalDocument")
+                        .WithMany()
+                        .HasForeignKey("OriginalDocumentId");
+
                     b.Navigation("Client");
+
+                    b.Navigation("OriginalDocument");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>

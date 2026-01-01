@@ -8,7 +8,7 @@
         // --- Basic fields ---
         public string ProductName   { get; set; } = default!;
         public string ProductSKU    { get; set; } = default!;
-        public decimal UnitPriceNet { get; set; }
+        public decimal UnitGross    { get; set; } // Unit price including tax
         public decimal LineNet      { get; set; }
         public decimal LineTax      { get; set; }
         public decimal LineGross    { get; set; }

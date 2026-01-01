@@ -499,10 +499,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("OriginalDocumentId");
 
-                    b.ToTable("SalesDocuments", t =>
-                        {
-                            t.HasCheckConstraint("CK_SalesDocument_PositiveTotals", "[TotalNet] >= 0 AND [TotalTax] >= 0 AND [TotalGross] >= 0");
-                        });
+                    b.ToTable("SalesDocuments");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>
@@ -550,7 +547,7 @@ namespace Backend.Api.Migrations
                     b.Property<int>("TaxRateId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("UnitPriceNet")
+                    b.Property<decimal>("UnitGross")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
@@ -564,12 +561,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("TaxRateId");
 
-                    b.ToTable("SalesDocumentItems", t =>
-                        {
-                            t.HasCheckConstraint("CK_SalesItem_Line_Positive", "[LineNet] >= 0 AND [LineTax] >= 0 AND [LineGross] >= 0");
-
-                            t.HasCheckConstraint("CK_SalesItem_Qty_Positive", "[Quantity] >= 1");
-                        });
+                    b.ToTable("SalesDocumentItems");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesPayment", b =>
@@ -602,14 +594,7 @@ namespace Backend.Api.Migrations
 
                     b.HasIndex("SalesDocumentId");
 
-                    b.ToTable("SalesPayments", t =>
-                        {
-                            t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
-
-                            t.HasCheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
-
-                            t.HasCheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
-                        });
+                    b.ToTable("SalesPayments");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Shipment", b =>

@@ -448,10 +448,11 @@ namespace Backend.Api.Infrastructure
                 {
                     // random quantity
                     var qty = _rand.Next(1, 3);
-                    // calculate line values
-                    var lineNet = p.Price * qty;
-                    var lineTax = Math.Round(lineNet * 0.23m, 2);
-                    var lineGross = lineNet + lineTax;
+                    // calculate line values (using gross pricing)
+                    var unitGross = Math.Round(p.Price * 1.23m, 4); // Price with 23% tax
+                    var lineGross = Math.Round(unitGross * qty, 2);
+                    var lineNet = Math.Round(lineGross / 1.23m, 2);
+                    var lineTax = Math.Round(lineGross - lineNet, 2);
 
                     // create item
                     _db.SalesDocumentItems.Add(new()
@@ -462,7 +463,7 @@ namespace Backend.Api.Infrastructure
                         ProductName = p.Name,
                         ProductSKU = p.SKU,
                         Quantity = qty,
-                        UnitPriceNet = p.Price,
+                        UnitGross = unitGross,
                         LineNet = lineNet,
                         LineTax = lineTax,
                         LineGross = lineGross

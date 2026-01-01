@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Backend.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class EANinit : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -224,18 +224,23 @@ namespace Backend.Api.Migrations
                     TotalNet = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalTax = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalGross = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    ClientId = table.Column<int>(type: "int", nullable: true)
+                    ClientId = table.Column<int>(type: "int", nullable: true),
+                    OriginalDocumentId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SalesDocuments", x => x.Id);
-                    table.CheckConstraint("CK_SalesDocument_PositiveTotals", "[TotalNet] >= 0 AND [TotalTax] >= 0 AND [TotalGross] >= 0");
                     table.ForeignKey(
                         name: "FK_SalesDocuments_Clients_ClientId",
                         column: x => x.ClientId,
                         principalTable: "Clients",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_SalesDocuments_SalesDocuments_OriginalDocumentId",
+                        column: x => x.OriginalDocumentId,
+                        principalTable: "SalesDocuments",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -282,6 +287,53 @@ namespace Backend.Api.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "InventoryChanges",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ChangeType = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    ProductSku = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    ProductEan = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    FromLocationId = table.Column<int>(type: "int", nullable: true),
+                    ToLocationId = table.Column<int>(type: "int", nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InventoryChanges", x => x.Id);
+                    table.CheckConstraint("CK_InventoryChange_Location_Required", "[FromLocationId] IS NOT NULL OR [ToLocationId] IS NOT NULL");
+                    table.CheckConstraint("CK_InventoryChange_Qty_NonZero", "[Quantity] != 0");
+                    table.ForeignKey(
+                        name: "FK_InventoryChanges_Locations_FromLocationId",
+                        column: x => x.FromLocationId,
+                        principalTable: "Locations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_InventoryChanges_Locations_ToLocationId",
+                        column: x => x.ToLocationId,
+                        principalTable: "Locations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_InventoryChanges_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_InventoryChanges_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -402,8 +454,6 @@ namespace Backend.Api.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SalesDocumentItems", x => x.Id);
-                    table.CheckConstraint("CK_SalesItem_Line_Positive", "[LineNet] >= 0 AND [LineTax] >= 0 AND [LineGross] >= 0");
-                    table.CheckConstraint("CK_SalesItem_Qty_Positive", "[Quantity] >= 1");
                     table.ForeignKey(
                         name: "FK_SalesDocumentItems_Locations_FromLocationId",
                         column: x => x.FromLocationId,
@@ -444,9 +494,6 @@ namespace Backend.Api.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SalesPayments", x => x.Id);
-                    table.CheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
-                    table.CheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
-                    table.CheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
                     table.ForeignKey(
                         name: "FK_SalesPayments_SalesDocuments_SalesDocumentId",
                         column: x => x.SalesDocumentId,
@@ -491,6 +538,36 @@ namespace Backend.Api.Migrations
                 column: "TaxId",
                 unique: true,
                 filter: "[TaxId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryChanges_ChangeType",
+                table: "InventoryChanges",
+                column: "ChangeType");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryChanges_FromLocationId",
+                table: "InventoryChanges",
+                column: "FromLocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryChanges_ProductId",
+                table: "InventoryChanges",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryChanges_Timestamp",
+                table: "InventoryChanges",
+                column: "Timestamp");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryChanges_ToLocationId",
+                table: "InventoryChanges",
+                column: "ToLocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryChanges_UserId",
+                table: "InventoryChanges",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Locations_LocationCode",
@@ -560,6 +637,11 @@ namespace Backend.Api.Migrations
                 table: "SalesDocuments",
                 column: "DocumentNumber",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SalesDocuments_OriginalDocumentId",
+                table: "SalesDocuments",
+                column: "OriginalDocumentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SalesPayments_SalesDocumentId",
@@ -635,6 +717,9 @@ namespace Backend.Api.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "InventoryChanges");
+
             migrationBuilder.DropTable(
                 name: "ProductsInWarehouse");
 

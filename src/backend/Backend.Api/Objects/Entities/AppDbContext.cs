@@ -197,11 +197,7 @@ namespace Backend.Api.Objects.Entities
                  .HasForeignKey(x => x.ClientId)
                  .OnDelete(DeleteBehavior.SetNull);
 
-                b.ToTable(t =>
-                {
-                    t.HasCheckConstraint("CK_SalesDocument_PositiveTotals",
-                        "[TotalNet] >= 0 AND [TotalTax] >= 0 AND [TotalGross] >= 0");
-                });
+                // No table-level constraints (removed PositiveTotals constraint to allow negative totals for returns)
             });
 
             // sales document item
@@ -213,7 +209,7 @@ namespace Backend.Api.Objects.Entities
 
                 b.Property(x => x.ProductName).HasMaxLength(128);
                 b.Property(x => x.ProductSKU).HasMaxLength(64);
-                b.Property(x => x.UnitPriceNet).HasPrecision(18, 4);
+                b.Property(x => x.UnitGross).HasPrecision(18, 4);
                 b.Property(x => x.LineNet).HasPrecision(18, 2);
                 b.Property(x => x.LineTax).HasPrecision(18, 2);
                 b.Property(x => x.LineGross).HasPrecision(18, 2);
@@ -233,12 +229,7 @@ namespace Backend.Api.Objects.Entities
                  .HasForeignKey(x => x.TaxRateId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                b.ToTable(t =>
-                {
-                    t.HasCheckConstraint("CK_SalesItem_Qty_Positive", "[Quantity] >= 1");
-                    t.HasCheckConstraint("CK_SalesItem_Line_Positive",
-                        "[LineNet] >= 0 AND [LineTax] >= 0 AND [LineGross] >= 0");
-                });
+                // No table-level constraints (removed to allow negative values for returns)
             });
 
             // sales payment
@@ -255,12 +246,7 @@ namespace Backend.Api.Objects.Entities
                  .HasForeignKey(x => x.SalesDocumentId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                b.ToTable(t =>
-                {
-                    t.HasCheckConstraint("CK_SalesPayment_Amount_Positive", "[Amount] >= 0");
-                    t.HasCheckConstraint("CK_SalesPayment_AmountTendered_NonNegative", "[AmountTendered] IS NULL OR [AmountTendered] >= 0");
-                    t.HasCheckConstraint("CK_SalesPayment_Change_NonNegative", "[Change] IS NULL OR [Change] >= 0");
-                });
+                // No table-level constraints (removed to allow negative amounts for refunds)
             });
 
             // shipment
