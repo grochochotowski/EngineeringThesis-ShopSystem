@@ -67,7 +67,7 @@ export async function apiRequest(path, method = "GET", body = null, params = {})
             const message =
                 typeof data === "string"
                     ? data
-                    : data?.message || `Request failed (${response.status})`;
+                    : data?.error || data?.message || data?.title || `Request failed (${response.status})`;
             const error = new Error(`API error ${response.status}: ${message}`);
             error.response = { status: response.status, data };
             throw error;

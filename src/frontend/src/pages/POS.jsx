@@ -82,6 +82,7 @@ export default function POS() {
   const [returnLocationLines, setReturnLocationLines] = useState({}); // Map of itemId -> array of { locationId, quantity }
   const [refundMethod, setRefundMethod] = useState(null);
   const [availableLocationsForReturn, setAvailableLocationsForReturn] = useState(new Map()); // Map of productId -> available locations
+  const [allWarehouseLocations, setAllWarehouseLocations] = useState([]); // All warehouse locations for returns
 
   // Confirmation dialogs
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
@@ -100,6 +101,7 @@ export default function POS() {
     const fetchTaxRates = async () => {
       try {
         const items = await api.get('/TaxRate');
+        console.log('Loaded tax rates:', items);
 
         const taxMap = new Map();
         items.forEach(tax => {
@@ -110,12 +112,31 @@ export default function POS() {
 
           taxMap.set(taxId, { ...tax, id: taxId, rate: taxRateValue, code: taxCode });
         });
+        console.log('Tax rates Map:', Array.from(taxMap.entries()));
         setTaxRates(taxMap);
       } catch (error) {
         console.error('Failed to load tax rates:', error);
       }
     };
     fetchTaxRates();
+  }, []);
+
+  // Load all warehouse locations on mount (for returns)
+  useEffect(() => {
+    const fetchAllLocations = async () => {
+      try {
+        const response = await api.get('/Location', {
+          params: { PageSize: 1000 } // Get all locations (increase if needed)
+        });
+        // Location endpoint returns paged result with items array
+        const locations = response.items || response || [];
+        console.log('Loaded warehouse locations:', locations);
+        setAllWarehouseLocations(locations);
+      } catch (error) {
+        console.error('Failed to load warehouse locations:', error);
+      }
+    };
+    fetchAllLocations();
   }, []);
 
   // Product search with immediate results
@@ -187,6 +208,15 @@ export default function POS() {
         const taxRate = taxRates.get(product.taxRateId)?.rate || 0;
         const netPrice = grossPrice / (1 + taxRate);
         const taxAmount = grossPrice - netPrice;
+
+        console.log(`Adding product "${product.name}":`, {
+          grossPrice,
+          taxRateId: product.taxRateId,
+          taxRate,
+          taxRateFromMap: taxRates.get(product.taxRateId),
+          netPrice,
+          taxAmount
+        });
 
         setScannedProducts([...scannedProducts, {
           id: product.id,
@@ -277,9 +307,9 @@ export default function POS() {
 
   // Calculate line item totals (matches backend calculation exactly)
   const calculateLineTotal = useCallback((product) => {
-    const lineNet = round2(product.unitPriceNet * product.quantity);
-    const lineTax = round2(lineNet * product.taxRate);
-    const lineGross = round2(lineNet + lineTax);
+    const lineGross = round2(product.unitPriceGross * product.quantity);
+    const lineNet = round2(lineGross / (1 + product.taxRate));
+    const lineTax = round2(lineGross - lineNet);
     return { lineNet, lineTax, lineGross };
   }, [round2]);
 
@@ -299,11 +329,17 @@ export default function POS() {
       totalGross += lineGross;
     });
 
-    return {
+    const result = {
       totalNet: totalNet.toFixed(2),
       totalTax: totalTax.toFixed(2),
       totalGross: totalGross.toFixed(2)
     };
+
+    if (products.length > 0) {
+      console.log('Calculated totals:', result);
+    }
+
+    return result;
   }, [calculateLineTotal]);
 
   const totals = calculateTotals(scannedProducts);
@@ -842,7 +878,7 @@ export default function POS() {
             productName: product.name,
             productSKU: product.sku,
             quantity: line.quantity,
-            unitPriceNet: product.unitPriceNet,
+            unitGross: product.unitPriceGross,
             taxRateId: product.taxRateId,
             fromLocationId: line.locationId
           });
@@ -861,6 +897,8 @@ export default function POS() {
         })),
         userId: currentUser?.id || 0
       };
+
+      console.log('Finalization DTO:', JSON.stringify(finalizationDto, null, 2));
 
       // Call finalization endpoint
       const response = await api.post('/SalesDocument/finalize', finalizationDto);
@@ -905,10 +943,14 @@ export default function POS() {
     }
 
     try {
+      console.log('Searching for document:', saleDocumentNumber.trim());
+
       // Fetch document by document number (using query parameter)
       const fullDoc = await api.get('/SalesDocument/by-number', {
         params: { documentNumber: saleDocumentNumber.trim() }
       });
+
+      console.log('Received document:', fullDoc);
 
       if (!fullDoc) {
         setToast({ type: 'error', message: 'Sale document not found' });
@@ -934,31 +976,45 @@ export default function POS() {
 
       setReturnItems(returnableItems);
 
-      // Initialize location lines for each item (one empty line to start)
+      // Initialize location lines for each item (one empty line to start with quantity 0)
       const initialLocationLines = {};
       returnableItems.forEach(item => {
-        initialLocationLines[item.id] = [{ locationId: null, quantity: 1 }];
+        initialLocationLines[item.id] = [{ locationId: null, quantity: 0 }];
       });
       setReturnLocationLines(initialLocationLines);
 
-      // Fetch available locations for each product
-      const locationsMap = new Map();
+      // Fetch current product locations (to show stock info in dropdown)
+      const productLocationsMap = new Map();
       for (const item of returnableItems) {
         try {
           const locations = await api.get(`/products-in-warehouse/product/${item.productId}`);
-          locationsMap.set(item.productId, locations || []);
+          productLocationsMap.set(item.productId, locations || []);
         } catch (error) {
           console.error(`Failed to load locations for product ${item.productId}:`, error);
-          locationsMap.set(item.productId, []);
+          productLocationsMap.set(item.productId, []);
         }
       }
-      setAvailableLocationsForReturn(locationsMap);
+      setAvailableLocationsForReturn(productLocationsMap);
 
       setSaleDocumentLocked(true);
       setToast({ type: 'success', message: `Sale document ${fullDoc.documentNumber} loaded` });
     } catch (error) {
       console.error('Failed to load sale document:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to load sale document';
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.response?.status
+      });
+
+      let errorMsg = 'Failed to load sale document';
+      if (error.response?.status === 404) {
+        errorMsg = `Document "${saleDocumentNumber.trim()}" not found`;
+      } else if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+
       setToast({ type: 'error', message: errorMsg });
     }
   };
@@ -982,7 +1038,7 @@ export default function POS() {
     }
 
     const newQuantity = parseInt(value);
-    if (isNaN(newQuantity) || newQuantity < 1) return;
+    if (isNaN(newQuantity) || newQuantity < 0) return; // Allow 0 for returns
 
     setReturnLocationLines(prev => {
       const lines = [...(prev[itemId] || [])];
@@ -1027,11 +1083,11 @@ export default function POS() {
       if (currentQty === '' || currentQty === null || currentQty === undefined || isNaN(currentQty)) {
         lines[lineIndex] = {
           ...lines[lineIndex],
-          quantity: 1
+          quantity: 0
         };
 
         const totalReturnQty = lines.reduce((sum, line) => {
-          return sum + (typeof line.quantity === 'number' ? line.quantity : 1);
+          return sum + (typeof line.quantity === 'number' ? line.quantity : 0);
         }, 0);
 
         setReturnItems(items => items.map(i =>
@@ -1040,7 +1096,7 @@ export default function POS() {
 
         setToast({
           type: 'warning',
-          message: 'Empty quantity set to 1'
+          message: 'Empty quantity set to 0'
         });
 
         return {
@@ -1086,10 +1142,10 @@ export default function POS() {
   const handleAddReturnLocationLine = (itemId) => {
     setReturnLocationLines(prev => {
       const lines = [...(prev[itemId] || [])];
-      lines.push({ locationId: null, quantity: 1 });
+      lines.push({ locationId: null, quantity: 0 });
 
       // Update total return quantity
-      const totalReturnQty = lines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 1), 0);
+      const totalReturnQty = lines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 0), 0);
       setReturnItems(items => items.map(i =>
         i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
       ));
@@ -1110,7 +1166,7 @@ export default function POS() {
       lines.splice(lineIndex, 1);
 
       // Update total return quantity
-      const totalReturnQty = lines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 1), 0);
+      const totalReturnQty = lines.reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 0), 0);
       setReturnItems(items => items.map(i =>
         i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
       ));
@@ -1126,7 +1182,7 @@ export default function POS() {
     const returningItems = returnItems.filter(item => item.returnQuantity > 0);
 
     if (returningItems.length === 0) {
-      setToast({ type: 'error', message: 'Please specify return quantities' });
+      setToast({ type: 'error', message: 'Please specify return quantities (must be > 0)' });
       return;
     }
 
@@ -1135,13 +1191,30 @@ export default function POS() {
       return;
     }
 
-    // Validate all items have all locations selected
+    // Validate only items being returned (returnQuantity > 0) have locations selected and quantities match
     const itemsWithMissingLocations = [];
+    const itemsWithMismatchedQuantities = [];
+
     for (const item of returningItems) {
       const lines = returnLocationLines[item.id] || [];
-      const hasEmptyLocation = lines.some(line => !line.locationId);
+
+      // Check for empty location selections (only check lines with quantity > 0)
+      const linesWithQuantity = lines.filter(line => line.quantity > 0);
+      const hasEmptyLocation = linesWithQuantity.some(line => !line.locationId);
       if (hasEmptyLocation) {
         itemsWithMissingLocations.push(item.productName);
+        continue;
+      }
+
+      // Check if location quantities sum matches return quantity
+      const totalLocationQty = lines
+        .filter(line => line.locationId && line.quantity > 0)
+        .reduce((sum, line) => sum + (typeof line.quantity === 'number' ? line.quantity : 0), 0);
+
+      if (totalLocationQty !== item.returnQuantity) {
+        itemsWithMismatchedQuantities.push(
+          `${item.productName} (return: ${item.returnQuantity}, locations: ${totalLocationQty})`
+        );
       }
     }
 
@@ -1149,6 +1222,14 @@ export default function POS() {
       setToast({
         type: 'error',
         message: `Please select locations for: ${itemsWithMissingLocations.join(', ')}`
+      });
+      return;
+    }
+
+    if (itemsWithMismatchedQuantities.length > 0) {
+      setToast({
+        type: 'error',
+        message: `Location quantities must match return quantities: ${itemsWithMismatchedQuantities.join(', ')}`
       });
       return;
     }
@@ -1173,7 +1254,7 @@ export default function POS() {
             productName: item.productName,
             productSKU: item.productSKU,
             returnQuantity: item.returnQuantity,
-            unitPriceNet: item.unitPriceNet,
+            unitGross: item.unitGross,
             taxRateId: item.taxRateId,
             locations: lines
               .filter(line => line.locationId && line.quantity > 0)
@@ -1185,6 +1266,7 @@ export default function POS() {
         })
       };
 
+      console.log('Sending return DTO:', JSON.stringify(returnDto, null, 2));
       const response = await api.post('/SalesDocument/process-return', returnDto);
 
       setToast({
@@ -1203,7 +1285,9 @@ export default function POS() {
       setAvailableLocationsForReturn(new Map());
     } catch (error) {
       console.error('Failed to process return:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Return failed';
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Return failed';
       setToast({ type: 'error', message: `Return failed: ${errorMsg}` });
       setShowReturnConfirm(false);
     }
@@ -1216,10 +1300,10 @@ export default function POS() {
 
     returnItems.forEach(item => {
       if (item.returnQuantity > 0) {
-        const lineNet = item.unitPriceNet * item.returnQuantity;
         const taxRate = taxRates.get(item.taxRateId)?.rate || 0;
-        const lineGross = lineNet * (1 + taxRate);
-        const lineTax = lineGross - lineNet;
+        const lineGross = round2(item.unitGross * item.returnQuantity);
+        const lineNet = round2(lineGross / (1 + taxRate));
+        const lineTax = round2(lineGross - lineNet);
 
         totalNet += lineNet;
         totalTax += lineTax;
@@ -1568,23 +1652,36 @@ export default function POS() {
                         <th style={{ width: "8%", textAlign: "center" }}>Price</th>
                         <th style={{ width: "8%", textAlign: "center" }}>Tax</th>
                         <th style={{ width: "8%", textAlign: "center" }}>Return Total</th>
-                        <th style={{ width: "12%", textAlign: "left" }}>Return Location</th>
+                        <th style={{ width: "18%", textAlign: "left" }}>Return Location</th>
                         <th style={{ width: "10%", textAlign: "left" }}>Return Qty</th>
                         <th style={{ width: "8%", textAlign: "center" }}></th>
                       </tr>
                     </thead>
                     <tbody>
                       {returnItems.map((item) => {
-                        const locations = availableLocationsForReturn.get(item.productId) || [];
+                        // Get product's current locations (where it exists)
+                        const productLocations = availableLocationsForReturn.get(item.productId) || [];
+
+                        // Combine all warehouse locations with stock info
+                        const locationsWithStock = (allWarehouseLocations || []).map(loc => {
+                          const stockInfo = productLocations.find(pl => pl.locationId === loc.id);
+                          return {
+                            locationId: loc.id,
+                            locationCode: loc.locationCode,
+                            currentStock: stockInfo ? stockInfo.quantity : 0,
+                            hasStock: !!stockInfo
+                          };
+                        });
+
                         const locationLines = returnLocationLines[item.id] || [];
-                        const firstLine = locationLines[0] || { locationId: null, quantity: 1 };
+                        const firstLine = locationLines[0] || { locationId: null, quantity: 0 };
                         const additionalLines = locationLines.slice(1);
 
                         // Calculate refund for this item
                         const taxRate = taxRates.get(item.taxRateId)?.rate || 0;
-                        const lineNet = round2(item.unitPriceNet * item.returnQuantity);
-                        const lineTax = round2(lineNet * taxRate);
-                        const lineGross = round2(lineNet + lineTax);
+                        const lineGross = round2(item.unitGross * item.returnQuantity);
+                        const lineNet = round2(lineGross / (1 + taxRate));
+                        const lineTax = round2(lineGross - lineNet);
 
                         return (
                           <React.Fragment key={item.id}>
@@ -1610,9 +1707,9 @@ export default function POS() {
                                 {item.maxQuantity}
                               </td>
 
-                              {/* Unit Price Net */}
+                              {/* Unit Price Gross */}
                               <td style={{ width: "8%", textAlign: "center" }}>
-                                ${item.unitPriceNet.toFixed(2)}
+                                ${item.unitGross.toFixed(2)}
                               </td>
 
                               {/* Tax Rate */}
@@ -1626,18 +1723,19 @@ export default function POS() {
                               </td>
 
                               {/* First Return Location Selection */}
-                              <td style={{ width: "12%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                              <td style={{ width: "18%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
                                 <select
                                   value={firstLine.locationId || ''}
                                   onChange={(e) => handleReturnLocationChange(item.id, 0, e.target.value)}
                                   className={`pos-location-select ${!firstLine.locationId ? 'not-selected' : ''}`}
                                 >
                                   <option value="">Select location...</option>
-                                  {locations.map(loc => {
+                                  {locationsWithStock.map(loc => {
                                     const isAlreadySelected = locationLines.some((line, idx) => idx !== 0 && line.locationId === loc.locationId);
+                                    const stockInfo = loc.hasStock ? ` (Stock: ${loc.currentStock})` : '';
                                     return (
                                       <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
-                                        {loc.locationCode} {isAlreadySelected ? '- Already selected' : ''}
+                                        {loc.locationCode}{stockInfo} {isAlreadySelected ? '- Selected' : ''}
                                       </option>
                                     );
                                   })}
@@ -1649,7 +1747,7 @@ export default function POS() {
                                 <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
                                   <input
                                     type="number"
-                                    min="1"
+                                    min="0"
                                     max={item.maxQuantity}
                                     value={firstLine.quantity}
                                     onChange={(e) => handleReturnLocationQuantityChange(item.id, 0, e.target.value)}
@@ -1657,7 +1755,7 @@ export default function POS() {
                                     className="pos-quantity-input"
                                   />
                                   {/* Show + button only if there are still unselected locations */}
-                                  {locationLines.length < locations.length && item.returnQuantity < item.maxQuantity && (
+                                  {locationLines.length < locationsWithStock.length && (
                                     <button
                                       className="btn-add-location-line"
                                       onClick={(e) => {
@@ -1711,18 +1809,19 @@ export default function POS() {
                                   <td style={{ width: "8%", textAlign: "center" }}></td>
 
                                   {/* Return Location Selection */}
-                                  <td style={{ width: "12%", textAlign: "left" }}>
+                                  <td style={{ width: "18%", textAlign: "left" }}>
                                     <select
                                       value={line.locationId || ''}
                                       onChange={(e) => handleReturnLocationChange(item.id, lineIndex, e.target.value)}
                                       className={`pos-location-select ${!line.locationId ? 'not-selected' : ''}`}
                                     >
                                       <option value="">Select location...</option>
-                                      {locations.map(loc => {
+                                      {locationsWithStock.map(loc => {
                                         const isAlreadySelected = locationLines.some((l, idx) => idx !== lineIndex && l.locationId === loc.locationId);
+                                        const stockInfo = loc.hasStock ? ` (Stock: ${loc.currentStock})` : '';
                                         return (
                                           <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
-                                            {loc.locationCode} {isAlreadySelected ? '- Already selected' : ''}
+                                            {loc.locationCode}{stockInfo} {isAlreadySelected ? '- Selected' : ''}
                                           </option>
                                         );
                                       })}
@@ -1734,7 +1833,7 @@ export default function POS() {
                                     <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
                                       <input
                                         type="number"
-                                        min="1"
+                                        min="0"
                                         max={item.maxQuantity}
                                         value={line.quantity}
                                         onChange={(e) => handleReturnLocationQuantityChange(item.id, lineIndex, e.target.value)}
