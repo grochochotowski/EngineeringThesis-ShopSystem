@@ -16,9 +16,11 @@
 
         // --- Foreign Keys ---
         public int? ClientId { get; set; } // If invoice
+        public int? OriginalDocumentId { get; set; } // If return document
 
         // --- Navigation Properties ---
         public virtual Client? Client { get; set; } // If invoice
+        public virtual SalesDocument? OriginalDocument { get; set; } // If return document
 
         // --- Collections (N:N, 1:N) ---
         public ICollection<SalesDocumentItem> Items { get; set; } = new List<SalesDocumentItem>();

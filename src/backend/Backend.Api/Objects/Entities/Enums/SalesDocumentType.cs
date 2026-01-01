@@ -5,6 +5,8 @@
         Unspecified = 0,
         Receipt = 1,
         InvoicePersonal = 2,
-        InvoiceCompany = 3
+        InvoiceCompany = 3,
+        ReturnReceipt = 4,
+        ReturnInvoice = 5
     }
 }
