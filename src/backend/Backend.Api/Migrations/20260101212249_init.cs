@@ -45,6 +45,24 @@ namespace Backend.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "GiftCards",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DateIssued = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    DateValidUntil = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    Value = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GiftCards", x => x.Id);
+                    table.CheckConstraint("CK_GiftCard_Value_Positive", "[Value] >= 0");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Locations",
                 columns: table => new
                 {
@@ -212,38 +230,6 @@ namespace Backend.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "SalesDocuments",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    DocumentType = table.Column<int>(type: "int", nullable: false),
-                    IssueDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    DocumentNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    TotalNet = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    TotalTax = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    TotalGross = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    ClientId = table.Column<int>(type: "int", nullable: true),
-                    OriginalDocumentId = table.Column<int>(type: "int", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SalesDocuments", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_SalesDocuments_Clients_ClientId",
-                        column: x => x.ClientId,
-                        principalTable: "Clients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_SalesDocuments_SalesDocuments_OriginalDocumentId",
-                        column: x => x.OriginalDocumentId,
-                        principalTable: "SalesDocuments",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
                 name: "RefreshTokens",
                 columns: table => new
                 {
@@ -259,6 +245,45 @@ namespace Backend.Api.Migrations
                     table.PrimaryKey("PK_RefreshTokens", x => x.Id);
                     table.ForeignKey(
                         name: "FK_RefreshTokens_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SalesDocuments",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DocumentType = table.Column<int>(type: "int", nullable: false),
+                    IssueDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    DocumentNumber = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    TotalNet = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalTax = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalGross = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ClientId = table.Column<int>(type: "int", nullable: true),
+                    OriginalDocumentId = table.Column<int>(type: "int", nullable: true),
+                    UserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SalesDocuments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SalesDocuments_Clients_ClientId",
+                        column: x => x.ClientId,
+                        principalTable: "Clients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_SalesDocuments_SalesDocuments_OriginalDocumentId",
+                        column: x => x.OriginalDocumentId,
+                        principalTable: "SalesDocuments",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_SalesDocuments_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -441,7 +466,7 @@ namespace Backend.Api.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ProductName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     ProductSKU = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    UnitPriceNet = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    UnitGross = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     LineNet = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     LineTax = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     LineGross = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
@@ -489,11 +514,18 @@ namespace Backend.Api.Migrations
                     PaymentOption = table.Column<int>(type: "int", nullable: false),
                     AmountTendered = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     Change = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
-                    SalesDocumentId = table.Column<int>(type: "int", nullable: false)
+                    SalesDocumentId = table.Column<int>(type: "int", nullable: false),
+                    GiftCardId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SalesPayments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SalesPayments_GiftCards_GiftCardId",
+                        column: x => x.GiftCardId,
+                        principalTable: "GiftCards",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_SalesPayments_SalesDocuments_SalesDocumentId",
                         column: x => x.SalesDocumentId,
@@ -538,6 +570,22 @@ namespace Backend.Api.Migrations
                 column: "TaxId",
                 unique: true,
                 filter: "[TaxId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GiftCards_Code",
+                table: "GiftCards",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GiftCards_DateIssued",
+                table: "GiftCards",
+                column: "DateIssued");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GiftCards_IsActive",
+                table: "GiftCards",
+                column: "IsActive");
 
             migrationBuilder.CreateIndex(
                 name: "IX_InventoryChanges_ChangeType",
@@ -644,6 +692,16 @@ namespace Backend.Api.Migrations
                 column: "OriginalDocumentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SalesDocuments_UserId",
+                table: "SalesDocuments",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SalesPayments_GiftCardId",
+                table: "SalesPayments",
+                column: "GiftCardId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_SalesPayments_SalesDocumentId",
                 table: "SalesPayments",
                 column: "SalesDocumentId");
@@ -742,6 +800,9 @@ namespace Backend.Api.Migrations
                 name: "UserCredentials");
 
             migrationBuilder.DropTable(
+                name: "GiftCards");
+
+            migrationBuilder.DropTable(
                 name: "SalesDocuments");
 
             migrationBuilder.DropTable(
@@ -754,10 +815,10 @@ namespace Backend.Api.Migrations
                 name: "Shipments");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "Clients");
 
             migrationBuilder.DropTable(
-                name: "Clients");
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "Categories");

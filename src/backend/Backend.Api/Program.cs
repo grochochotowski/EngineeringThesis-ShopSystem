@@ -76,6 +76,7 @@ namespace Backend.Api
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IClientService, ClientService>();
+            builder.Services.AddScoped<IGiftCardService, GiftCardService>();
             builder.Services.AddScoped<IInventoryChangeService, InventoryChangeService>();
             builder.Services.AddScoped<ILocationService, LocationService>();
             builder.Services.AddScoped<IProductService, ProductService>();

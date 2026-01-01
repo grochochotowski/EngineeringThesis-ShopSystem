@@ -96,6 +96,9 @@ namespace Backend.Api.Infrastructure
             if (!_db.Products.Any())
             {
                 _db.Products.AddRange(
+                    // Gift Card - Special Product (MUST BE FIRST)
+                    new() { SKU = "GIFTCARD", EAN = "0000000000001", Name = "Gift Card", Description = "Digital gift card - value set during purchase", Price = 0.00m, CategoryId = defaultCatId, TaxRateId = vat23Id },
+
                     // Default Category Products
                     new() { SKU = "SKU-0001", EAN = "5901234500016", Name = "Wireless Mouse", Description = "Ergonomic wireless mouse with USB receiver", Price = 29.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },
                     new() { SKU = "SKU-0002", EAN = "5901234500023", Name = "USB Cable Type-C", Description = "High-speed USB Type-C cable, 2m", Price = 12.99m, CategoryId = defaultCatId, TaxRateId = vat23Id },

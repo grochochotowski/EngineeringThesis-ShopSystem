@@ -27,7 +27,6 @@ namespace Backend.Api.Infrastructure
             SeedProducts();
             SeedClients();
             SeedShipments();
-            SeedSalesDocuments();
             SeedUsers();
         }
 
@@ -37,7 +36,7 @@ namespace Backend.Api.Infrastructure
             if (_db.Categories.Any()) return;
 
             string[] names = {
-                "Food", "Drinks", "Electronics", "Clothing", "Books",
+                "Default", "Food", "Drinks", "Electronics", "Clothing", "Books",
                 "Furniture", "Cosmetics", "Sport", "Tools", "Miscellaneous"
             };
 
@@ -103,6 +102,10 @@ namespace Backend.Api.Infrastructure
 
             var products = new List<(string Cat, string Name, string Desc, decimal Price, string EAN)>
             {
+                // --- MISCELLANEOUS ---
+                ("Miscellaneous", "Gift Card", "Digital gift card - value set during purchase", 0.00m, "0000000000001"),
+                ("Miscellaneous", "Reusable Bag", "Eco-friendly shopping bag", 5.00m, "5901234509020"),
+
                 // --- FOOD ---
                 ("Food", "Bread", "Freshly baked wholegrain bread", 4.20m, "5901234500016"),
                 ("Food", "Butter", "Natural Polish butter 200g", 7.90m, "5901234500023"),
@@ -147,11 +150,6 @@ namespace Backend.Api.Infrastructure
                 ("Tools", "Cordless Drill", "18V Li-ion drill with 2 batteries", 399.00m, "5901234508016"),
                 ("Tools", "Hammer", "Carbon steel hammer 500g", 29.00m, "5901234508023"),
                 ("Tools", "Screwdriver Set", "Precision screwdriver set 24pcs", 79.00m, "5901234508030"),
-
-                // --- MISCELLANEOUS ---
-                ("Miscellaneous", "Gift Card 100 PLN", "Store gift card 100 PLN", 100.00m, "5901234509013"),
-                ("Miscellaneous", "Reusable Bag", "Eco-friendly shopping bag", 5.00m, "5901234509020"),
-                ("Miscellaneous", "Notebook", "A5 lined notebook 100 pages", 8.90m, "5901234509037")
             };
 
             // add products
@@ -414,79 +412,6 @@ namespace Backend.Api.Infrastructure
                 }
 
                 Console.WriteLine($"Created {incomingStatuses.Length} incoming shipments with main company as receiver.");
-            }
-        }
-
-        // --- SALES DOCUMENTS + ITEMS + PAYMENTS ---
-        private void SeedSalesDocuments()
-        {
-            if (_db.SalesDocuments.Any()) return;
-
-            var clients = _db.Clients.Take(3).ToList();
-            var products = _db.Products.Take(5).ToList();
-            var tax = _db.TaxRates.First();
-
-            for (int i = 1; i <= 3; i++)
-            {
-                // create sales document
-                var doc = new SalesDocument
-                {
-                    DocumentType = i == 1 ? SalesDocumentType.Receipt : SalesDocumentType.InvoiceCompany,
-                    IssueDate = DateTimeOffset.UtcNow.AddDays(-i),
-                    Description = $"Example document {i}",
-                    DocumentNumber = $"DOC/{i:D3}/2025",
-                    ClientId = clients[_rand.Next(clients.Count)].Id,
-                };
-
-                decimal totalNet = 0, totalTax = 0, totalGross = 0;
-
-                _db.SalesDocuments.Add(doc);
-                _db.SaveChanges();
-
-                // create document items
-                foreach (var p in products)
-                {
-                    // random quantity
-                    var qty = _rand.Next(1, 3);
-                    // calculate line values (using gross pricing)
-                    var unitGross = Math.Round(p.Price * 1.23m, 4); // Price with 23% tax
-                    var lineGross = Math.Round(unitGross * qty, 2);
-                    var lineNet = Math.Round(lineGross / 1.23m, 2);
-                    var lineTax = Math.Round(lineGross - lineNet, 2);
-
-                    // create item
-                    _db.SalesDocumentItems.Add(new()
-                    {
-                        SalesDocumentId = doc.Id,
-                        ProductId = p.Id,
-                        TaxRateId = tax.Id,
-                        ProductName = p.Name,
-                        ProductSKU = p.SKU,
-                        Quantity = qty,
-                        UnitGross = unitGross,
-                        LineNet = lineNet,
-                        LineTax = lineTax,
-                        LineGross = lineGross
-                    });
-
-                    totalNet += lineNet;
-                    totalTax += lineTax;
-                    totalGross += lineGross;
-                }
-
-                doc.TotalNet = totalNet;
-                doc.TotalTax = totalTax;
-                doc.TotalGross = totalGross;
-                _db.SaveChanges();
-
-                // create payment
-                _db.SalesPayments.Add(new()
-                {
-                    SalesDocumentId = doc.Id,
-                    Amount = totalGross,
-                    PaymentOption = (PaymentOption)_rand.Next(1, 5)
-                });
-                _db.SaveChanges();
             }
         }
 

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260101120346_nettogross")]
-    partial class nettogross
+    [Migration("20260101212249_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -152,6 +152,49 @@ namespace Backend.Api.Migrations
                         .HasFilter("[TaxId] IS NOT NULL");
 
                     b.ToTable("Clients");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.GiftCard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("DateIssued")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("DateValidUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("DateIssued");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("GiftCards", t =>
+                        {
+                            t.HasCheckConstraint("CK_GiftCard_Value_Positive", "[Value] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.InventoryChange", b =>
@@ -493,6 +536,9 @@ namespace Backend.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ClientId");
@@ -501,6 +547,8 @@ namespace Backend.Api.Migrations
                         .IsUnique();
 
                     b.HasIndex("OriginalDocumentId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("SalesDocuments");
                 });
@@ -587,6 +635,9 @@ namespace Backend.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("GiftCardId")
+                        .HasColumnType("int");
+
                     b.Property<int>("PaymentOption")
                         .HasColumnType("int");
 
@@ -594,6 +645,8 @@ namespace Backend.Api.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GiftCardId");
 
                     b.HasIndex("SalesDocumentId");
 
@@ -975,9 +1028,17 @@ namespace Backend.Api.Migrations
                         .WithMany()
                         .HasForeignKey("OriginalDocumentId");
 
+                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Client");
 
                     b.Navigation("OriginalDocument");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesDocumentItem", b =>
@@ -1015,11 +1076,18 @@ namespace Backend.Api.Migrations
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.SalesPayment", b =>
                 {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.GiftCard", "GiftCard")
+                        .WithMany()
+                        .HasForeignKey("GiftCardId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Backend.Api.Objects.Entities.Models.SalesDocument", "SalesDocument")
                         .WithMany("Payments")
                         .HasForeignKey("SalesDocumentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("GiftCard");
 
                     b.Navigation("SalesDocument");
                 });

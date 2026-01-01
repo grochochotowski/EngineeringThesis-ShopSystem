@@ -12,6 +12,8 @@ namespace Backend.Api.Objects.DTOs
                                                 public decimal Amount               { get; set; }
                                                 public decimal? AmountTendered      { get; set; }
                                                 public decimal? Change              { get; set; }
+                                                public int? GiftCardId              { get; set; }
+                                                public string? GiftCardCode         { get; set; } // Populated from navigation property for display
     }
 
     // --- CREATE PAYMENT ---
@@ -21,5 +23,6 @@ namespace Backend.Api.Objects.DTOs
         [Required, Range(0, double.MaxValue)]   public decimal Amount               { get; set; }
         [Range(0, double.MaxValue)]             public decimal? AmountTendered      { get; set; }
         [Range(0, double.MaxValue)]             public decimal? Change              { get; set; }
+                                                public int? GiftCardId              { get; set; }
     }
 }

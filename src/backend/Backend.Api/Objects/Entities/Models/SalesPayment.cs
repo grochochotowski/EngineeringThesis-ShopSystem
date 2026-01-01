@@ -13,8 +13,10 @@
 
         // --- Foreign Keys ---
         public int SalesDocumentId { get; set; }
+        public int? GiftCardId { get; set; } // Nullable - only populated for gift card payments
 
         // --- Navigation Properties ---
         public virtual SalesDocument SalesDocument { get; set; } = default!;
+        public virtual GiftCard? GiftCard { get; set; }
     }
 }

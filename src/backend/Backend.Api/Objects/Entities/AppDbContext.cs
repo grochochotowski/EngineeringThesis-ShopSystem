@@ -15,6 +15,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Address>           Addresses           => Set<Address>();
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
+        public DbSet<GiftCard>          GiftCards           => Set<GiftCard>();
         public DbSet<InventoryChange>   InventoryChanges    => Set<InventoryChange>();
         public DbSet<Location>          Locations           => Set<Location>();
         public DbSet<Product>           Products            => Set<Product>();
@@ -80,6 +81,23 @@ namespace Backend.Api.Objects.Entities
                  .WithMany()
                  .HasForeignKey(x => x.AddressId)
                  .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // gift card
+            modelBuilder.Entity<GiftCard>(b =>
+            {
+                b.HasIndex(x => x.Code).IsUnique();
+                b.HasIndex(x => x.DateIssued);
+                b.HasIndex(x => x.IsActive);
+
+                b.Property(x => x.Code).HasMaxLength(50).IsRequired();
+                b.Property(x => x.Value).HasPrecision(18, 2);
+                b.Property(x => x.IsActive).HasDefaultValue(true);
+
+                b.ToTable(t =>
+                {
+                    t.HasCheckConstraint("CK_GiftCard_Value_Positive", "[Value] >= 0");
+                });
             });
 
             // inventory change
@@ -236,6 +254,7 @@ namespace Backend.Api.Objects.Entities
             modelBuilder.Entity<SalesPayment>(b =>
             {
                 b.HasIndex(x => x.SalesDocumentId);
+                b.HasIndex(x => x.GiftCardId);
 
                 b.Property(x => x.Amount).HasPrecision(18, 2);
                 b.Property(x => x.AmountTendered).HasPrecision(18, 2);
@@ -245,6 +264,11 @@ namespace Backend.Api.Objects.Entities
                  .WithMany(d => d.Payments)
                  .HasForeignKey(x => x.SalesDocumentId)
                  .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(x => x.GiftCard)
+                 .WithMany()
+                 .HasForeignKey(x => x.GiftCardId)
+                 .OnDelete(DeleteBehavior.Restrict);
 
                 // No table-level constraints (removed to allow negative amounts for refunds)
             });
