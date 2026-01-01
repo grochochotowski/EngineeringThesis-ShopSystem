@@ -22,7 +22,7 @@ namespace Backend.Api.Objects.DTOs
         [Required, Range(1, int.MaxValue)]  public int Quantity             { get; set; }
         [Required]                          public decimal UnitGross        { get; set; }
         [Required]                          public int TaxRateId            { get; set; }
-        [Required]                          public int FromLocationId       { get; set; } // REQUIRED for POS
+                                            public int? FromLocationId      { get; set; } // Optional - null for digital products like gift cards
     }
 
     // --- POS PAYMENT ---

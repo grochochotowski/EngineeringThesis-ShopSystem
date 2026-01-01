@@ -101,6 +101,7 @@ namespace Backend.Api.Infrastructure
             var locationIds = _db.Locations.Select(x => x.Id).ToList();
 
             // Create Gift Card product FIRST with special SKU "_gc"
+            // Note: Gift cards are digital/virtual products and don't need physical warehouse locations
             var giftCardProduct = new Product
             {
                 SKU = "_gc",
@@ -113,16 +114,6 @@ namespace Backend.Api.Infrastructure
                 IsActive = true
             };
             _db.Products.Add(giftCardProduct);
-            _db.SaveChanges();
-
-            // Assign gift card to random location
-            var giftCardLocationId = locationIds[_rand.Next(locationIds.Count)];
-            _db.ProductsInWarehouse.Add(new()
-            {
-                ProductId = giftCardProduct.Id,
-                LocationId = giftCardLocationId,
-                Quantity = _rand.Next(50, 100)
-            });
             _db.SaveChanges();
 
             // Create remaining products starting from SKU-0001

@@ -380,10 +380,10 @@ namespace Backend.Api.Api.Services
                 && dto.ClientId is null)
                 throw new ArgumentException("ClientId is required for invoices.", nameof(dto.ClientId));
 
-            // Validate all items have locations
-            var itemsWithoutLocation = dto.Items.Where(i => i.FromLocationId <= 0).ToList();
+            // Validate all physical items have locations (skip digital products like gift cards)
+            var itemsWithoutLocation = dto.Items.Where(i => i.FromLocationId.HasValue && i.FromLocationId.Value <= 0).ToList();
             if (itemsWithoutLocation.Any())
-                throw new ArgumentException("All items must have a valid location selected.", nameof(dto.Items));
+                throw new ArgumentException("All physical items must have a valid location selected.", nameof(dto.Items));
 
             // Start database transaction for atomicity
             using var transaction = await _db.Database.BeginTransactionAsync(ct);
@@ -415,11 +415,15 @@ namespace Backend.Api.Api.Services
                 if (missingProducts.Count > 0)
                     throw new ArgumentException($"Products not found or inactive: {string.Join(",", missingProducts)}", nameof(dto.Items));
 
-                // 4. Verify locations exist and check inventory availability
+                // 4. Verify locations exist and check inventory availability (skip digital products)
                 foreach (var item in dto.Items)
                 {
+                    // Skip inventory check for digital products (e.g., gift cards) that don't have a location
+                    if (!item.FromLocationId.HasValue)
+                        continue;
+
                     var inventory = await _db.ProductsInWarehouse
-                        .FirstOrDefaultAsync(pw => pw.ProductId == item.ProductId && pw.LocationId == item.FromLocationId, ct);
+                        .FirstOrDefaultAsync(pw => pw.ProductId == item.ProductId && pw.LocationId == item.FromLocationId.Value, ct);
 
                     if (inventory == null)
                         throw new InvalidOperationException($"Product '{item.ProductName}' not found at selected location.");
@@ -498,11 +502,15 @@ namespace Backend.Api.Api.Services
 
                 var change = totalPaid - doc.TotalGross;
 
-                // 8. Deduct inventory quantities and log changes
+                // 8. Deduct inventory quantities and log changes (skip digital products)
                 foreach (var item in dto.Items)
                 {
+                    // Skip inventory deduction for digital products (e.g., gift cards) that don't have a location
+                    if (!item.FromLocationId.HasValue)
+                        continue;
+
                     var inventory = await _db.ProductsInWarehouse
-                        .FirstOrDefaultAsync(pw => pw.ProductId == item.ProductId && pw.LocationId == item.FromLocationId, ct);
+                        .FirstOrDefaultAsync(pw => pw.ProductId == item.ProductId && pw.LocationId == item.FromLocationId.Value, ct);
 
                     if (inventory != null)
                     {
@@ -523,7 +531,7 @@ namespace Backend.Api.Api.Services
                             changeType: Objects.Entities.Enums.InventoryChangeType.Sell,
                             productId: item.ProductId,
                             quantity: -item.Quantity,
-                            fromLocationId: item.FromLocationId,
+                            fromLocationId: item.FromLocationId.Value,
                             toLocationId: null,
                             userId: dto.UserId,
                             ct: ct);
