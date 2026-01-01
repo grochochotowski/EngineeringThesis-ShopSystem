@@ -434,6 +434,28 @@
   color: white;
 }
 
+/* Document Type Badges - subtle colors */
+.doc-badge-sale,
+.doc-badge-return {
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.doc-badge-sale {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.doc-badge-return {
+  background: #fed7aa;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
 /* Additional responsive styling */
 @media (max-width: 768px) {
   .detail-grid {

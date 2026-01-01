@@ -23,7 +23,7 @@ export default function SalesDocuments() {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [initialDataLoaded, setInitialDataLoaded] = useState(false);
-    const [sortColumn, setSortColumn] = useState("documentNumber");
+    const [sortColumn, setSortColumn] = useState("issueDate");
     const [sortDirection, setSortDirection] = useState("desc");
 
     // Filters - using arrays for checkboxes
@@ -195,13 +195,14 @@ export default function SalesDocuments() {
 
     // Columns for table
     const columns = [
-        { key: "documentNumber", label: "Document #", width: "16%", sortable: true },
-        { key: "documentType", label: "Type", width: "14%", sortable: false },
-        { key: "issueDate", label: "Issue Date", width: "18%", sortable: true },
-        { key: "totalGross", label: "Total", width: "12%", sortable: true },
-        { key: "totalTax", label: "Total Tax", width: "12%", sortable: true },
-        { key: "numberOfProducts", label: "Products", width: "12%", sortable: true },
-        { key: "paymentType", label: "Payment", width: "16%", sortable: false },
+        { key: "documentNumber", label: "Document #", width: "14%", sortable: true },
+        { key: "documentType", label: "Type", width: "10%", sortable: false },
+        { key: "issueDate", label: "Issue Date", width: "16%", sortable: true },
+        { key: "totalGross", label: "Total", width: "11%", sortable: true },
+        { key: "totalTax", label: "Total Tax", width: "11%", sortable: true },
+        { key: "numberOfProducts", label: "Products", width: "10%", sortable: true },
+        { key: "paymentType", label: "Payment", width: "14%", sortable: false },
+        { key: "userName", label: "User", width: "14%", sortable: false },
     ];
 
     // Format date for display
@@ -250,13 +251,14 @@ export default function SalesDocuments() {
     // Map documents to rows with raw values for sorting
     const baseRows = documents.map((d) => ({
         id: d.id,
-        documentType: getDocumentTypeLabel(d.documentType),
+        documentType: d.documentType, // Keep raw for badge checking
         documentNumber: d.documentNumber,
         issueDate: formatDate(d.issueDate),
         totalGross: `$${d.totalGross.toFixed(2)}`,
         totalTax: `$${d.totalTax.toFixed(2)}`,
         numberOfProducts: d.numberOfProducts,
         paymentType: d.paymentType ? getPaymentOptionLabel(d.paymentType) : "—",
+        userName: d.userName || "—",
         rawDocumentType: d.documentType,
         rawClientId: d.clientId,
         rawTotalGross: d.totalGross,
@@ -605,6 +607,16 @@ export default function SalesDocuments() {
                                                                 </td>
                                                             );
                                                         }
+                                                        if (col.key === "documentType") {
+                                                            const isReturn = row.documentType === "ReturnReceipt" || row.documentType === "ReturnInvoice";
+                                                            return (
+                                                                <td key={col.key}>
+                                                                    <span className={isReturn ? "doc-badge-return" : "doc-badge-sale"}>
+                                                                        {row[col.key]}
+                                                                    </span>
+                                                                </td>
+                                                            );
+                                                        }
                                                         return <td key={col.key}>{row[col.key]}</td>;
                                                     })}
                                                 </tr>
@@ -627,7 +639,11 @@ export default function SalesDocuments() {
             {/* Details Modal */}
             {showDetailsModal && selectedDocumentDetails && (
                 <Modal
-                    title={`Sales Document #${selectedDocumentDetails.documentNumber}`}
+                    title={
+                        selectedDocumentDetails.documentType === "ReturnReceipt" || selectedDocumentDetails.documentType === "ReturnInvoice"
+                            ? `Return Document #${selectedDocumentDetails.documentNumber}`
+                            : `Sales Document #${selectedDocumentDetails.documentNumber}`
+                    }
                     onClose={() => setShowDetailsModal(false)}
                     wide
                 >
@@ -640,6 +656,12 @@ export default function SalesDocuments() {
                                     <span className="detail-label">Document Number:</span>
                                     <span className="detail-value">{selectedDocumentDetails.documentNumber}</span>
                                 </div>
+                                {selectedDocumentDetails.originalDocumentNumber && (
+                                    <div className="detail-item">
+                                        <span className="detail-label">Original Document:</span>
+                                        <span className="detail-value">{selectedDocumentDetails.originalDocumentNumber}</span>
+                                    </div>
+                                )}
                                 <div className="detail-item">
                                     <span className="detail-label">Document Type:</span>
                                     <span className="detail-value">{getDocumentTypeLabel(selectedDocumentDetails.documentType)}</span>
@@ -647,6 +669,10 @@ export default function SalesDocuments() {
                                 <div className="detail-item">
                                     <span className="detail-label">Issue Date:</span>
                                     <span className="detail-value">{formatDate(selectedDocumentDetails.issueDate)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Created By:</span>
+                                    <span className="detail-value">{selectedDocumentDetails.userName || "—"}</span>
                                 </div>
                                 <div className="detail-item">
                                     <span className="detail-label">Client:</span>
