@@ -78,6 +78,16 @@ export async function printSalesDocumentPDF(documentData, formatters) {
               ${documentData.clientData?.type === "Company" && documentData.clientData?.taxId ? `<div style="font-size: 9px; color: #64748b; margin-top: 2px;">Tax ID: ${documentData.clientData.taxId}</div>` : ''}
             </div>
           </div>
+          ${documentData.originalDocumentNumber ? `
+            <div>
+              <div style="font-size: 8px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Original Document:</div>
+              <div style="font-size: 10px; color: #0f1624; font-weight: 500;">${documentData.originalDocumentNumber}</div>
+            </div>
+          ` : ''}
+          <div>
+            <div style="font-size: 8px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Created By:</div>
+            <div style="font-size: 10px; color: #0f1624; font-weight: 500;">${documentData.userName || "—"}</div>
+          </div>
           ${documentData.clientData?.address ? `
             <div style="grid-column: 1 / -1;">
               <div style="font-size: 8px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Client Address:</div>
@@ -226,7 +236,7 @@ export async function printSalesDocumentPDF(documentData, formatters) {
         `}
       </div>
 
-      ${documentData.documentType === 2 || documentData.documentType === 3 || documentData.documentType === 'InvoicePersonal' || documentData.documentType === 'InvoiceCompany' ? `
+      ${documentData.documentType === 2 || documentData.documentType === 3 || documentData.documentType === 4 || documentData.documentType === 5 || documentData.documentType === 'InvoicePersonal' || documentData.documentType === 'InvoiceCompany' || documentData.documentType === 'ReceiptReturn' || documentData.documentType === 'InvoiceReturn' ? `
         <!-- Signature Section -->
         <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #e2e8f0; page-break-inside: avoid;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
