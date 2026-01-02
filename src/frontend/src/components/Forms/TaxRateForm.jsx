@@ -53,9 +53,12 @@ export default function TaxRateForm({ mode = "create", taxRate, onSuccess }) {
         const response = await api.post("/TaxRate", payload);
         onSuccess?.(response.id);
       } else {
-        // For edit mode, only send the code (as per requirements)
+        // For edit mode, send code and original rate (rate cannot be changed via UI)
+        // Rate must be sent because backend DTO requires it
         const editPayload = {
           code: form.code,
+          rate: parseFloat(form.rate) / 100,
+          isActive: form.isActive,
         };
         await api.put(`/TaxRate/${taxRate.id}`, editPayload);
         onSuccess?.(taxRate.id);
