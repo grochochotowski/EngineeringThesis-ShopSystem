@@ -16,6 +16,7 @@ export default function Header({ user, onLogout }) {
             items: [
                 { name: "POS", path: "/pos" },
                 { name: "Sales documents", path: "/sales/documents" },
+                { name: "Gift cards", path: "/sales/giftcards" },
                 { name: "Reports", path: "/reports" },
             ],
         },

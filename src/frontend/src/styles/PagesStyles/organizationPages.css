@@ -1,0 +1,333 @@
+/* Organization Pages Styles - For Gift Cards and similar pages */
+
+/* === PAGE STRUCTURE === */
+.page-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+}
+
+.content-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* === MAIN CONTENT AREA === */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.org-page-header {
+  margin-bottom: 1.5rem;
+}
+
+.org-page-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 3rem;
+  font-size: 1rem;
+}
+
+/* === TABLE WRAPPER === */
+.org-table-wrapper {
+  flex: 1;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+/* === TABLE STYLES === */
+.org-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.org-table thead {
+  background: var(--accent-main);
+  color: var(--text-white);
+}
+
+.org-table thead th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.org-table tbody tr {
+  border-bottom: 1px solid #e2e8f0;
+  transition: background-color 0.2s;
+}
+
+.org-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.org-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.org-table tbody td {
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+}
+
+.org-table .code-cell {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: var(--accent-main);
+  font-size: 0.85rem;
+}
+
+.org-table .amount-cell {
+  font-weight: 600;
+  color: #059669;
+}
+
+.org-table .no-data {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 3rem 1rem;
+  font-style: italic;
+}
+
+/* === STATUS BADGES === */
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid;
+}
+
+.status-badge.active {
+  background: var(--toast-success-bg);
+  border-color: var(--toast-success-border);
+  color: var(--toast-success-text);
+}
+
+.status-badge.inactive {
+  background: var(--toast-error-bg);
+  border-color: var(--toast-error-border);
+  color: var(--toast-error-text);
+}
+
+/* === PAGINATION === */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  margin-top: auto;
+}
+
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-dark);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--accent-main);
+  color: white;
+  border-color: var(--accent-main);
+  transform: translateY(-1px);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+/* === SIDE PANEL === */
+.side-panel {
+  width: 320px;
+  background: var(--bg-panel);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.filter-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.filter-group input,
+.filter-group select {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  background: #ffffff;
+  color: var(--text-dark);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--accent-main);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.filter-group input::placeholder {
+  color: var(--text-muted);
+}
+
+.btn-secondary {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--accent-main);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent-main);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--accent-main);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+}
+
+.btn-full-width {
+  width: 100%;
+}
+
+/* === SCROLLBAR === */
+.main-content::-webkit-scrollbar,
+.side-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content::-webkit-scrollbar-thumb,
+.side-panel::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover,
+.side-panel::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 1024px) {
+  .content-wrapper {
+    flex-direction: column;
+  }
+
+  .side-panel {
+    width: 100%;
+    max-height: 300px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .main-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
+
+  .side-panel {
+    padding: 1rem;
+  }
+
+  .org-page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .org-table thead th,
+  .org-table tbody td {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .org-table thead th,
+  .org-table tbody td {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .org-page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .pagination-btn {
+    width: 100%;
+  }
+}
