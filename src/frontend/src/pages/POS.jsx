@@ -1208,13 +1208,20 @@ export default function POS() {
       // Store original document
       setOriginalDocument(fullDoc);
 
-      // Initialize return items with location lines
-      const returnableItems = fullDoc.items.map(item => ({
-        ...item,
-        returnQuantity: 0,
-        maxQuantity: Math.abs(item.quantity), // Use absolute value
-        ean: item.ean || null
-      }));
+      // Initialize return items with location lines (exclude gift cards - digital products are not returnable)
+      const returnableItems = fullDoc.items
+        .filter(item => item.productSKU !== '_gc') // Filter out gift cards
+        .map(item => ({
+          ...item,
+          returnQuantity: 0,
+          maxQuantity: Math.abs(item.quantity), // Use absolute value
+          ean: item.ean || null
+        }));
+
+      if (returnableItems.length === 0) {
+        setToast({ type: 'warning', message: 'This document contains only non-returnable items (gift cards)' });
+        return;
+      }
 
       setReturnItems(returnableItems);
 

@@ -599,6 +599,10 @@ namespace Backend.Api.Api.Services
                     if (originalItem == null)
                         throw new ArgumentException($"Item with ID {returnItem.OriginalItemId} not found in original document.", nameof(dto.Items));
 
+                    // Prevent returning gift cards (digital products are not returnable)
+                    if (returnItem.ProductSKU == "_gc")
+                        throw new InvalidOperationException("Gift cards cannot be returned. Digital products are non-returnable.");
+
                     // Validate return quantity doesn't exceed original quantity
                     if (returnItem.ReturnQuantity > originalItem.Quantity)
                         throw new InvalidOperationException($"Cannot return {returnItem.ReturnQuantity} units of '{returnItem.ProductName}'. Original quantity: {originalItem.Quantity}");
