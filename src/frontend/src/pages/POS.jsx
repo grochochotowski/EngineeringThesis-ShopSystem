@@ -148,9 +148,7 @@ export default function POS() {
     fetchAllLocations();
   }, []);
 
-  // Product search autocomplete disabled - only scan with Enter key
-  // (Autocomplete disabled to prevent dropdown interference with barcode scanning)
-  /*
+  // Product search with autocomplete for name, SKU, and EAN
   useEffect(() => {
     if (productSearchQuery.trim().length === 0) {
       setProductSearchResults([]);
@@ -168,16 +166,16 @@ export default function POS() {
           }
         });
         setProductSearchResults(items || []);
-        setShowProductDropdown(true);
+        setShowProductDropdown(items && items.length > 0);
       } catch (error) {
         console.error('Product search failed:', error);
         setProductSearchResults([]);
+        setShowProductDropdown(false);
       }
     };
 
     searchProducts();
   }, [productSearchQuery]);
-  */
 
   // Add product to scanned list
   const handleAddProduct = useCallback(async (product) => {
