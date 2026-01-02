@@ -354,6 +354,15 @@
   background: #6b7280; /* Gray */
 }
 
+/* Gift Card Code Display */
+.gift-card-code {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
 .payment-amount {
   text-align: right;
   font-family: 'Courier New', monospace;

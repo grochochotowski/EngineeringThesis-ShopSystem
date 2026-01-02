@@ -803,6 +803,11 @@ export default function SalesDocuments() {
                                                         <span className={`payment-badge ${(getPaymentOptionLabel(payment.paymentOption) || 'Unspecified').toLowerCase().replace(/\s+/g, '-')}`}>
                                                             {getPaymentOptionLabel(payment.paymentOption)}
                                                         </span>
+                                                        {payment.giftCardCode && (
+                                                            <div className="gift-card-code">
+                                                                Code: {payment.giftCardCode}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="payment-amount">${payment.amount.toFixed(2)}</td>
                                                     <td className="payment-amount" style={{ fontWeight: '600' }}>

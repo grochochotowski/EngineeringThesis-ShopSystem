@@ -154,19 +154,22 @@ namespace Backend.Api.Api.Services
             var now = DateTimeOffset.Now;
             var validUntil = now.AddYears(2);
 
+            // Use temporary unique code to satisfy unique constraint during first save
+            var tempCode = $"TEMP_{Guid.NewGuid():N}";
+
             var giftCard = new GiftCard
             {
                 DateIssued = now,
                 DateValidUntil = validUntil,
                 Value = dto.Value,
                 IsActive = true,
-                Code = string.Empty // Temporary, will be generated after save
+                Code = tempCode // Temporary unique code, will be replaced after save
             };
 
             _db.GiftCards.Add(giftCard);
             await _db.SaveChangesAsync(ct);
 
-            // Generate code after ID is assigned
+            // Generate final code after ID is assigned
             giftCard.Code = GenerateGiftCardCode(giftCard.Id, giftCard.DateIssued, giftCard.DateValidUntil);
             await _db.SaveChangesAsync(ct);
 

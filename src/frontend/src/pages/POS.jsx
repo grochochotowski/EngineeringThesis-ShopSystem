@@ -148,7 +148,9 @@ export default function POS() {
     fetchAllLocations();
   }, []);
 
-  // Product search with immediate results
+  // Product search autocomplete disabled - only scan with Enter key
+  // (Autocomplete disabled to prevent dropdown interference with barcode scanning)
+  /*
   useEffect(() => {
     if (productSearchQuery.trim().length === 0) {
       setProductSearchResults([]);
@@ -175,6 +177,7 @@ export default function POS() {
 
     searchProducts();
   }, [productSearchQuery]);
+  */
 
   // Add product to scanned list
   const handleAddProduct = useCallback(async (product) => {
@@ -967,7 +970,7 @@ export default function POS() {
 
     try {
       // Find Gift Card product by SKU
-      const products = await api.get('/Products', { params: { sku: '_gc' } });
+      const products = await api.get('/Products', { params: { q: '_gc' } });
       const giftCardProduct = products.items?.find(p => p.sku === '_gc');
 
       if (!giftCardProduct) {
@@ -975,20 +978,7 @@ export default function POS() {
         return;
       }
 
-      // Fetch locations for gift card product
-      const locations = await api.get(`/products-in-warehouse/product/${giftCardProduct.id}`);
-
-      if (!locations || locations.length === 0) {
-        setToast({ type: 'error', message: 'Gift Card product has no warehouse locations configured' });
-        return;
-      }
-
-      // Initialize location lines (one empty line to start)
-      setProductLocationLines(prev => ({
-        ...prev,
-        [giftCardProduct.id]: [{ locationId: null, quantity: 1 }]
-      }));
-
+      // Gift cards are digital products - no warehouse location needed
       // Add gift card to cart with custom price
       const taxRate = taxRates.get(giftCardProduct.taxRateId)?.rate || 0;
       const grossPrice = value;
@@ -1007,7 +997,7 @@ export default function POS() {
         taxRateId: giftCardProduct.taxRateId,
         taxRate: taxRate,
         taxCode: taxRates.get(giftCardProduct.taxRateId)?.code || '',
-        availableLocations: locations || [],
+        availableLocations: [], // Empty - no locations needed for digital products
         isGiftCard: true, // Mark as gift card for later processing
         giftCardValue: value // Store the value for gift card creation
       }]);
@@ -1033,9 +1023,15 @@ export default function POS() {
   const handleFinishConfirm = async () => {
     try {
       // Validate all products have all location lines with locations selected
+      // Skip validation for gift cards (digital products don't need locations)
       const productsWithMissingLocations = [];
 
       for (const product of scannedProducts) {
+        // Skip location validation for gift cards
+        if (product.isGiftCard) {
+          continue;
+        }
+
         const lines = productLocationLines[product.id] || [];
         const hasEmptyLocation = lines.some(line => !line.locationId);
         if (hasEmptyLocation) {
@@ -1058,18 +1054,32 @@ export default function POS() {
       // Prepare finalization DTO - create separate line items for each location
       const items = [];
       scannedProducts.forEach(product => {
-        const lines = productLocationLines[product.id] || [];
-        lines.forEach(line => {
+        // Gift cards are digital products - no location needed
+        if (product.isGiftCard) {
           items.push({
             productId: product.id,
             productName: product.name,
             productSKU: product.sku,
-            quantity: line.quantity,
+            quantity: 1,
             unitGross: product.unitPriceGross,
             taxRateId: product.taxRateId,
-            fromLocationId: line.locationId
+            fromLocationId: null // No location for digital products
           });
-        });
+        } else {
+          // Regular products - create line items from location lines
+          const lines = productLocationLines[product.id] || [];
+          lines.forEach(line => {
+            items.push({
+              productId: product.id,
+              productName: product.name,
+              productSKU: product.sku,
+              quantity: line.quantity,
+              unitGross: product.unitPriceGross,
+              taxRateId: product.taxRateId,
+              fromLocationId: line.locationId
+            });
+          });
+        }
       });
 
       const finalizationDto = {
@@ -1504,12 +1514,15 @@ export default function POS() {
       // If refund method is Gift Card, automatically create a gift card with return value
       if (refundMethod === 'Gift Card') {
         try {
+          // Use absolute value since returns have negative totals, but gift cards must be positive
+          const giftCardValue = Math.abs(response.totalGross || returnTotals.totalGross);
+
           const giftCard = await api.post('/GiftCard', {
-            value: response.totalGross || returnTotals.totalGross
+            value: giftCardValue
           });
           setToast({
             type: 'success',
-            message: `Return processed. Document: ${response.returnDocumentNumber}. Gift card created: ${giftCard.code}`
+            message: `Return processed. Document: ${response.returnDocumentNumber}. Gift card created: ${giftCard.code} ($${giftCardValue.toFixed(2)})`
           });
         } catch (error) {
           console.error('Failed to create gift card for return:', error);
@@ -1725,68 +1738,76 @@ export default function POS() {
                                 ${lineGross.toFixed(2)}
                               </td>
 
-                              {/* First Location Selection */}
+                              {/* First Location Selection - Hidden for gift cards (digital products) */}
                               <td style={{ width: "12%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
-                                <select
-                                  value={firstLine.locationId || ''}
-                                  onChange={(e) => handleLocationChange(product.id, 0, e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  disabled={isFullyPaid}
-                                  className={`pos-location-select ${!firstLine.locationId ? 'not-selected' : ''}`}
-                                >
-                                  <option value="">Select location...</option>
-                                  {locations.map(loc => {
-                                    const isAlreadySelected = locationLines.some((line, idx) => idx !== 0 && line.locationId === loc.locationId);
-                                    return (
-                                      <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
-                                        {loc.locationCode} (Qty: {loc.quantity}) {isAlreadySelected ? '- Already selected' : ''}
-                                      </option>
-                                    );
-                                  })}
-                                </select>
-                              </td>
-
-                              {/* First Location Quantity with action buttons inline */}
-                              <td style={{ width: "10%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
-                                <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={firstLine.quantity}
-                                    onChange={(e) => handleQuantityChange(product.id, 0, e.target.value)}
-                                    onBlur={() => handleQuantityBlur(product.id, 0)}
+                                {product.isGiftCard ? (
+                                  <span style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "0.9rem" }}>
+                                    Digital product
+                                  </span>
+                                ) : (
+                                  <select
+                                    value={firstLine.locationId || ''}
+                                    onChange={(e) => handleLocationChange(product.id, 0, e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
                                     disabled={isFullyPaid}
-                                    className="pos-quantity-input"
-                                  />
-                                  {/* Show + button only if there are still unselected locations available */}
-                                  {locationLines.length < locations.length && (
-                                    <button
-                                      className="btn-add-location-line"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddLocationLine(product.id);
-                                      }}
+                                    className={`pos-location-select ${!firstLine.locationId ? 'not-selected' : ''}`}
+                                  >
+                                    <option value="">Select location...</option>
+                                    {locations.map(loc => {
+                                      const isAlreadySelected = locationLines.some((line, idx) => idx !== 0 && line.locationId === loc.locationId);
+                                      return (
+                                        <option key={loc.locationId} value={loc.locationId} disabled={isAlreadySelected}>
+                                          {loc.locationCode} (Qty: {loc.quantity}) {isAlreadySelected ? '- Already selected' : ''}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                )}
+                              </td>
+
+                              {/* First Location Quantity with action buttons inline - Hidden for gift cards */}
+                              <td style={{ width: "10%", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+                                {!product.isGiftCard && (
+                                  <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={firstLine.quantity}
+                                      onChange={(e) => handleQuantityChange(product.id, 0, e.target.value)}
+                                      onBlur={() => handleQuantityBlur(product.id, 0)}
+                                      onClick={(e) => e.stopPropagation()}
                                       disabled={isFullyPaid}
-                                      title="Add another location"
-                                    >
-                                      +
-                                    </button>
-                                  )}
-                                  {locationLines.length > 1 && (
-                                    <button
-                                      className="btn-remove-location-line"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemoveLocationLine(product.id, 0);
-                                      }}
-                                      disabled={isFullyPaid}
-                                      title="Remove this location line"
-                                    >
-                                      ×
-                                    </button>
-                                  )}
-                                </div>
+                                      className="pos-quantity-input"
+                                    />
+                                    {/* Show + button only if there are still unselected locations available */}
+                                    {locationLines.length < locations.length && (
+                                      <button
+                                        className="btn-add-location-line"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAddLocationLine(product.id);
+                                        }}
+                                        disabled={isFullyPaid}
+                                        title="Add another location"
+                                      >
+                                        +
+                                      </button>
+                                    )}
+                                    {locationLines.length > 1 && (
+                                      <button
+                                        className="btn-remove-location-line"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveLocationLine(product.id, 0);
+                                        }}
+                                        disabled={isFullyPaid}
+                                        title="Remove this location line"
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </td>
 
                               {/* Remove Product Button - Trash icon */}
@@ -1807,8 +1828,8 @@ export default function POS() {
                               </td>
                             </tr>
 
-                            {/* Additional location lines as sub-rows (if any) */}
-                            {additionalLines.map((line, additionalIndex) => {
+                            {/* Additional location lines as sub-rows (if any) - Not applicable for gift cards */}
+                            {!product.isGiftCard && additionalLines.map((line, additionalIndex) => {
                               const lineIndex = additionalIndex + 1; // Offset by 1 since first line is in main row
                               return (
                                 <tr
