@@ -203,6 +203,11 @@ export async function printSalesDocumentPDF(documentData, formatters) {
                         <span style="color: #0f1624; padding: 3px 6px; border-radius: 3px; font-size: 8px; font-weight: 600; text-transform: capitalize; border: 1px solid #cbd5e1; background: #f8fafc;">
                           ${methodLabel}
                         </span>
+                        ${payment.giftCardCode ? `
+                          <div style="margin-top: 3px; font-size: 7px; color: #64748b; font-family: 'Courier New', monospace; font-weight: 500;">
+                            Code: ${payment.giftCardCode}
+                          </div>
+                        ` : ''}
                       </td>
                       <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624; font-size: 9px;">$${payment.amount.toFixed(2)}</td>
                       <td style="padding: 5px 8px; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #0f1624; font-size: 9px;">$${(payment.amountTendered || payment.amount).toFixed(2)}</td>
