@@ -18,15 +18,15 @@ const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const POS = lazy(() => import('./pages/POS.jsx'));
 const SalesDocuments = lazy(() => import('./pages/Sales/Documents.jsx'));
-const GiftCards = lazy(() => import('./pages/Sales/GiftCards.jsx'));
+const GiftCards = lazy(() => import('./pages/Sales/GiftCards/GiftCards.jsx'));
 const Reports = lazy(() => import('./pages/Reports.jsx'));
 
-const Users = lazy(() => import("./pages/Organization/Users.jsx"));
-const Clients = lazy(() => import("./pages/Organization/Clients.jsx"));
-const Addresses = lazy(() => import("./pages/Organization/Addresses.jsx"));
-const Categories = lazy(() => import("./pages/Organization/Categories.jsx"));
-const TaxRates = lazy(() => import("./pages/Organization/TaxRates.jsx"));
-const OrganizationProducts = lazy(() => import("./pages/Organization/Products.jsx"));
+const Users = lazy(() => import("./pages/Organization/Users/Users.jsx"));
+const Clients = lazy(() => import("./pages/Organization/Clients/Clients.jsx"));
+const Addresses = lazy(() => import("./pages/Organization/Addresses/Addresses.jsx"));
+const Categories = lazy(() => import("./pages/Organization/Categories/Categories.jsx"));
+const TaxRates = lazy(() => import("./pages/Organization/TaxRates/TaxRates.jsx"));
+const OrganizationProducts = lazy(() => import("./pages/Organization/Products/Products.jsx"));
 
 const StorageProducts = lazy(() => import("./pages/Storage/StorageProducts.jsx"));
 const Warehouses = lazy(() => import("./pages/Storage/Warehouses.jsx"));
