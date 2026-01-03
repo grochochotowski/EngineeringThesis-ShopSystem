@@ -20,7 +20,6 @@ export default function Products() {
   // === STATE ===
   const [searchParams, setSearchParams] = useSearchParams();
   const [showModal, setShowModal] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [selectedProductDetails, setSelectedProductDetails] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [toast, setToast] = useState(null);
