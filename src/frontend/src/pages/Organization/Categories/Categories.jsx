@@ -34,6 +34,7 @@ export default function Categories() {
   const [filters, setFilters] = useState({ isActive: "" });
   const [sortColumn, setSortColumn] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const observerRef = useRef(null);
   const filtersRef = useRef(null);
@@ -58,6 +59,7 @@ export default function Categories() {
         params: {
           PageNumber: page,
           PageSize: 20,
+          ...(searchQuery && { q: searchQuery }),
           ...(filters.isActive !== "" && { isActive: filters.isActive }),
           orderBy: sortColumn,
           sortDirection: sortDirection,
@@ -73,15 +75,20 @@ export default function Categories() {
     } finally {
       setLoading(false);
     }
-  }, [filters, sortColumn, sortDirection]);
+  }, [filters, sortColumn, sortDirection, searchQuery]);
 
   // === EFFECTS ===
   /**
-   * Initial load and refresh when filters/sorting change
+   * Debounced search and filter changes
+   * Waits 500ms after search input stops before fetching
    */
   useEffect(() => {
-    fetchCategories(1, true);
-  }, [filters, sortColumn, sortDirection, fetchCategories]);
+    const handler = setTimeout(() => {
+      fetchCategories(1, true);
+    }, searchQuery ? 500 : 0); // Immediate for non-search, debounced for search
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, filters, sortColumn, sortDirection]);
 
   /**
    * Infinite scroll observer - loads next page when sentinel is visible
@@ -304,6 +311,8 @@ export default function Categories() {
           onToggleFilters={() => setShowFilters(p => !p)}
           onSort={handleSort}
           sortColumn={sortColumn}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
           sortDirection={sortDirection}
           deleteButtonLabel={selectedRow?._isActive ? "Deactivate" : "Activate"}
           deleteButtonClass={selectedRow?._isActive ? "btn-confirm-negative" : "btn-confirm-positive"}
