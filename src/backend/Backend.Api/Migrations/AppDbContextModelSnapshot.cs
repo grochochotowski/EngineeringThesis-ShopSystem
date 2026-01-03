@@ -816,8 +816,7 @@ namespace Backend.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AddressId")
-                        .IsUnique();
+                    b.HasIndex("AddressId");
 
                     b.HasIndex("Email")
                         .IsUnique();
@@ -1109,8 +1108,8 @@ namespace Backend.Api.Migrations
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.User", b =>
                 {
                     b.HasOne("Backend.Api.Objects.Entities.Models.Address", "Address")
-                        .WithOne()
-                        .HasForeignKey("Backend.Api.Objects.Entities.Models.User", "AddressId")
+                        .WithMany()
+                        .HasForeignKey("AddressId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 

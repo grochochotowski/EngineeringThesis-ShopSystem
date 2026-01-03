@@ -48,10 +48,12 @@ namespace Backend.Api.Api.Controllers
             [FromQuery] ClientType? type,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
+            [FromQuery] string? orderBy = null,
+            [FromQuery] string? sortDirection = null,
             CancellationToken ct = default)
         {
             var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
-            var result = await _service.GetAllAsync(q, type, pagination, ct);
+            var result = await _service.GetAllAsync(q, type, pagination, orderBy, sortDirection, ct);
             return Ok(result);
         }
 

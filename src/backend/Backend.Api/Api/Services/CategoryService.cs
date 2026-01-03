@@ -9,7 +9,7 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetCategoryDto> CreateAsync(CreateCategoryDto dto, CancellationToken ct = default);
         Task<GetCategoryDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default);
+        Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, string? q = null, bool? isActive = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateCategoryDto dto, CancellationToken ct = default);
         Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
         Task<bool> ActivateAsync(int id, CancellationToken ct = default);
@@ -46,9 +46,18 @@ namespace Backend.Api.Api.Controllers
         }
 
         // --- GET ALL CATEGORIES (paginated) ---
-        public async Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, bool? isActive = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default)
+        public async Task<PagedResult<GetCategoryDto>> GetAllAsync(PaginationParams pagination, string? q = null, bool? isActive = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default)
         {
             var query = _db.Categories.AsNoTracking();
+
+            // Search filter
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var searchTerm = q.Trim().ToLower();
+                query = query.Where(c =>
+                    c.Name.ToLower().Contains(searchTerm) ||
+                    c.Description.ToLower().Contains(searchTerm));
+            }
 
             if (isActive.HasValue)
             {

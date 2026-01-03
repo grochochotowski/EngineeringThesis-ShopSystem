@@ -363,9 +363,10 @@ namespace Backend.Api.Objects.Entities
                 b.Property(x => x.Email).HasMaxLength(64);
                 b.Property(x => x.PhoneNumber).HasMaxLength(32);
 
+                // Changed from WithOne to WithMany - allows multiple users to share same address
                 b.HasOne(x => x.Address)
-                 .WithOne()
-                 .HasForeignKey<User>(x => x.AddressId)
+                 .WithMany()
+                 .HasForeignKey(x => x.AddressId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
 

@@ -10,7 +10,7 @@ namespace Backend.Api.Api.Controllers
     {
         Task<GetClientDto> CreateAsync(CreateClientDto dto, CancellationToken ct = default);
         Task<GetClientDto?> GetByIdAsync(int id, CancellationToken ct = default);
-        Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, CancellationToken ct = default);
+        Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default);
         Task<bool> UpdateAsync(int id, UpdateClientDto dto, CancellationToken ct = default);
         Task<bool> DeleteAsync(int id, CancellationToken ct = default);
         Task<bool> ActivateAsync(int id, CancellationToken ct = default);
@@ -32,6 +32,10 @@ namespace Backend.Api.Api.Controllers
             // checking if email is existing
             if (await _db.Clients.AnyAsync(c => c.Email == dto.Email, ct))
                 throw new InvalidOperationException("Client with this email already exists.");
+
+            // checking if phone number is existing
+            if (await _db.Clients.AnyAsync(c => c.PhoneNumber == dto.PhoneNumber, ct))
+                throw new InvalidOperationException("Client with this phone number already exists.");
 
             // Validate TaxId for Company type
             if (dto.Type == ClientType.Company && string.IsNullOrWhiteSpace(dto.TaxId))
@@ -71,7 +75,7 @@ namespace Backend.Api.Api.Controllers
         }
 
         // --- GET ALL CLIENTS (filters and pagination) ---
-        public async Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, CancellationToken ct = default)
+        public async Task<PagedResult<GetClientDto>> GetAllAsync(string? q = null, ClientType? type = null, PaginationParams? pagination = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default)
         {
             var query = _db.Clients
                 .AsNoTracking()
@@ -90,8 +94,28 @@ namespace Backend.Api.Api.Controllers
             if (type.HasValue)
                 query = query.Where(c => c.Type == type.Value);
 
+            // Apply sorting
+            var direction = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
+            var ord = (orderBy ?? "name").ToLower();
+
+            query = ord switch
+            {
+                "name" => direction == "desc"
+                    ? query.OrderByDescending(c => c.Name)
+                    : query.OrderBy(c => c.Name),
+                "email" => direction == "desc"
+                    ? query.OrderByDescending(c => c.Email)
+                    : query.OrderBy(c => c.Email),
+                "type" => direction == "desc"
+                    ? query.OrderByDescending(c => c.Type)
+                    : query.OrderBy(c => c.Type),
+                "isactive" => direction == "desc"
+                    ? query.OrderByDescending(c => c.IsActive)
+                    : query.OrderBy(c => c.IsActive),
+                _ => query.OrderBy(c => c.Name)
+            };
+
             var dtoQuery = query
-                .OrderBy(c => c.Name)
                 .Select(c => new GetClientDto
                 {
                     Id = c.Id,
@@ -131,6 +155,13 @@ namespace Backend.Api.Api.Controllers
             {
                 if (await _db.Clients.AnyAsync(c => c.Email == dto.Email && c.Id != id, ct))
                     throw new InvalidOperationException("Client with this email already exists.");
+            }
+
+            // checking if phone number is changing and if new phone number is existing
+            if (!string.Equals(entity.PhoneNumber, dto.PhoneNumber, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await _db.Clients.AnyAsync(c => c.PhoneNumber == dto.PhoneNumber && c.Id != id, ct))
+                    throw new InvalidOperationException("Client with this phone number already exists.");
             }
 
             // Validate TaxId for Company type

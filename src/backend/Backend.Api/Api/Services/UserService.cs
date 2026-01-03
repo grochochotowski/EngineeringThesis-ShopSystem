@@ -138,8 +138,10 @@ namespace Backend.Api.Api.Controllers
                     throw new InvalidOperationException("Email already in use.");
             }
 
+            // Handle address update - use GetOrCreateAsync to reuse existing addresses
             if (dto.AddressId.HasValue)
             {
+                // Explicit addressId provided - use it directly
                 var exists = await _db.Addresses.AnyAsync(a => a.Id == dto.AddressId.Value, ct);
                 if (!exists)
                     throw new InvalidOperationException("Address not found.");
@@ -147,8 +149,9 @@ namespace Backend.Api.Api.Controllers
             }
             else if (dto.Address is not null)
             {
-                var newAddr = await _addressService.CreateAsync(dto.Address, ct);
-                user.AddressId = newAddr.Id;
+                // Address data provided - find existing or create new (prevents duplicate addresses)
+                int addressId = await _addressService.GetOrCreateAsync(dto.Address, ct);
+                user.AddressId = addressId;
             }
 
             user.FirstName = dto.FirstName.Trim();
