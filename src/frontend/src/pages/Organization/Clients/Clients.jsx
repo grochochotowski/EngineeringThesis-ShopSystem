@@ -61,6 +61,8 @@ export default function Clients() {
   const sortKeyMap = useMemo(() => ({
     name: "name",
     email: "email",
+    type: "type",
+    isActiveLabel: "isactive",
   }), []);
 
   // === DATA FETCHING ===
@@ -217,8 +219,8 @@ export default function Clients() {
     { key: "name", label: "Name", width: "20%", sortable: true },
     { key: "email", label: "Email", width: "20%", sortable: true },
     { key: "phoneNumber", label: "Phone", width: "16%", sortable: false },
-    { key: "type", label: "Type", width: "14%", sortable: false },
-    { key: "isActiveLabel", label: "Active", width: "12%", sortable: false },
+    { key: "type", label: "Type", width: "14%", sortable: true },
+    { key: "isActiveLabel", label: "Active", width: "12%", sortable: true },
   ];
 
   /**
@@ -318,21 +320,22 @@ export default function Clients() {
   // === EVENT HANDLERS ===
   /**
    * Handles column header clicks for sorting
+   * Cycles through: asc -> desc -> no sort
    */
   const handleSort = (column) => {
     if (!sortKeyMap[column]) return;
 
     if (sortColumn === column) {
+      // Same column clicked - cycle through sort directions
       if (sortDirection === "asc") {
         setSortDirection("desc");
-      } else if (sortDirection === "desc") {
+      } else {
+        // desc -> clear sort
         setSortColumn(null);
         setSortDirection(null);
-      } else {
-        setSortColumn(column);
-        setSortDirection("asc");
       }
     } else {
+      // New column clicked - start with ascending
       setSortColumn(column);
       setSortDirection("asc");
     }

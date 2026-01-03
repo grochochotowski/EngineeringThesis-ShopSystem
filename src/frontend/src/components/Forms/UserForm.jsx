@@ -98,10 +98,8 @@ export default function UserForm({ mode = "create", user, address, roles = [], r
                 });
                 onSuccess?.(created?.id);
             } else if (user?.id) {
-                if (user?.addressId) {
-                    await api.put(`/Addresses/${user.addressId}`, addressPayload);
-                }
-
+                // For edit mode, always send address data
+                // Backend will use GetOrCreateAsync to reuse existing addresses or create new ones
                 await api.put(`/Users/${user.id}`, {
                     firstName: userForm.firstName,
                     lastName: userForm.lastName,
@@ -109,7 +107,7 @@ export default function UserForm({ mode = "create", user, address, roles = [], r
                     phoneNumber: userForm.phoneNumber,
                     dateOfBirth: userForm.dateOfBirth,
                     role: userForm.role,
-                    ...(user?.addressId ? { addressId: user.addressId } : { address: addressPayload }),
+                    address: addressPayload,
                 });
                 onSuccess?.(user.id);
             }
