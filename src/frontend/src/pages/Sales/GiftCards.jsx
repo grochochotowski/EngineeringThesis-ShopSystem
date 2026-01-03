@@ -19,7 +19,7 @@ export default function GiftCards() {
     // --- Filters ---
     const [filters, setFilters] = useState({
         code: "",
-        isActive: ""
+        isActive: "true"
     });
     const [sortColumn, setSortColumn] = useState("dateIssued");
     const [sortDirection, setSortDirection] = useState("desc");
@@ -103,7 +103,7 @@ export default function GiftCards() {
 
     const columns = [
         { key: "id", label: "ID", width: "8%", sortable: false },
-        { key: "code", label: "Gift Card Number", width: "25%", sortable: true },
+        { key: "code", label: "Gift Card Number", width: "25%", sortable: false },
         { key: "value", label: "Value", width: "12%", sortable: true },
         { key: "dateIssued", label: "Date Issued", width: "15%", sortable: true },
         { key: "dateValidUntil", label: "Valid Until", width: "15%", sortable: true },
@@ -187,7 +187,7 @@ export default function GiftCards() {
     };
 
     const handleResetFilters = () => {
-        setFilters({ code: "", isActive: "" });
+        setFilters({ code: "", isActive: "true" });
     };
 
     return (
@@ -238,7 +238,7 @@ export default function GiftCards() {
                                 <option value="false">Inactive</option>
                             </select>
                         </div>
-                        <button className="btn-secondary" onClick={handleResetFilters}>
+                        <button onClick={handleResetFilters}>
                             Reset Filters
                         </button>
                     </div>
