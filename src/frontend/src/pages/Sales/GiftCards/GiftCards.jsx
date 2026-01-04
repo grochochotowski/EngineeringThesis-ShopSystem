@@ -4,38 +4,49 @@ import { api } from "../../../api/apiClient";
 import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
 import MessageBox from "../../../components/MessageBox";
+import AddModal from "./Modals/AddModal";
+import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
 
 // === COMPONENT ===
 /**
- * GiftCards page - view-only list of all gift cards in the system
+ * GiftCards page - Manage gift cards in the system
  * Uses BaseListPage for consistent list UI with infinite scroll, sorting, and filtering
- * Read-only page - no create, edit, or delete operations
- * Gift cards are created through POS or sales transactions
+ * Supports creating new gift cards and deactivating existing ones
+ * Gift cards can also be created through POS transactions
  */
 export default function GiftCards() {
   // === STATE ===
-  const [giftCards, setGiftCards] = useState([]);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [toast, setToast] = useState(null);
+  // Data state
+  const [giftCards, setGiftCards] = useState([]); // Array of gift card objects from API
+  const [pageNumber, setPageNumber] = useState(1); // Current page number for pagination
+  const [hasMore, setHasMore] = useState(true); // Whether more pages are available
+  const [loading, setLoading] = useState(false); // Loading indicator for API requests
+  const [error, setError] = useState(null); // Error message if API call fails
 
-  const [selectedRow, setSelectedRow] = useState(null);
-  const lastSelectedId = useRef(null);
+  // UI state
+  const [showFilters, setShowFilters] = useState(false); // Toggle for filter panel visibility
+  const [toast, setToast] = useState(null); // Toast notification state (message, type)
+  const [selectedRow, setSelectedRow] = useState(null); // Currently selected gift card row
 
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false); // Controls Add modal visibility
+  const [giftCardToDeactivate, setGiftCardToDeactivate] = useState(null); // Gift card selected for deactivation
+
+  // Filter and sort state
   const [filters, setFilters] = useState({
-    code: "",
-    isActive: "true"
+    code: "", // Filter by gift card number
+    isActive: "true" // Filter by active status (default: active only)
   });
-  const [sortColumn, setSortColumn] = useState("dateIssued");
-  const [sortDirection, setSortDirection] = useState("desc");
+  const [sortColumn, setSortColumn] = useState("dateIssued"); // Column to sort by
+  const [sortDirection, setSortDirection] = useState("desc"); // Sort direction (asc/desc)
 
-  const observerRef = useRef(null);
-  const filtersRef = useRef(null);
+  // Refs
+  const lastSelectedId = useRef(null); // Stores last selected gift card ID for persistence
+  const observerRef = useRef(null); // Ref for intersection observer (infinite scroll)
+  const filtersRef = useRef(null); // Ref for filters panel (click-outside detection)
 
-  const currentUser = JSON.parse(localStorage.getItem("user"));
+  // User context
+  const currentUser = JSON.parse(localStorage.getItem("user")); // Current logged-in user
 
   // === DATA FETCHING ===
   /**
@@ -75,13 +86,16 @@ export default function GiftCards() {
   // === EFFECTS ===
   /**
    * Initial load and refresh when filters/sorting change
+   * Triggers a full data reset and fetches page 1 whenever filters or sort options change
    */
   useEffect(() => {
     fetchGiftCards(1, true);
   }, [filters, sortColumn, sortDirection, fetchGiftCards]);
 
   /**
-   * Infinite scroll observer
+   * Infinite scroll observer setup
+   * Sets up IntersectionObserver to detect when user scrolls to bottom
+   * Increments page number when observer element becomes visible
    */
   useEffect(() => {
     if (loading || !hasMore) return;
@@ -101,6 +115,7 @@ export default function GiftCards() {
 
   /**
    * Load next page when pageNumber changes
+   * Fetches additional data when infinite scroll triggers page increment
    */
   useEffect(() => {
     if (pageNumber > 1) {
@@ -110,6 +125,8 @@ export default function GiftCards() {
 
   /**
    * Close filters panel when clicking outside
+   * Listens for clicks outside the filters panel and closes it if detected
+   * Cleans up event listener on component unmount or when filters close
    */
   useEffect(() => {
     if (!showFilters) return;
@@ -129,6 +146,8 @@ export default function GiftCards() {
   // === TABLE CONFIGURATION ===
   /**
    * Formats date string to locale date format
+   * @param {string} dateString - ISO date string to format
+   * @returns {string} Formatted date string (MM/DD/YYYY)
    */
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -139,6 +158,10 @@ export default function GiftCards() {
     });
   };
 
+  /**
+   * Column definitions for the gift cards table
+   * Defines headers, widths, and sortability for each column
+   */
   const columns = [
     { key: "id", label: "ID", width: "8%", sortable: false },
     { key: "code", label: "Gift Card Number", width: "25%", sortable: false },
@@ -150,6 +173,9 @@ export default function GiftCards() {
 
   /**
    * Transforms gift card data to table row format
+   * Formats values for display (currency, dates, status text)
+   * @param {object} gc - Raw gift card data from API
+   * @returns {object} Formatted row object for table display
    */
   const toRow = useCallback((gc) => {
     const active = typeof gc.isActive === "boolean" ? gc.isActive : Boolean(gc.isActive);
@@ -163,10 +189,18 @@ export default function GiftCards() {
     };
   }, []);
 
+  /**
+   * Memoized table rows to prevent unnecessary recalculations
+   * Applies toRow transformation to all gift cards
+   */
   const rows = useMemo(() => {
     return giftCards.map(toRow);
   }, [giftCards, toRow]);
 
+  /**
+   * Configuration for the details panel
+   * Defines how to display selected gift card information
+   */
   const detailsConfig = {
     status: {
       key: "_isActive",
@@ -206,6 +240,8 @@ export default function GiftCards() {
 
   /**
    * Handles filter input changes
+   * Updates filter state when user modifies filter fields
+   * @param {Event} e - Change event from input/select elements
    */
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -217,6 +253,8 @@ export default function GiftCards() {
 
   /**
    * Handles row selection in the table
+   * Updates selected row state and stores ID in ref for persistence
+   * @param {object} row - Selected gift card row object
    */
   const handleRowSelect = (row) => {
     setSelectedRow(row);
@@ -225,9 +263,61 @@ export default function GiftCards() {
 
   /**
    * Resets all filters to default values
+   * Clears code filter and sets status to "Active" only
    */
   const handleResetFilters = () => {
     setFilters({ code: "", isActive: "true" });
+  };
+
+  /**
+   * Opens the Add modal to create a new gift card
+   */
+  const handleAdd = () => {
+    setShowAddModal(true);
+  };
+
+  /**
+   * Handles successful gift card creation
+   * Refreshes the list and shows success message
+   */
+  const handleAddSuccess = () => {
+    fetchGiftCards(1, true);
+    setToast({ message: "Gift card created successfully", type: "success" });
+  };
+
+  /**
+   * Opens the deactivation confirmation dialog
+   * Only works if a row is selected and the gift card is active
+   */
+  const handleDelete = () => {
+    if (!selectedRow || !selectedRow._isActive) return;
+    setGiftCardToDeactivate(selectedRow);
+  };
+
+  /**
+   * Confirms and executes gift card deactivation
+   * Calls API to deactivate, refreshes list, and shows success message
+   */
+  const handleConfirmDeactivate = async () => {
+    if (!giftCardToDeactivate) return;
+
+    try {
+      await api.delete(`/GiftCard/${giftCardToDeactivate.id}`);
+      setGiftCardToDeactivate(null);
+      setSelectedRow(null);
+      fetchGiftCards(1, true);
+      setToast({ message: "Gift card deactivated successfully", type: "success" });
+    } catch (err) {
+      setToast({ message: err.response?.data?.error || "Failed to deactivate gift card", type: "error" });
+    }
+  };
+
+  /**
+   * Cancels the deactivation operation
+   * Closes the confirmation dialog without making changes
+   */
+  const handleCancelDeactivate = () => {
+    setGiftCardToDeactivate(null);
   };
 
   // === RENDER ===
@@ -249,11 +339,12 @@ export default function GiftCards() {
           onSort={handleSort}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
-          hideAddButton={true}
+          onAdd={handleAdd}
+          onDelete={handleDelete}
           hideEditButton={true}
-          hideDeleteButton={true}
         />
 
+        {/* Filter Panel - Conditional rendering based on showFilters state */}
         {showFilters && (
           <div className="filters-panel" ref={filtersRef}>
             <h4>Filters</h4>
@@ -287,9 +378,24 @@ export default function GiftCards() {
           </div>
         )}
 
+        {/* Intersection Observer target for infinite scroll */}
         <div ref={observerRef} style={{ height: "1px" }} />
       </main>
 
+      {/* Modals */}
+      <AddModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleAddSuccess}
+      />
+
+      <StatusConfirmDialog
+        giftCard={giftCardToDeactivate}
+        onConfirm={handleConfirmDeactivate}
+        onCancel={handleCancelDeactivate}
+      />
+
+      {/* Toast notifications */}
       {toast && (
         <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} className="centered" />
       )}
