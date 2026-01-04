@@ -17,7 +17,7 @@ const NotFound = lazy(() => import('./pages/ErrorPages/NotFound.jsx'))
 const AccessDenied = lazy(() => import('./pages/ErrorPages/AccessDenied.jsx'))
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const POS = lazy(() => import('./pages/POS.jsx'));
-const SalesDocuments = lazy(() => import('./pages/Sales/Documents.jsx'));
+const SalesDocuments = lazy(() => import('./pages/Sales/Documents/Documents.jsx'));
 const GiftCards = lazy(() => import('./pages/Sales/GiftCards/GiftCards.jsx'));
 const Reports = lazy(() => import('./pages/Reports.jsx'));
 
@@ -28,12 +28,12 @@ const Categories = lazy(() => import("./pages/Organization/Categories/Categories
 const TaxRates = lazy(() => import("./pages/Organization/TaxRates/TaxRates.jsx"));
 const OrganizationProducts = lazy(() => import("./pages/Organization/Products/Products.jsx"));
 
-const StorageProducts = lazy(() => import("./pages/Storage/StorageProducts.jsx"));
-const Warehouses = lazy(() => import("./pages/Storage/Warehouses.jsx"));
-const InventoryReports = lazy(() => import("./pages/Storage/InventoryReports.jsx"));
+const StorageProducts = lazy(() => import("./pages/Storage/StorageProducts/StorageProducts.jsx"));
+const Warehouses = lazy(() => import("./pages/Storage/Warehouses/Warehouses.jsx"));
+const InventoryReports = lazy(() => import("./pages/Storage/InventoryReports/InventoryReports.jsx"));
 
-const IncomingShipments = lazy(() => import("./pages/Shipments/Incoming.jsx"));
-const LeavingShipments = lazy(() => import("./pages/Shipments/Leaving.jsx"));
+const IncomingShipments = lazy(() => import("./pages/Shipments/Incoming/Incoming.jsx"));
+const LeavingShipments = lazy(() => import("./pages/Shipments/Leaving/Leaving.jsx"));
 
 const ClientTypes = lazy(() => import("./pages/Dictionaries/ClientTypes.jsx"));
 const Countries = lazy(() => import("./pages/Dictionaries/Countries.jsx"));
