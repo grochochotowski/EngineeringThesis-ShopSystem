@@ -1,22 +1,50 @@
+// === IMPORTS ===
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { api } from "../../api/apiClient";
-import Header from "../../components/Header";
-import BaseListPage from "../BaseListPage";
-import Modal from "../../components/Modal";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import MessageBox from "../../components/MessageBox";
-import { shipmentStatusesData } from "../../data/shipmentStatuses";
-import { userRolesData } from "../../data/userRoles";
-import { getValidStatusOptions } from "../../utils/shipmentStatusUtils";
-import "../../styles/PagesStyles/shipments.css";
+import { api } from "../../../api/apiClient";
+import Header from "../../../components/Header";
+import BaseListPage from "../../BaseListPage";
+import ConfirmDialog from "../../../components/ConfirmDialog";
+import MessageBox from "../../../components/MessageBox";
+import { shipmentStatusesData } from "../../../data/shipmentStatuses";
+import { userRolesData } from "../../../data/userRoles";
+import { getValidStatusOptions } from "../../../utils/shipmentStatusUtils";
+import AddEditModal from "./Modals/AddEditModal";
+import PrepareModal from "./Modals/PrepareModal";
+import ViewProductsModal from "./Modals/ViewProductsModal";
+import "../../../styles/PagesStyles/shipments.css";
 
-// Import modal components
-import LeavingAddEditModal from "./components/LeavingAddEditModal";
-import LeavingPrepareModal from "./components/LeavingPrepareModal";
-import LeavingViewProductsModal from "./components/LeavingViewProductsModal";
-
+// === COMPONENT ===
+/**
+ * LeavingShipments page - Manage outgoing shipments from warehouse
+ *
+ * This page handles the complete leaving/outgoing shipment workflow:
+ * - Create new outgoing shipments with client/destination information
+ * - Edit shipment details before preparation
+ * - Preparation workflow with product collection and location tracking
+ * - View shipment products and preparation summaries
+ * - Status management with role-based permissions
+ *
+ * Key Features:
+ * - Product selection with warehouse stock validation
+ * - Multi-location source tracking (where products are taken from)
+ * - Preparation workflow validates sufficient stock at locations
+ * - Automatic inventory deduction upon shipment completion
+ * - Role-based status change permissions (DeputyManager+)
+ * - Client and server-side sorting
+ * - Advanced filtering (dates, statuses, search)
+ *
+ * Preparation Workflow:
+ * 1. Click "Prepare" on a shipment (status must be InPreparation)
+ * 2. System loads products with warehouse locations
+ * 3. User selects source locations and quantities for each product
+ * 4. System validates sufficient stock at selected locations
+ * 5. Finish preparation to deduct inventory and mark as Ready
+ *
+ * @returns {JSX.Element} The leaving shipments management page
+ */
 export default function LeavingShipments() {
+  // === STATE ===
   const [shipments, setShipments] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -667,7 +695,7 @@ export default function LeavingShipments() {
 
       {/* Add Shipment Modal */}
       {showAddModal && (
-        <LeavingAddEditModal
+        <AddEditModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSave={handleShipmentSaved}
@@ -678,7 +706,7 @@ export default function LeavingShipments() {
 
       {/* Edit Shipment Modal */}
       {showEditModal && selectedRow && (
-        <LeavingAddEditModal
+        <AddEditModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           onSave={handleShipmentSaved}
@@ -691,7 +719,7 @@ export default function LeavingShipments() {
 
       {/* Prepare Shipment Modal */}
       {showPrepareModal && selectedRow && (
-        <LeavingPrepareModal
+        <PrepareModal
           isOpen={showPrepareModal}
           onClose={() => setShowPrepareModal(false)}
           onComplete={handlePreparationCompleted}
@@ -703,7 +731,7 @@ export default function LeavingShipments() {
 
       {/* View Products Modal */}
       {showViewProductsModal && selectedRow && (
-        <LeavingViewProductsModal
+        <ViewProductsModal
           isOpen={showViewProductsModal}
           onClose={() => setShowViewProductsModal(false)}
           shipmentId={selectedRow.id}

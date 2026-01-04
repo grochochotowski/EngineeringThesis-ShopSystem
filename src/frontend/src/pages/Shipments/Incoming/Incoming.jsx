@@ -1,18 +1,54 @@
+// === IMPORTS ===
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { api, apiRequest } from "../../api/apiClient";
-import Header from "../../components/Header";
-import BaseListPage from "../BaseListPage";
-import Modal from "../../components/Modal";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import MessageBox from "../../components/MessageBox";
-import { shipmentStatusesData } from "../../data/shipmentStatuses";
-import { countries, getCountryValue } from "../../data/countries";
-import { userRolesData } from "../../data/userRoles";
-import { getValidStatusOptions } from "../../utils/shipmentStatusUtils";
-import "../../styles/PagesStyles/shipments.css";
+import { api, apiRequest } from "../../../api/apiClient";
+import Header from "../../../components/Header";
+import BaseListPage from "../../BaseListPage";
+import ConfirmDialog from "../../../components/ConfirmDialog";
+import MessageBox from "../../../components/MessageBox";
+import { shipmentStatusesData } from "../../../data/shipmentStatuses";
+import { countries, getCountryValue } from "../../../data/countries";
+import { userRolesData } from "../../../data/userRoles";
+import { getValidStatusOptions } from "../../../utils/shipmentStatusUtils";
+import AddModal from "./Modals/AddModal";
+import EditModal from "./Modals/EditModal";
+import CollectModal from "./Modals/CollectModal";
+import ViewProductsModal from "./Modals/ViewProductsModal";
+import "../../../styles/PagesStyles/shipments.css";
 
+// === COMPONENT ===
+/**
+ * IncomingShipments page - Manage incoming shipments to warehouse
+ *
+ * This page handles the complete incoming shipment workflow:
+ * - Register new incoming shipments with sender information
+ * - Edit shipment details and product lists
+ * - Collection workflow with barcode scanning and multi-location assignment
+ * - View shipment products and collection summaries
+ * - Status management with role-based permissions
+ *
+ * Key Features:
+ * - Product search with infinite scroll dropdown
+ * - Multi-location assignment during collection
+ * - Real-time quantity validation (collected vs declared)
+ * - Color-coded collection status (red/yellow/green)
+ * - Extra product handling (products not in original shipment)
+ * - Role-based status change permissions (DeputyManager+)
+ * - Client and server-side sorting (volume and quantity = client-side)
+ * - Advanced filtering (dates, statuses, search)
+ *
+ * Collection Workflow:
+ * 1. Click "Collect" on a shipment (status must be ReadyToCollect)
+ * 2. Scan or search products to add quantities
+ * 3. Assign warehouse locations for each product
+ * 4. System validates all products have locations assigned
+ * 5. Finish collection to update inventory and mark as Delivered
+ *
+ * @returns {JSX.Element} The incoming shipments management page
+ */
 export default function IncomingShipments() {
+  // === STATE ===
+  // Main data state
   const [shipments, setShipments] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -1949,1117 +1985,85 @@ export default function IncomingShipments() {
       </main>
 
       {/* Add Shipment Modal */}
-      {showAddModal && (
-        <Modal
-          title="Register Incoming Shipment"
-          onClose={() => setShowAddModal(false)}
-          wide
-        >
-          <div className="add-shipment-modal">
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveShipment(); }}>
-              <div className="form-content">
-                {/* Section A: Basic Information */}
-                <div className="form-section">
-                <h4 className="section-title">Basic Information</h4>
-                <div className="form-grid-2col">
-                  <div className="form-field">
-                    <label htmlFor="status">Status *</label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={addForm.status}
-                      onChange={handleAddFormChange}
-                      required
-                    >
-                      <option value={0}>Unspecified</option>
-                      <option value={1}>In Preparation</option>
-                      <option value={2}>Ready to Collect</option>
-                    </select>
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="sendDate">Send Date</label>
-                    <input
-                      type="date"
-                      id="sendDate"
-                      name="sendDate"
-                      value={addForm.sendDate}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="deliveryDate">Delivery Date</label>
-                    <input
-                      type="date"
-                      id="deliveryDate"
-                      name="deliveryDate"
-                      value={addForm.deliveryDate}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="weight">Weight (kg)</label>
-                    <input
-                      type="number"
-                      id="weight"
-                      name="weight"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={addForm.weight}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-grid-3col">
-                  <div className="form-field">
-                    <label htmlFor="length">Length (cm)</label>
-                    <input
-                      type="number"
-                      id="length"
-                      name="length"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={addForm.length}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="width">Width (cm)</label>
-                    <input
-                      type="number"
-                      id="width"
-                      name="width"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={addForm.width}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="height">Height (cm)</label>
-                    <input
-                      type="number"
-                      id="height"
-                      name="height"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={addForm.height}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="description">Description</label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    rows="3"
-                    placeholder="Enter shipment description..."
-                    value={addForm.description}
-                    onChange={handleAddFormChange}
-                  />
-                </div>
-              </div>
-
-              {/* Section B: Sender Information */}
-              <div className="form-section">
-                <h4 className="section-title">Sender Information</h4>
-                <div className="form-grid-2col">
-                  <div className="form-field">
-                    <label htmlFor="senderName">Name *</label>
-                    <input
-                      type="text"
-                      id="senderName"
-                      name="senderName"
-                      placeholder="Company or person name"
-                      value={addForm.senderName}
-                      onChange={handleAddFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderTaxId">Tax ID *</label>
-                    <input
-                      type="text"
-                      id="senderTaxId"
-                      name="senderTaxId"
-                      placeholder="Tax identification number"
-                      value={addForm.senderTaxId}
-                      onChange={handleAddFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field" style={{ gridColumn: "1 / -1" }}>
-                    <label htmlFor="senderDetails">Sender Details</label>
-                    <textarea
-                      id="senderDetails"
-                      name="senderDetails"
-                      rows="2"
-                      placeholder="Additional notes about sender (optional)"
-                      value={addForm.senderDetails}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderStreet">Street *</label>
-                    <input
-                      type="text"
-                      id="senderStreet"
-                      name="senderStreet"
-                      placeholder="Street name"
-                      value={addForm.senderStreet}
-                      onChange={handleAddFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderBuilding">Building *</label>
-                    <input
-                      type="text"
-                      id="senderBuilding"
-                      name="senderBuilding"
-                      placeholder="Building number"
-                      value={addForm.senderBuilding}
-                      onChange={handleAddFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderPremises">Premises</label>
-                    <input
-                      type="text"
-                      id="senderPremises"
-                      name="senderPremises"
-                      placeholder="Apartment/Suite (optional)"
-                      value={addForm.senderPremises}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderPostalCode">Postal Code *</label>
-                    <input
-                      type="text"
-                      id="senderPostalCode"
-                      name="senderPostalCode"
-                      placeholder="12-345"
-                      value={addForm.senderPostalCode}
-                      onChange={handleAddFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderCity">City *</label>
-                    <input
-                      type="text"
-                      id="senderCity"
-                      name="senderCity"
-                      placeholder="City name"
-                      value={addForm.senderCity}
-                      onChange={handleAddFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="senderCountry">Country *</label>
-                    <select
-                      id="senderCountry"
-                      name="senderCountry"
-                      value={addForm.senderCountry}
-                      onChange={handleAddFormChange}
-                      required
-                    >
-                      {Object.entries(countries).map(([id, name]) => (
-                        <option key={id} value={id}>{name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section C: Receiver Information (Display Only) */}
-              <div className="form-section">
-                <h4 className="section-title">Receiver Information (Store)</h4>
-                <div className="receiver-info-display">
-                  <div className="info-row">
-                    <span className="info-label">Name:</span>
-                    <span className="info-value">Main Store</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">Tax ID:</span>
-                    <span className="info-value">1234567890</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">Address:</span>
-                    <span className="info-value">Main Street 123, 00-950 Warszawa, Poland</span>
-                  </div>
-                </div>
-                <div className="form-field" style={{ marginTop: "15px" }}>
-                  <label htmlFor="receiverDetails">Receiver Details</label>
-                  <textarea
-                    id="receiverDetails"
-                    name="receiverDetails"
-                    rows="2"
-                    placeholder="Additional notes about receiver (optional)"
-                    value={addForm.receiverDetails}
-                    onChange={handleAddFormChange}
-                  />
-                </div>
-              </div>
-
-              {/* Section E: Product Selection */}
-              <div className="form-section">
-                <h4 className="section-title">Products *</h4>
-                <div className="product-search-panel">
-                  <input
-                    type="text"
-                    placeholder="Search products by name or SKU... (Type full SKU and press Enter for exact match)"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    onKeyDown={handleProductSearchKeyDown}
-                    onFocus={() => productSuggestions.length > 0 && setShowProductDropdown(true)}
-                    className="product-search-input"
-                    autoComplete="off"
-                  />
-                  {showProductDropdown && productSuggestions.length > 0 && (
-                    <div
-                      className="product-suggestions"
-                      ref={productDropdownRef}
-                      onScroll={handleProductDropdownScroll}
-                    >
-                      {productSuggestions.map((product, index) => (
-                        <div
-                          key={product.productId || product.id}
-                          className={`product-suggestion-item ${index === highlightedIndex ? "highlighted" : ""}`}
-                          onClick={() => handleAddProduct(product)}
-                          onMouseEnter={() => setHighlightedIndex(index)}
-                        >
-                          <div className="product-suggestion-main">
-                            <strong>{product.name}</strong>
-                            <span className="product-sku">
-                              SKU: {product.sku}
-                              {product.ean && ` | EAN: ${product.ean}`}
-                            </span>
-                          </div>
-                          <span className="product-stock">Stock: {product.totalQuantity || 0}</span>
-                        </div>
-                      ))}
-                      {loadingProducts && (
-                        <div className="product-suggestion-item loading-item">
-                          Loading more products...
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {selectedProducts.length > 0 ? (
-                  <table className="products-table">
-                    <thead>
-                      <tr>
-                        <th>Product Name</th>
-                        <th>SKU</th>
-                        <th>EAN</th>
-                        <th>Amount in Shipment</th>
-                        <th>Amount in Store</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedProducts.map(product => (
-                        <tr key={product.id}>
-                          <td>{product.name}</td>
-                          <td>{product.sku}</td>
-                          <td>{product.ean || "—"}</td>
-                          <td>
-                            <input
-                              type="number"
-                              min="1"
-                              value={product.quantity}
-                              onChange={(e) => handleProductQuantityChange(product.id, e.target.value)}
-                              className="quantity-input"
-                            />
-                          </td>
-                          <td>{product.currentStock}</td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveProduct(product.id)}
-                              className="btn-remove-product"
-                              title="Remove product"
-                            >
-                              ×
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="no-products-message">No products added. Search and select products above.</p>
-                )}
-              </div>
-              </div>
-
-              {/* Section F: Actions */}
-              <div className="form-actions">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="btn-cancel"
-                  disabled={savingShipment}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-confirm"
-                  disabled={savingShipment}
-                >
-                  {savingShipment ? "Saving..." : "Save Shipment"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-      )}
+      <AddModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        addForm={addForm}
+        handleAddFormChange={handleAddFormChange}
+        handleSaveShipment={handleSaveShipment}
+        savingShipment={savingShipment}
+        productSearch={productSearch}
+        setProductSearch={setProductSearch}
+        handleProductSearchKeyDown={handleProductSearchKeyDown}
+        showProductDropdown={showProductDropdown}
+        setShowProductDropdown={setShowProductDropdown}
+        productSuggestions={productSuggestions}
+        productDropdownRef={productDropdownRef}
+        handleProductDropdownScroll={handleProductDropdownScroll}
+        highlightedIndex={highlightedIndex}
+        setHighlightedIndex={setHighlightedIndex}
+        handleAddProduct={handleAddProduct}
+        loadingProducts={loadingProducts}
+        selectedProducts={selectedProducts}
+        handleProductQuantityChange={handleProductQuantityChange}
+        handleRemoveProduct={handleRemoveProduct}
+      />
 
       {/* Edit Shipment Modal */}
-      {showEditModal && (
-        <Modal
-          title="Edit Shipment"
-          onClose={() => setShowEditModal(false)}
-          wide
-        >
-          <div className="edit-shipment-modal">
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-              <div className="form-content" style={{ flex: 1, overflowY: "auto", paddingBottom: "20px" }}>
-                {/* Section A: Basic Information */}
-                <div className="form-section">
-                  <h4 className="section-title">Basic Information</h4>
-                  <div className="form-grid-2col">
-                    <div className="form-field">
-                      <label htmlFor="edit-status">Status *</label>
-                      <select
-                        id="edit-status"
-                        name="status"
-                        value={editForm.status}
-                        onChange={handleEditFormChange}
-                        required
-                      >
-                        {shipmentStatusesData.map(status => (
-                          <option key={status.id} value={status.id}>{status.value}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-sendDate">Send Date</label>
-                      <input
-                        type="date"
-                        id="edit-sendDate"
-                        name="sendDate"
-                        value={editForm.sendDate}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-deliveryDate">Delivery Date</label>
-                      <input
-                        type="date"
-                        id="edit-deliveryDate"
-                        name="deliveryDate"
-                        value={editForm.deliveryDate}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-weight">Weight (kg)</label>
-                      <input
-                        type="number"
-                        id="edit-weight"
-                        name="weight"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={editForm.weight}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-grid-3col">
-                    <div className="form-field">
-                      <label htmlFor="edit-length">Length (cm)</label>
-                      <input
-                        type="number"
-                        id="edit-length"
-                        name="length"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={editForm.length}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-width">Width (cm)</label>
-                      <input
-                        type="number"
-                        id="edit-width"
-                        name="width"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={editForm.width}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-height">Height (cm)</label>
-                      <input
-                        type="number"
-                        id="edit-height"
-                        name="height"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={editForm.height}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-field">
-                    <label htmlFor="edit-description">Description</label>
-                    <textarea
-                      id="edit-description"
-                      name="description"
-                      rows="3"
-                      placeholder="Enter shipment description..."
-                      value={editForm.description}
-                      onChange={handleEditFormChange}
-                    />
-                  </div>
-                </div>
-
-                {/* Section B: Sender Information */}
-                <div className="form-section">
-                  <h4 className="section-title">Sender Information</h4>
-                  <div className="form-grid-2col">
-                    <div className="form-field">
-                      <label htmlFor="edit-senderName">Name *</label>
-                      <input
-                        type="text"
-                        id="edit-senderName"
-                        name="senderName"
-                        placeholder="Company or person name"
-                        value={editForm.senderName}
-                        onChange={handleEditFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderTaxId">Tax ID *</label>
-                      <input
-                        type="text"
-                        id="edit-senderTaxId"
-                        name="senderTaxId"
-                        placeholder="Tax identification number"
-                        value={editForm.senderTaxId}
-                        onChange={handleEditFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-field" style={{ gridColumn: "1 / -1" }}>
-                      <label htmlFor="edit-senderDetails">Sender Details</label>
-                      <textarea
-                        id="edit-senderDetails"
-                        name="senderDetails"
-                        rows="2"
-                        placeholder="Additional notes about sender (optional)"
-                        value={editForm.senderDetails}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderStreet">Street *</label>
-                      <input
-                        type="text"
-                        id="edit-senderStreet"
-                        name="senderStreet"
-                        placeholder="Street name"
-                        value={editForm.senderStreet}
-                        onChange={handleEditFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderBuilding">Building *</label>
-                      <input
-                        type="text"
-                        id="edit-senderBuilding"
-                        name="senderBuilding"
-                        placeholder="Building number"
-                        value={editForm.senderBuilding}
-                        onChange={handleEditFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderPremises">Premises</label>
-                      <input
-                        type="text"
-                        id="edit-senderPremises"
-                        name="senderPremises"
-                        placeholder="Apartment/Suite (optional)"
-                        value={editForm.senderPremises}
-                        onChange={handleEditFormChange}
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderPostalCode">Postal Code *</label>
-                      <input
-                        type="text"
-                        id="edit-senderPostalCode"
-                        name="senderPostalCode"
-                        placeholder="12-345"
-                        value={editForm.senderPostalCode}
-                        onChange={handleEditFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderCity">City *</label>
-                      <input
-                        type="text"
-                        id="edit-senderCity"
-                        name="senderCity"
-                        placeholder="City name"
-                        value={editForm.senderCity}
-                        onChange={handleEditFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-field">
-                      <label htmlFor="edit-senderCountry">Country *</label>
-                      <select
-                        id="edit-senderCountry"
-                        name="senderCountry"
-                        value={editForm.senderCountry}
-                        onChange={handleEditFormChange}
-                        required
-                      >
-                        {Object.entries(countries).map(([id, name]) => (
-                          <option key={id} value={id}>{name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section C: Receiver Information (Display Only) */}
-                <div className="form-section">
-                  <h4 className="section-title">Receiver Information (Read Only)</h4>
-                  <div className="receiver-info-display">
-                    <div className="info-row">
-                      <span className="info-label">Name:</span>
-                      <span className="info-value">{editForm.receiverName || "—"}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">Tax ID:</span>
-                      <span className="info-value">{editForm.receiverTaxId || "—"}</span>
-                    </div>
-                  </div>
-                  <div className="form-field" style={{ marginTop: "15px" }}>
-                    <label htmlFor="edit-receiverDetails">Receiver Details</label>
-                    <textarea
-                      id="edit-receiverDetails"
-                      name="receiverDetails"
-                      rows="2"
-                      placeholder="Additional notes about receiver (optional)"
-                      value={editForm.receiverDetails}
-                      onChange={handleEditFormChange}
-                    />
-                  </div>
-                </div>
-
-                {/* Section D: Product Management */}
-                <div className="form-section">
-                  <h4 className="section-title">Products *</h4>
-                  <div className="product-search-panel">
-                    <input
-                      type="text"
-                      placeholder="Search products by name or SKU... (Type full SKU and press Enter for exact match)"
-                      value={editProductSearch}
-                      onChange={(e) => setEditProductSearch(e.target.value)}
-                      onKeyDown={handleEditProductSearchKeyDown}
-                      onFocus={() => editProductSuggestions.length > 0 && setShowEditProductDropdown(true)}
-                      className="product-search-input"
-                      autoComplete="off"
-                    />
-                    {showEditProductDropdown && editProductSuggestions.length > 0 && (
-                      <div
-                        className="product-suggestions"
-                        ref={editProductDropdownRef}
-                        onScroll={handleEditProductDropdownScroll}
-                      >
-                        {editProductSuggestions.map((product, index) => (
-                          <div
-                            key={product.productId || product.id}
-                            className={`product-suggestion-item ${index === editHighlightedIndex ? "highlighted" : ""}`}
-                            onClick={() => handleEditAddProduct(product)}
-                            onMouseEnter={() => setEditHighlightedIndex(index)}
-                          >
-                            <div className="product-suggestion-main">
-                              <strong>{product.name}</strong>
-                              <span className="product-sku">{product.sku}</span>
-                            </div>
-                            <span className="product-stock">Stock: {product.totalQuantity || 0}</span>
-                          </div>
-                        ))}
-                        {loadingEditProducts && (
-                          <div className="product-suggestion-item loading-item">
-                            Loading more products...
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {editSelectedProducts.length > 0 ? (
-                    <table className="products-table">
-                      <thead>
-                        <tr>
-                          <th>Product Name</th>
-                          <th>SKU</th>
-                          <th>Amount in Shipment</th>
-                          <th>Amount in Store</th>
-                          <th>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {editSelectedProducts.map(product => (
-                          <tr key={product.id}>
-                            <td>{product.name}</td>
-                            <td>{product.sku}</td>
-                            <td>
-                              <input
-                                type="number"
-                                min="1"
-                                value={product.quantity}
-                                onChange={(e) => handleEditProductQuantityChange(product.id, e.target.value)}
-                                className="quantity-input"
-                              />
-                            </td>
-                            <td>{product.currentStock}</td>
-                            <td>
-                              <button
-                                type="button"
-                                onClick={() => handleEditRemoveProduct(product.id)}
-                                className="btn-remove-product"
-                                title="Remove product"
-                              >
-                                ×
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <p className="no-products-message">No products added. Search and select products above.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Section E: Actions */}
-              <div className="form-actions" style={{ flexShrink: 0, paddingTop: "10px", borderTop: "1px solid #ddd" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="btn-cancel"
-                  disabled={savingEdit}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-confirm"
-                  disabled={savingEdit}
-                >
-                  {savingEdit ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-      )}
+      <EditModal
+        show={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        editForm={editForm}
+        handleEditFormChange={handleEditFormChange}
+        handleSaveEdit={handleSaveEdit}
+        savingEdit={savingEdit}
+        shipmentStatusesData={shipmentStatusesData}
+        editProductSearch={editProductSearch}
+        setEditProductSearch={setEditProductSearch}
+        handleEditProductSearchKeyDown={handleEditProductSearchKeyDown}
+        showEditProductDropdown={showEditProductDropdown}
+        setShowEditProductDropdown={setShowEditProductDropdown}
+        editProductSuggestions={editProductSuggestions}
+        editProductDropdownRef={editProductDropdownRef}
+        handleEditProductDropdownScroll={handleEditProductDropdownScroll}
+        editHighlightedIndex={editHighlightedIndex}
+        setEditHighlightedIndex={setEditHighlightedIndex}
+        handleEditAddProduct={handleEditAddProduct}
+        loadingEditProducts={loadingEditProducts}
+        editSelectedProducts={editSelectedProducts}
+        handleEditProductQuantityChange={handleEditProductQuantityChange}
+        handleEditRemoveProduct={handleEditRemoveProduct}
+      />
 
       {/* Collection Modal */}
-      {showCollectModal && (
-        <Modal
-          key={`collect-modal-${selectedShipmentDetails?.id || 'new'}`}
-          title="Collect Shipment Products"
-          onClose={() => setShowCollectModal(false)}
-          wide
-        >
-          <div className="collection-modal">
-            <div className="scan-panel">
-              <input
-                type="text"
-                placeholder="Scan or enter product SKU/name"
-                value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleScanApply()}
-              />
-              <button onClick={handleScanApply} className="btn-action btn-primary">
-                Add +1
-              </button>
-            </div>
-
-            <div className="collection-products-wrapper">
-              {collectedProducts.map(product => {
-                const rows = collectedQuantities[product.productId] || [];
-                const totalCollected = rows.reduce((sum, row) => sum + (parseInt(row.quantity) || 0), 0);
-                const shipmentQty = parseInt(product.shipmentQuantity) || 0;
-                const isComplete = totalCollected === shipmentQty;
-                const isExtraProduct = product.isExtraProduct === true;
-
-                // Determine section class based on priority order
-                let productSectionClass = 'section-error';
-
-                if (isExtraProduct) {
-                  // Extra products (not in shipment) - auto assign colors based on location count
-                  if (rows.length === 0 || totalCollected === 0) {
-                    productSectionClass = 'section-error';
-                  } else if (rows.some(row => (parseInt(row.quantity) || 0) > 0 && !row.locationId)) {
-                    productSectionClass = 'section-error';
-                  } else if (rows.length === 1) {
-                    productSectionClass = 'section-warning'; // Yellow for first location
-                  } else if (rows.length >= 2) {
-                    productSectionClass = 'section-error'; // Red for second location
-                  }
-                } else {
-                  // Original shipment products - normal logic
-                  if (totalCollected === 0) {
-                    productSectionClass = 'section-error';
-                  }
-                  // Priority 2: Any locations not set (has quantity > 0 but no location)
-                  else if (rows.some(row => (parseInt(row.quantity) || 0) > 0 && !row.locationId)) {
-                    productSectionClass = 'section-error';
-                  }
-                  // Priority 3: Collected < Shipment Qty
-                  else if (totalCollected < shipmentQty) {
-                    productSectionClass = 'section-error';
-                  }
-                  // Priority 4: All locations set AND Collected = Shipment Qty
-                  else if (totalCollected === shipmentQty && shipmentQty > 0) {
-                    productSectionClass = 'section-success';
-                  }
-                  // Priority 5: All locations set AND Collected > Shipment Qty
-                  else if (totalCollected > shipmentQty) {
-                    productSectionClass = 'section-warning';
-                  }
-                }
-
-                return (
-                  <div key={product.productId} className={`collection-product-section ${productSectionClass}`}>
-                    <div className="product-header">
-                      <div className="product-info">
-                        <strong>{product.productName}</strong>
-                        <span className="product-sku-badge">{product.productSKU}</span>
-                        {isExtraProduct && <span className="extra-product-badge">Not in Shipment</span>}
-                      </div>
-                      <div className="product-quantities">
-                        <div className="quantity-badge shipment-qty">
-                          <span className="qty-label">Shipment Qty</span>
-                          <span className="qty-value">{product.shipmentQuantity}</span>
-                        </div>
-                        <div className="quantity-badge in-store-qty">
-                          <span className="qty-label">In Store</span>
-                          <span className="qty-value">{product.warehouseQuantity}</span>
-                        </div>
-                        <div className={`quantity-badge collected-qty ${isComplete ? "complete" : ""}`}>
-                          <span className="qty-label">Collected</span>
-                          <span className="qty-value">{totalCollected}{!isExtraProduct ? ` / ${product.shipmentQuantity}` : ''}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="location-rows">
-                      {rows.map((row, rowIndex) => (
-                        <div key={rowIndex} className="location-row">
-                          <div className="location-row-content">
-                            <div className="quantity-input-wrapper">
-                              <label>Quantity</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={row.quantity || 0}
-                                onChange={(e) => handleLocationQuantityChange(product.productId, rowIndex, e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddLocationRow(product.productId);
-                                  }
-                                }}
-                                className="location-quantity-input"
-                                placeholder="0"
-                              />
-                            </div>
-                            <span className="location-at">@</span>
-                            <div className="location-select-wrapper">
-                              <label>Location</label>
-                              <select
-                                value={row.locationId || ""}
-                                onChange={(e) => handleLocationChange(product.productId, rowIndex, e.target.value)}
-                                className="location-select"
-                              >
-                                <option value="">Select location</option>
-                                {locations.map(loc => (
-                                  <option key={loc.id} value={loc.id}>
-                                    {loc.zone}-{loc.col}-{loc.shelf}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            {rows.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveLocationRow(product.productId, rowIndex)}
-                                className="btn-remove-location"
-                                title="Remove this location"
-                              >
-                                ×
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddLocationRow(product.productId)}
-                      className="btn-add-location"
-                    >
-                      Add
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-                <button
-                  onClick={handleFinishCollection}
-                  className="btn-action btn-primary"
-                  disabled={!isCollectionValid}
-                >
-                  Finish Collection
-                </button>
-          </div>
-        </Modal>
-      )}
+      <CollectModal
+        show={showCollectModal}
+        onClose={() => setShowCollectModal(false)}
+        selectedShipmentDetails={selectedShipmentDetails}
+        scanInput={scanInput}
+        setScanInput={setScanInput}
+        handleScanApply={handleScanApply}
+        collectedProducts={collectedProducts}
+        collectedQuantities={collectedQuantities}
+        handleLocationQuantityChange={handleLocationQuantityChange}
+        handleAddLocationRow={handleAddLocationRow}
+        handleLocationChange={handleLocationChange}
+        locations={locations}
+        handleRemoveLocationRow={handleRemoveLocationRow}
+        handleFinishCollection={handleFinishCollection}
+        isCollectionValid={isCollectionValid}
+      />
 
       {/* View Products Modal */}
-      {showViewProductsModal && (
-        <Modal
-          title={viewProductsData[0]?.isCollectionData ? "Collection Summary" : "Products in Shipment"}
-          onClose={() => setShowViewProductsModal(false)}
-          wide
-        >
-          <div className="view-products-modal">
-            {viewProductsData && viewProductsData.length > 0 ? (
-              <>
-                <table className="products-table">
-                  <thead>
-                    <tr>
-                      <th>Product Name (SKU)</th>
-                      {viewProductsData[0]?.isCollectionData ? (
-                        <>
-                          <th>Declared Qty</th>
-                          <th>Collected Qty</th>
-                          <th>Locations</th>
-                        </>
-                      ) : (
-                        <>
-                          <th>Quantity in Shipment</th>
-                          <th>Number in Storage</th>
-                          <th>Actions</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewProductsData.map((product, index) => {
-                      // Determine row color based on variance
-                      let rowStyle = {};
-                      if (product.isCollectionData) {
-                        if (product.varianceType === "exact") {
-                          rowStyle = { backgroundColor: "#d4edda" }; // Green
-                        } else if (product.varianceType === "over") {
-                          rowStyle = { backgroundColor: "#fff3cd" }; // Yellow
-                        } else if (product.varianceType === "under") {
-                          rowStyle = { backgroundColor: "#f8d7da" }; // Red
-                        }
-                      }
+      <ViewProductsModal
+        show={showViewProductsModal}
+        onClose={() => setShowViewProductsModal(false)}
+        viewProductsData={viewProductsData}
+        expandedProductLocations={expandedProductLocations}
+        setExpandedProductLocations={setExpandedProductLocations}
+        handleToggleProductLocations={handleToggleProductLocations}
+      />
 
-                      return (
-                        <React.Fragment key={index}>
-                          <tr style={rowStyle}>
-                            <td>{product.productName} ({product.productSKU})</td>
-                            {product.isCollectionData ? (
-                              <>
-                                <td>{product.declaredQuantity}</td>
-                                <td>{product.collectedQuantity}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setExpandedProductLocations(prev => ({
-                                        ...prev,
-                                        [product.productId]: prev[product.productId] ? null : product.locations
-                                      }));
-                                    }}
-                                    className="btn-action btn-view"
-                                    style={{ padding: "4px 8px", fontSize: "12px" }}
-                                  >
-                                    {expandedProductLocations[product.productId] ? "Hide Locations" : "View Locations"}
-                                  </button>
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td>{product.quantity}</td>
-                                <td>{product.warehouseStock}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handleToggleProductLocations(product.productId);
-                                    }}
-                                    className="btn-action btn-view"
-                                    style={{ padding: "4px 8px", fontSize: "12px" }}
-                                  >
-                                    {expandedProductLocations[product.productId] ? "Hide Locations" : "View Locations"}
-                                  </button>
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                          {expandedProductLocations[product.productId] && (
-                            <tr>
-                              <td colSpan="4" style={{ backgroundColor: "#f9f9f9", padding: "10px" }}>
-                                <div className="locations-list">
-                                  {product.isCollectionData ? (
-                                    // Show collection locations directly
-                                    product.locations && product.locations.length > 0 ? (
-                                      <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
-                                        <thead>
-                                          <tr>
-                                            <th>Location Code</th>
-                                            <th>Quantity</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {product.locations.map((loc, idx) => (
-                                            <tr key={idx}>
-                                              <td>{loc.locationCode}</td>
-                                              <td>{loc.quantity}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    ) : (
-                                      <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
-                                        No locations found for this product.
-                                      </p>
-                                    )
-                                  ) : (
-                                    // Show fetched warehouse locations
-                                    expandedProductLocations[product.productId].length > 0 ? (
-                                      <table style={{ marginTop: "10px", width: "100%", fontSize: "13px" }}>
-                                        <thead>
-                                          <tr>
-                                            <th>Zone</th>
-                                            <th>Column</th>
-                                            <th>Shelf</th>
-                                            <th>Quantity</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {expandedProductLocations[product.productId].map((loc, idx) => (
-                                            <tr key={idx}>
-                                              <td>{loc.zone}</td>
-                                              <td>{loc.col}</td>
-                                              <td>{loc.shelf}</td>
-                                              <td>{loc.quantity}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    ) : (
-                                      <p style={{ marginTop: "10px", fontStyle: "italic", color: "#666" }}>
-                                        No locations found for this product.
-                                      </p>
-                                    )
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <div style={{ marginBottom: "2rem" }}></div>
-              </>
-            ) : (
-              <p className="no-products-message">No products in this shipment.</p>
-            )}
-            <div className="form-actions">
-              <button
-                type="button"
-                onClick={() => setShowViewProductsModal(false)}
-                className="btn-confirm"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
 
       {/* Confirm Finish Dialog */}
       {showConfirmFinish && (

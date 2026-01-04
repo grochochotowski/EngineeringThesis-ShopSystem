@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import Modal from "../../../components/Modal";
-import { api } from "../../../api/apiClient";
+import Modal from "../../../../components/Modal";
+import { api } from "../../../../api/apiClient";
 
-export default function LeavingPrepareModal({
+export default function PrepareModal({
   onClose,
   onComplete,
   setToast,

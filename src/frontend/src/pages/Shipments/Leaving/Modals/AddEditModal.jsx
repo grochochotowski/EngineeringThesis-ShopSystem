@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import Modal from "../../../components/Modal";
-import { api } from "../../../api/apiClient";
-import { countries, getCountryValue, getCountryName } from "../../../data/countries";
+import Modal from "../../../../components/Modal";
+import { api } from "../../../../api/apiClient";
+import { countries, getCountryValue, getCountryName } from "../../../../data/countries";
 
-export default function LeavingAddEditModal({
+export default function AddEditModal({
   onClose,
   onSave,
   setToast,

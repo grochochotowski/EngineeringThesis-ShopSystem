@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import Modal from "../../../components/Modal";
-import { api } from "../../../api/apiClient";
+import Modal from "../../../../components/Modal";
+import { api } from "../../../../api/apiClient";
 
-export default function LeavingViewProductsModal({
+export default function ViewProductsModal({
   isOpen,
   onClose,
   shipmentId,
