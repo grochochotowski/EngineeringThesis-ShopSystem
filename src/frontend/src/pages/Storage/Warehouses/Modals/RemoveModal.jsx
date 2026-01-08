@@ -1,91 +1,44 @@
 // === IMPORTS ===
 import React from "react";
-import Modal from "../../../../components/Modal";
+import ConfirmDialog from "../../../../components/ConfirmDialog";
 
 // === COMPONENT ===
 /**
- * RemoveModal - Remove product quantity from specific warehouse location
- * Displays read-only product and location information (pre-selected from table)
- * Allows specifying quantity to remove with validation
- * Completely removes product from location if quantity reaches zero
- * Simpler than StorageProducts RemoveModal since location is pre-selected
+ * RemoveModal - Deactivate warehouse location (confirm dialog)
+ * Shows confirmation dialog before deactivating a location
+ * Warns that location cannot be deleted if it has products
+ * Uses ConfirmDialog component for consistent UX
  *
  * @param {object} props
  * @param {boolean} props.show - Controls modal visibility
- * @param {object} props.selectedItem - Currently selected warehouse item (product-location combination)
- * @param {object} props.formData - Form state (quantity)
- * @param {function} props.onClose - Callback to close the modal
- * @param {function} props.onFormChange - Callback when form fields change
- * @param {function} props.onSubmit - Callback to submit the form
- * @param {function} props.onKeyPress - Callback for Enter key press to submit
+ * @param {object} props.location - Selected location object to deactivate
+ * @param {function} props.onConfirm - Callback to confirm deactivation
+ * @param {function} props.onCancel - Callback to cancel operation
  */
 export default function RemoveModal({
   show,
-  selectedItem,
-  formData,
-  onClose,
-  onFormChange,
-  onSubmit,
-  onKeyPress,
+  location,
+  onConfirm,
+  onCancel,
 }) {
-  // Don't render if modal is not shown or item is missing
-  if (!show || !selectedItem) return null;
+  // Don't render if modal is not shown or location is missing
+  if (!show || !location) return null;
 
   return (
-    <Modal title="Remove Product from Warehouse" onClose={onClose}>
-      <form onSubmit={onSubmit} onKeyPress={onKeyPress}>
-        <div className="form-grid">
-          {/* === PRODUCT (READ-ONLY) === */}
-          <label>
-            Product
-            <input
-              type="text"
-              value={`${selectedItem.rawData.productSKU} - ${selectedItem.rawData.productName}`}
-              disabled
-              style={{ background: "var(--bg-disabled)", cursor: "not-allowed" }}
-            />
-          </label>
-
-          {/* === LOCATION (READ-ONLY) === */}
-          <label>
-            Location
-            <input
-              type="text"
-              value={selectedItem.rawData.locationCode}
-              disabled
-              style={{ background: "var(--bg-disabled)", cursor: "not-allowed" }}
-            />
-          </label>
-
-          {/* === QUANTITY INPUT === */}
-          <label>
-            Quantity to Remove
-            <input
-              type="number"
-              name="quantity"
-              value={formData.quantity}
-              onChange={onFormChange}
-              min="1"
-              max={selectedItem.quantity}
-              required
-            />
-            {/* Show max quantity hint */}
-            <small style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              Max: {selectedItem.quantity}
-            </small>
-          </label>
-        </div>
-
-        {/* === MODAL ACTIONS === */}
-        <div className="modal-actions">
-          <button type="button" className="btn-action" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="btn-action btn-danger">
-            Remove
-          </button>
-        </div>
-      </form>
-    </Modal>
+    <ConfirmDialog
+      message={
+        <>
+          <p>Are you sure you want to deactivate this location?</p>
+          <p style={{ marginTop: "1rem" }}>
+            <strong>Location:</strong> {location.code}
+          </p>
+          <p style={{ marginTop: "0.5rem", color: "var(--danger)" }}>
+            Note: Locations with products cannot be deactivated. Please remove all products first.
+          </p>
+        </>
+      }
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   );
 }

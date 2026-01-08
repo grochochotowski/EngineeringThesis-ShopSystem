@@ -1,21 +1,22 @@
 // === IMPORTS ===
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "../../../../api/apiClient";
 import Modal from "../../../../components/Modal";
 
 // === COMPONENT ===
 /**
- * AddModal - Create new warehouse location
- * Allows entering zone, column, and shelf to create a new location
- * Auto-generates location code preview as user types
- * Validates that location doesn't already exist before creation
+ * EditModal - Edit existing warehouse location
+ * Allows modifying zone, col, and shelf for an existing location
+ * Shows current and new location code preview
+ * Validates that new location code doesn't already exist
  *
  * @param {object} props
  * @param {boolean} props.show - Controls modal visibility
+ * @param {object} props.location - Selected location object to edit
  * @param {function} props.onClose - Callback to close the modal
- * @param {function} props.onSuccess - Callback after successful location creation
+ * @param {function} props.onSuccess - Callback after successful location update
  */
-export default function AddModal({ show, onClose, onSuccess }) {
+export default function EditModal({ show, location, onClose, onSuccess }) {
   // Form state
   const [formData, setFormData] = useState({
     zone: "",
@@ -25,8 +26,20 @@ export default function AddModal({ show, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Don't render if modal is not shown
-  if (!show) return null;
+  // Populate form when location changes
+  useEffect(() => {
+    if (location && show) {
+      setFormData({
+        zone: location.zone || "",
+        col: location.col || "",
+        shelf: location.shelf || "",
+      });
+      setError(null);
+    }
+  }, [location, show]);
+
+  // Don't render if modal is not shown or location is missing
+  if (!show || !location) return null;
 
   /**
    * Handles form field changes
@@ -54,7 +67,7 @@ export default function AddModal({ show, onClose, onSuccess }) {
 
   /**
    * Handles form submission
-   * Validates fields and creates new location via API
+   * Validates fields and updates location via API
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,20 +82,19 @@ export default function AddModal({ show, onClose, onSuccess }) {
         return;
       }
 
-      // Create new location
-      await api.post("/Location", {
+      // Update location
+      await api.put(`/Location/${location.id}`, {
         zone: formData.zone,
         col: formData.col,
         shelf: formData.shelf,
       });
 
-      // Reset form and close modal
-      setFormData({ zone: "", col: "", shelf: "" });
+      // Call success callback and close modal
       onSuccess();
       onClose();
     } catch (err) {
-      console.error("Failed to create location:", err);
-      setError(err.response?.data?.message || err.response?.data?.error || "Failed to create location");
+      console.error("Failed to update location:", err);
+      setError(err.response?.data?.message || err.response?.data?.error || "Failed to update location");
     } finally {
       setSubmitting(false);
     }
@@ -99,9 +111,14 @@ export default function AddModal({ show, onClose, onSuccess }) {
   };
 
   return (
-    <Modal title="Add Location" onClose={onClose}>
+    <Modal title="Edit Location" onClose={onClose}>
       <form onSubmit={handleSubmit} onKeyPress={handleKeyPress}>
         <div className="form-grid">
+          {/* === CURRENT LOCATION INFO === */}
+          <div className="form-info" style={{ marginBottom: "1rem" }}>
+            <strong>Current Location:</strong> {location.code}
+          </div>
+
           {/* === ZONE INPUT === */}
           <label>
             Zone *
@@ -125,7 +142,7 @@ export default function AddModal({ show, onClose, onSuccess }) {
               name="col"
               value={formData.col}
               onChange={handleChange}
-              placeholder="Enter column (e.g., 01, 02, 03)"
+              placeholder="Enter col (e.g., 01, 02, 03)"
               maxLength={10}
               required
             />
@@ -146,9 +163,9 @@ export default function AddModal({ show, onClose, onSuccess }) {
           </label>
 
           {/* === CODE PREVIEW === */}
-          {getCodePreview() && (
-            <div className="form-info">
-              <strong>Location Code Preview:</strong> {getCodePreview()}
+          {getCodePreview() && getCodePreview() !== location.code && (
+            <div className="form-info" style={{ color: "var(--primary)" }}>
+              <strong>New Location Code:</strong> {getCodePreview()}
             </div>
           )}
 
@@ -166,7 +183,7 @@ export default function AddModal({ show, onClose, onSuccess }) {
             Cancel
           </button>
           <button type="submit" className="btn-action btn-primary" disabled={submitting}>
-            {submitting ? "Creating..." : "Create Location"}
+            {submitting ? "Updating..." : "Update Location"}
           </button>
         </div>
       </form>
