@@ -24,7 +24,7 @@ export default function Header({ user, onLogout }) {
             title: "Storage",
             items: [
                 { name: "Warehouse Products", path: "/storage/products" },
-                { name: "Warehouse", path: "/storage/warehouses" },
+                { name: "Warehouse Structure", path: "/storage/warehouse-structure" },
                 { name: "Inventory Reports", path: "/storage/inventory-reports" },
             ],
         },

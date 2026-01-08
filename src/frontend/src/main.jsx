@@ -27,6 +27,7 @@ const Addresses = lazy(() => import("./pages/Organization/Addresses/Addresses.js
 const Categories = lazy(() => import("./pages/Organization/Categories/Categories.jsx"));
 const TaxRates = lazy(() => import("./pages/Organization/TaxRates/TaxRates.jsx"));
 const OrganizationProducts = lazy(() => import("./pages/Organization/Products/Products.jsx"));
+const Events = lazy(() => import("./pages/Events/Events.jsx"));
 
 const StorageProducts = lazy(() => import("./pages/Storage/StorageProducts/StorageProducts.jsx"));
 const Warehouses = lazy(() => import("./pages/Storage/Warehouses/Warehouses.jsx"));
@@ -177,6 +178,17 @@ const router = createBrowserRouter([
         errorElement: <NotFound />,
     },
     {
+        path: '/events',
+        element: (
+            <PrivateRoute>
+                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                    <Events />
+                </ProtectedRoute>
+            </PrivateRoute>
+        ),
+        errorElement: <NotFound />,
+    },
+    {
         path: '/storage/products',
         element: (
             <PrivateRoute>
@@ -188,7 +200,7 @@ const router = createBrowserRouter([
         errorElement: <NotFound />,
     },
     {
-        path: '/storage/warehouses',
+        path: '/storage/warehouse-structure',
         element: (
             <PrivateRoute>
                 <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">

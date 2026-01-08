@@ -57,7 +57,7 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
                             <li key={index} className={listClass}>
                                 <div className="top">
                                     <strong className="detail-label">{field.label}:</strong>
-                                    {!(field.key === "description") && ( // Only render value if not description
+                                    {!(field.key === "description" || field.key === "image") && ( // Only render value if not description or image
                                         <span className={`detail-value ${field.className || ""}`}>{renderValue()}</span>
                                     )}
                                 </div>
@@ -70,6 +70,11 @@ const RenderDetails = ({ detailsConfig, detailsData }) => {
                                     <span className="description detail-value">
                                         {detailsData.description || "—"}
                                     </span>
+                                )}
+                                {field.key === "image" && (
+                                    <div className="detail-value" style={{ marginTop: "0.5rem" }}>
+                                        {renderValue()}
+                                    </div>
                                 )}
                             </li>
                         );
@@ -92,9 +97,11 @@ export default function BaseListPage({
     columns = [],
     data = [],
     loading = false,
+    error = null,
     onAdd,
     onEdit,
     onDelete,
+    onViewDetails,
     onToggleFilters,
     onSearchChange,
     onSelectRow,
@@ -124,6 +131,7 @@ export default function BaseListPage({
     hideAddButton = false,
     hideEditButton = false,
     hideDeleteButton = false,
+    hideViewDetailsButton = false,
 }) {
     return (
         <div className="base-list-wrapper">
@@ -149,6 +157,20 @@ export default function BaseListPage({
 
                     {/* Actions */}
                     <div className="action-buttons">
+                        {!hideViewDetailsButton && onViewDetails && (
+                            <button
+                                onClick={() => selectedRow && onViewDetails?.(selectedRow)}
+                                className={`btn-action btn-view-details ${!selectedRow ? "disabled" : ""}`}
+                                disabled={!selectedRow}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/>
+                                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2"/>
+                                </svg>
+                                View Details
+                            </button>
+                        )}
+
                         {!hideAddButton && (
                             <button
                                 onClick={!disableAdd ? onAdd : undefined}
@@ -255,7 +277,13 @@ export default function BaseListPage({
                             </tr>
                         </thead>
                         <tbody>
-                            {data.length > 0 ? (
+                            {error ? (
+                                <tr>
+                                    <td colSpan={columns.length} className="error-message">
+                                        {error}
+                                    </td>
+                                </tr>
+                            ) : data.length > 0 ? (
                                 data.map((row, i) => (
                                     <tr
                                         key={i}
