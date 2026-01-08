@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Backend.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class init2 : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -225,6 +225,38 @@ namespace Backend.Api.Migrations
                         name: "FK_Products_TaxRates_TaxRateId",
                         column: x => x.TaxRateId,
                         principalTable: "TaxRates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Events",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DateOfPublish = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DateOfEvent = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Image = table.Column<byte[]>(type: "varbinary(max)", nullable: true),
+                    AddressId = table.Column<int>(type: "int", nullable: true),
+                    CreatedByUserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Events", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Events_Addresses_AddressId",
+                        column: x => x.AddressId,
+                        principalTable: "Addresses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Events_Users_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -572,6 +604,16 @@ namespace Backend.Api.Migrations
                 filter: "[TaxId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Events_AddressId",
+                table: "Events",
+                column: "AddressId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Events_CreatedByUserId",
+                table: "Events",
+                column: "CreatedByUserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_GiftCards_Code",
                 table: "GiftCards",
                 column: "Code",
@@ -756,8 +798,7 @@ namespace Backend.Api.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Users_AddressId",
                 table: "Users",
-                column: "AddressId",
-                unique: true);
+                column: "AddressId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
@@ -775,6 +816,9 @@ namespace Backend.Api.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Events");
+
             migrationBuilder.DropTable(
                 name: "InventoryChanges");
 

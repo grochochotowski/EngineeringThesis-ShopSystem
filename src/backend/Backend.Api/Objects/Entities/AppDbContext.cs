@@ -15,6 +15,7 @@ namespace Backend.Api.Objects.Entities
         public DbSet<Address>           Addresses           => Set<Address>();
         public DbSet<Category>          Categories          => Set<Category>();
         public DbSet<Client>            Clients             => Set<Client>();
+        public DbSet<Event>             Events              => Set<Event>();
         public DbSet<GiftCard>          GiftCards           => Set<GiftCard>();
         public DbSet<InventoryChange>   InventoryChanges    => Set<InventoryChange>();
         public DbSet<Location>          Locations           => Set<Location>();
@@ -63,6 +64,23 @@ namespace Backend.Api.Objects.Entities
                 b.Property(x => x.Name).HasMaxLength(64);
                 b.Property(x => x.Description).HasMaxLength(256);
                 b.Property(x => x.IsActive).HasDefaultValue(true);
+            });
+
+            // event
+            modelBuilder.Entity<Event>(b =>
+            {
+                b.Property(x => x.Title).HasMaxLength(100);
+                b.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+
+                b.HasOne(x => x.Address)
+                 .WithMany()
+                 .HasForeignKey(x => x.AddressId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.CreatedByUser)
+                 .WithMany()
+                 .HasForeignKey(x => x.CreatedByUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
 
             // client

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260103094948_address_fix")]
-    partial class address_fix
+    [Migration("20260106132400_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -152,6 +152,52 @@ namespace Backend.Api.Migrations
                         .HasFilter("[TaxId] IS NOT NULL");
 
                     b.ToTable("Clients");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Event", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AddressId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateOfEvent")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateOfPublish")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("Image")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddressId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("Events");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.GiftCard", b =>
@@ -879,6 +925,24 @@ namespace Backend.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Address");
+                });
+
+            modelBuilder.Entity("Backend.Api.Objects.Entities.Models.Event", b =>
+                {
+                    b.HasOne("Backend.Api.Objects.Entities.Models.Address", "Address")
+                        .WithMany()
+                        .HasForeignKey("AddressId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Backend.Api.Objects.Entities.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Address");
+
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("Backend.Api.Objects.Entities.Models.InventoryChange", b =>
