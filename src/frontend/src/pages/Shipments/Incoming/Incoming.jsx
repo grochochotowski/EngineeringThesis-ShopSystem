@@ -7,7 +7,7 @@ import BaseListPage from "../../BaseListPage";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import MessageBox from "../../../components/MessageBox";
 import { shipmentStatusesData } from "../../../data/shipmentStatuses";
-import { countries, getCountryValue } from "../../../data/countries";
+import { getCountryValue } from "../../../data/countries";
 import { userRolesData } from "../../../data/userRoles";
 import { getValidStatusOptions } from "../../../utils/shipmentStatusUtils";
 import AddModal from "./Modals/AddModal";
