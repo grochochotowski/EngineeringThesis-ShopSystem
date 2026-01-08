@@ -196,6 +196,7 @@ namespace Backend.Api.Api.Services
                 Col = location.Col,
                 Shelf = location.Shelf,
                 ProductCount = location.Products.Count,
+                TotalQuantity = location.Products.Sum(p => p.Quantity),
                 IsActive = location.IsActive
             };
         }
