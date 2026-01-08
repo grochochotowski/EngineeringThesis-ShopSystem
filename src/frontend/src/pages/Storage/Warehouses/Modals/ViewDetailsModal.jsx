@@ -4,96 +4,88 @@ import Modal from "../../../../components/Modal";
 
 // === COMPONENT ===
 /**
- * ViewDetailsModal - Displays product information and all warehouse locations
- * Shows product details and complete list of locations where product is stored
- * Highlights the currently selected location in the table
- * Fetches all location data from API when opened
+ * ViewDetailsModal - Displays products at a selected warehouse location
+ * Shows location details and table of all products stored at that location
+ * Used in Warehouse Structure page to view location contents
  *
  * @param {object} props
  * @param {boolean} props.show - Controls modal visibility
- * @param {object} props.selectedItem - Currently selected warehouse item (product-location combination)
- * @param {array} props.productAllLocations - All locations where this product exists
+ * @param {object} props.location - Selected location object
+ * @param {array} props.products - Array of products at this location
  * @param {function} props.onClose - Callback to close the modal
  */
 export default function ViewDetailsModal({
   show,
-  selectedItem,
-  productAllLocations,
+  location,
+  products,
   onClose,
 }) {
-  // Don't render if modal is not shown or item is missing
-  if (!show || !selectedItem) return null;
+  // Don't render if modal is not shown or location is missing
+  if (!show || !location) return null;
 
   return (
     <Modal
-      title="Warehouse Item Details"
+      title={`Products at Location ${location.code}`}
       onClose={onClose}
       wide
     >
-      <div className="product-details-modal">
-        {/* === PRODUCT INFORMATION === */}
-        <h3>Product Information</h3>
+      <div className="location-details-modal">
+        {/* === LOCATION INFORMATION === */}
+        <h3>Location Information</h3>
         <ul>
-          {/* Product Name */}
+          {/* Location Code */}
           <li>
-            <strong>Name:</strong> {selectedItem.rawData.productName}
+            <strong>Code:</strong> {location.code}
           </li>
 
-          {/* Product SKU */}
+          {/* Zone */}
           <li>
-            <strong>SKU:</strong> {selectedItem.rawData.productSKU}
+            <strong>Zone:</strong> {location.zone}
           </li>
 
-          {/* Product Price */}
+          {/* Column */}
           <li>
-            <strong>Price:</strong> ${selectedItem.rawData.productPrice.toFixed(2)}
+            <strong>Column:</strong> {location.column}
           </li>
 
-          {/* Category */}
+          {/* Shelf */}
           <li>
-            <strong>Category:</strong> {selectedItem.rawData.categoryName}
+            <strong>Shelf:</strong> {location.shelf}
           </li>
 
-          {/* Product Description (optional) */}
+          {/* Status */}
           <li>
-            <strong>Description:</strong> {selectedItem.rawData.productDescription || "—"}
+            <strong>Status:</strong> {location.isActive}
           </li>
         </ul>
 
-        {/* === ALL WAREHOUSE LOCATIONS === */}
-        <h3>All Warehouse Locations</h3>
-        {productAllLocations.length > 0 ? (
+        {/* === PRODUCTS AT LOCATION === */}
+        <h3>Products ({products?.length || 0})</h3>
+        {products && products.length > 0 ? (
           <table className="data-table" style={{ marginTop: "1rem" }}>
             <thead>
               <tr>
-                <th style={{ width: "60%" }}>Location Code</th>
-                <th style={{ width: "40%", textAlign: "right" }}>Quantity</th>
+                <th style={{ width: "40%" }}>Product Name</th>
+                <th style={{ width: "20%" }}>SKU</th>
+                <th style={{ width: "25%" }}>EAN</th>
+                <th style={{ width: "15%", textAlign: "right" }}>Quantity</th>
               </tr>
             </thead>
             <tbody>
-              {/* Map through all locations where product exists */}
-              {productAllLocations.map((loc) => (
-                <tr
-                  key={loc.locationId}
-                  className={loc.locationId === selectedItem.locationId ? "selected" : ""}
-                >
-                  <td>
-                    {loc.locationCode}
-                    {/* Highlight currently selected location */}
-                    {loc.locationId === selectedItem.locationId && (
-                      <span style={{ color: "var(--primary)", marginLeft: "0.5rem", fontWeight: "bold" }}>
-                        (selected)
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ textAlign: "right" }}>{loc.quantity}</td>
+              {/* Map through all products at this location */}
+              {products.map((product, index) => (
+                <tr key={index}>
+                  <td>{product.productName || "—"}</td>
+                  <td>{product.productSKU || "—"}</td>
+                  <td>{product.productEAN || "—"}</td>
+                  <td style={{ textAlign: "right" }}>{product.quantity}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
           <p style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
-            No location data available
+            No products at this location
           </p>
         )}
       </div>
