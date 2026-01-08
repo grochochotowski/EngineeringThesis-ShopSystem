@@ -1,4 +1,4 @@
-﻿using Backend.Api.Objects.Entities.Models;
+using Backend.Api.Objects.Entities.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Api.Objects.DTOs

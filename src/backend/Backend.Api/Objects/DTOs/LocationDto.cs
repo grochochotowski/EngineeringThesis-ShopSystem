@@ -11,6 +11,7 @@ namespace Backend.Api.Objects.DTOs
         public string Shelf { get; set; } = default!;
         public string LocationCode { get; set; } = default!;
         public int ProductCount { get; set; }
+        public int TotalQuantity { get; set; }
         public bool IsActive { get; set; }
     }
 
