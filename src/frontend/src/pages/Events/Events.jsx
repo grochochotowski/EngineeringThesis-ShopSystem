@@ -146,7 +146,7 @@ export default function Events() {
   const confirmPublish = async () => {
     if (!actionableEvent) return;
     try {
-      await api.put(`/Events/${actionableEvent.id}/publish`);
+      await api.put(`/Events/${actionableEvent._raw.id}/publish`);
       setToast({ message: "Event published successfully.", type: "success" });
       setActionableEvent(null);
       loadedPages.current.clear();
@@ -159,7 +159,7 @@ export default function Events() {
   const confirmCancel = async () => {
     if (!actionableEvent) return;
     try {
-      await api.put(`/Events/${actionableEvent.id}/cancel`);
+      await api.put(`/Events/${actionableEvent._raw.id}/cancel`);
       setToast({ message: "Event canceled successfully.", type: "success" });
       setActionableEvent(null);
       loadedPages.current.clear();
@@ -192,17 +192,68 @@ export default function Events() {
   }), []);
 
   const rows = useMemo(() => events.map(toRow), [events, toRow]);
-  
+
     const detailsConfig = {
+        status: {
+            key: "status",
+            render: (data) => {
+                const statusColors = {
+                    Created: "var(--info)",
+                    Published: "var(--success)",
+                    Finished: "var(--secondary)",
+                    Canceled: "var(--error)",
+                };
+                return (
+                    <div
+                        className="badge"
+                        style={{
+                            backgroundColor: statusColors[data.status] || "var(--secondary)",
+                            color: "white",
+                            padding: "0.25rem 0.75rem",
+                            borderRadius: "4px",
+                        }}
+                    >
+                        {data.status}
+                    </div>
+                );
+            },
+        },
         fields: [
             { label: "Id", key: "id" },
             { label: "Title", key: "title" },
-            { label: "Description", key: "description" },
+            { label: "Description", key: "description", isColumn: true },
             { label: "Event Date", key: "dateOfEvent", render: (data) => new Date(data.dateOfEvent).toLocaleString() },
             { label: "Publish Date", key: "dateOfPublish", render: (data) => data.dateOfPublish ? new Date(data.dateOfPublish).toLocaleString() : "—" },
-            { label: "Status", key: "status" },
             { label: "Address", key: "address", render: (data) => data.address ? `${data.address.street} ${data.address.building}, ${data.address.city}` : "—" },
             { label: "Created By", key: "createdByUser", render: (data) => data.createdByUser ? `${data.createdByUser.firstName} ${data.createdByUser.lastName}` : "—" },
+            {
+                label: "Image",
+                key: "image",
+                isColumn: true,
+                render: (data) => {
+                    return (
+                        <div style={{ display: "block", width: "100%", marginTop: "0.5rem" }}>
+                            {!data.image ? (
+                                <div style={{ color: "var(--secondary)", fontStyle: "italic" }}>
+                                    No image uploaded
+                                </div>
+                            ) : (
+                                <img
+                                    src={`data:image/jpeg;base64,${data.image}`}
+                                    alt="Event"
+                                    style={{
+                                        display: "block",
+                                        maxWidth: "100%",
+                                        maxHeight: "300px",
+                                        objectFit: "contain",
+                                        borderRadius: "8px",
+                                    }}
+                                />
+                            )}
+                        </div>
+                    );
+                },
+            },
         ],
     };
 
@@ -227,22 +278,46 @@ export default function Events() {
           onSelectRow={handleRowSelect}
           detailsData={selectedEventDetails}
           detailsConfig={detailsConfig}
-          // onAdd={openCreateModal}
-          // onEdit={openEditModal}
+          onAdd={openCreateModal}
+          onEdit={() => openEditModal(selectedRow)}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={(value) => setSearchQuery(value)}
           searchValue={searchQuery}
-          // onSort={handleSort}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
-        >
-        <div className="side-panel-buttons">
-            <button onClick={openCreateModal} className="btn-confirm-positive">Add</button>
-            <button onClick={() => openEditModal(selectedRow)} disabled={!selectedRow} className="btn-confirm-warning">Edit</button>
-            <button onClick={() => setActionableEvent(selectedRow)} disabled={!selectedRow || selectedRow.status !== 'Created'} className="btn-confirm-positive">Publish</button>
-            <button onClick={() => setActionableEvent(selectedRow)} disabled={!selectedRow || selectedRow.status === 'Canceled' || selectedRow.status === 'Finished'} className="btn-confirm-negative">Cancel</button>
-        </div>
-        </BaseListPage>
+          // Publish button (using changePassword slot)
+          onChangePassword={() => setActionableEvent(selectedRow)}
+          changePasswordButtonLabel="Publish"
+          changePasswordButtonClass="btn-confirm-positive"
+          changePasswordDisabled={!selectedRow || selectedRow?._raw?.status !== 'Created'}
+          changePasswordButtonIcon={
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                d="M5 12l5 5L20 7"
+              />
+            </svg>
+          }
+          // Cancel button (using changeLogin slot)
+          onChangeLogin={() => setActionableEvent(selectedRow)}
+          changeLoginButtonLabel="Cancel Event"
+          changeLoginButtonClass="btn-confirm-negative"
+          changeLoginDisabled={!selectedRow || selectedRow?._raw?.status === 'Canceled' || selectedRow?._raw?.status === 'Finished'}
+          changeLoginButtonIcon={
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                d="M6 6l12 12M6 18L18 6"
+              />
+            </svg>
+          }
+          // Hide delete button
+          hideDeleteButton={true}
+        />
 
         {showFilters && (
           <div className="filters-panel" ref={filtersRef}>
@@ -275,7 +350,7 @@ export default function Events() {
         onEventSaved={handleEventSuccess}
       />
 
-      {actionableEvent && actionableEvent.status === 'Created' &&
+      {actionableEvent && actionableEvent._raw?.status === 'Created' &&
         <PublishConfirmDialog
           event={actionableEvent}
           onConfirm={confirmPublish}
@@ -283,7 +358,7 @@ export default function Events() {
         />
       }
 
-      {actionableEvent && actionableEvent.status !== 'Canceled' && actionableEvent.status !== 'Finished' &&
+      {actionableEvent && actionableEvent._raw?.status !== 'Canceled' && actionableEvent._raw?.status !== 'Finished' &&
         <CancelConfirmDialog
           event={actionableEvent}
           onConfirm={confirmCancel}
