@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import "../styles/ComponentsStyles/modal.css";
 
-export default function Modal({ title, children, onClose, wide = false }) {
+export default function Modal({ title, children, onClose, wide = false, footer = null }) {
     // Close on ESC
     useEffect(() => {
         const handleEsc = (e) => {
@@ -19,6 +19,7 @@ export default function Modal({ title, children, onClose, wide = false }) {
                     <button className="btn-close" onClick={onClose}>×</button>
                 </header>
                 <div className="modal-body">{children}</div>
+                {footer && <div className="modal-footer">{footer}</div>}
             </div>
         </div>
     );
