@@ -331,3 +331,193 @@
     width: 100%;
   }
 }
+
+/* === ADDRESS SEARCH/DROPDOWN STYLES === */
+.address-search-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.address-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-muted);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.address-suggestion-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.address-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.address-suggestion-item:hover,
+.address-suggestion-item.highlighted {
+  background: var(--bg-hover);
+}
+
+.address-suggestion-item.highlighted {
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid var(--accent-main);
+}
+
+.address-suggestion-main {
+  display: flex;
+  gap: 0.3rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.address-suggestion-main strong {
+  font-size: 0.95rem;
+  color: var(--text-dark);
+}
+
+.address-suggestion-details {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Selected Address Display */
+.selected-address-display {
+  margin-bottom: 1rem;
+}
+
+.address-display-box {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin: 0.5rem 0 1rem;
+  color: var(--text-dark);
+  line-height: 1.6;
+}
+
+.btn-change-address {
+  background: var(--accent-main);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-change-address:hover {
+  background: var(--accent-hover);
+}
+
+/* Secondary outline button for actions like "Change Address" */
+.btn-secondary-outline {
+  background: transparent;
+  color: var(--accent-main);
+  border: 1px solid var(--accent-main);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-secondary-outline:hover {
+  background: var(--accent-main);
+  color: white;
+}
+
+.address-suggestion-item.create-new {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.address-suggestion-item.create-new:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.new-address-form {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.new-address-form .form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.new-address-form .form-grid.one-column {
+  grid-template-columns: 1fr;
+}
+
+.new-address-form label {
+  display: block;
+  font-weight: 500;
+  color: var(--text-dark);
+  margin-bottom: 0.25rem;
+}
+
+.new-address-form input,
+.new-address-form select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.new-address-form .btn-confirm,
+.new-address-form .btn-cancel {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: none;
+}
+
+.new-address-form .btn-confirm {
+  background: var(--accent-main);
+  color: white;
+}
+
+.new-address-form .btn-confirm:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.new-address-form .btn-confirm:disabled {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.new-address-form .btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-dark);
+  border: 1px solid var(--border-muted);
+}
+
+.new-address-form .btn-cancel:hover {
+  background: var(--bg-hover);
+}

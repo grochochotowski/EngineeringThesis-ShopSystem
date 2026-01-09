@@ -52,6 +52,16 @@
     flex: 1;
 }
 
+.modal-footer {
+    padding: 1rem 1.2rem;
+    border-top: var(--border-muted);
+    background: var(--bg-card);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
 .modal-body p {
     margin-bottom: 0.75rem;
 }
@@ -67,6 +77,15 @@
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
+}
+
+.form-info {
+    padding: 0.75rem 1rem;
+    background-color: #f0f9ff;
+    border-left: 4px solid #0ea5e9;
+    border-radius: var(--radius-md);
+    color: #0c4a6e;
+    font-size: 0.95rem;
 }
 
 .product-form {
@@ -299,6 +318,15 @@
     background: var(--color-primary-dark);
 }
 
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: var(--border-muted);
+}
+
 /* === PRODUCT DROPDOWN (searchable select) === */
 .product-dropdown-wrapper {
     position: relative;
@@ -420,6 +448,52 @@
 @media (max-width: 1024px) {
     .client-form-two-column .client-form-columns {
         grid-template-columns: 1fr;
+    }
+}
+
+/* === EVENT FORM TWO-COLUMN LAYOUT === */
+.event-form-modal .event-form-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.event-form-left,
+.event-form-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.event-form-modal .event-form-left label,
+.event-form-modal .event-form-right label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.event-form-modal .event-form-left input,
+.event-form-modal .event-form-left select,
+.event-form-modal .event-form-left textarea {
+    width: 100%;
+}
+
+/* Image upload area in right column */
+.event-form-right .file-drop-zone {
+    flex: 1;
+}
+
+/* Responsive: collapse to single column on smaller screens */
+@media (max-width: 1024px) {
+    .event-form-modal .event-form-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .event-form-right .file-drop-zone {
+        min-height: 300px;
     }
 }
 
