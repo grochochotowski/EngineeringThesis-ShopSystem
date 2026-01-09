@@ -44,9 +44,10 @@ namespace Backend.Api.Api.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? orderBy = null,
             [FromQuery] string? sortDirection = null,
+            [FromQuery] string? status = null,
             CancellationToken ct = default)
         {
-            var result = await _service.GetAllAsync(q, pageNumber, pageSize, orderBy, sortDirection, ct);
+            var result = await _service.GetAllAsync(q, pageNumber, pageSize, orderBy, sortDirection, status, ct);
             return Ok(result);
         }
 

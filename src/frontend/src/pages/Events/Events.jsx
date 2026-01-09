@@ -7,6 +7,7 @@ import MessageBox from "../../components/MessageBox";
 import EventFormModal from "./Modals/EventFormModal";
 import PublishConfirmDialog from "./Modals/PublishConfirmDialog";
 import CancelConfirmDialog from "./Modals/CancelConfirmDialog";
+import "../../styles/PagesStyles/organizationPages.css";
 
 // === COMPONENT ===
 export default function Events() {
@@ -27,6 +28,7 @@ export default function Events() {
   const [eventFormMode, setEventFormMode] = useState("create");
   const [formEventData, setFormEventData] = useState(null);
   const [actionableEvent, setActionableEvent] = useState(null);
+  const [actionType, setActionType] = useState(null); // 'publish' or 'cancel'
 
   const [filters, setFilters] = useState({ status: "" });
   const [sortColumn, setSortColumn] = useState("dateOfEvent");
@@ -101,6 +103,21 @@ export default function Events() {
     }
   }, [searchQuery, fetchEvents]);
 
+  useEffect(() => {
+    if (!showFilters) return;
+
+    const handleClickOutside = (event) => {
+      if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+        setShowFilters(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [showFilters]);
+
     const handleRowSelect = useCallback(async (row) => {
     if (!row) {
       setSelectedRow(null);
@@ -139,18 +156,63 @@ export default function Events() {
   const handleEventSuccess = async (eventId) => {
     setShowEventModal(false);
     setToast({ message: `Event ${eventFormMode === 'create' ? 'created' : 'updated'} successfully!`, type: 'success' });
+
+    // Refresh the event list
     loadedPages.current.clear();
-    fetchEvents(1, true);
+    await fetchEvents(1, true);
+
+    // After refreshing the event list, fetch and select the event details
+    try {
+      const full = await api.get(`/Events/${eventId}`);
+      setSelectedEventDetails(full);
+      // Create row representation for the selected event
+      const selectedRowData = {
+        id: full.id,
+        title: full.title || "—",
+        dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+        status: full.status,
+        _raw: full,
+      };
+      setSelectedRow(selectedRowData);
+      lastSelectedId.current = eventId;
+    } catch (err) {
+      console.error("Failed to load event details after save:", err);
+      setToast({
+        message: "Event saved, but failed to load details. Please select the event manually.",
+        type: "error",
+      });
+    }
   };
 
   const confirmPublish = async () => {
     if (!actionableEvent) return;
+    const eventId = actionableEvent._raw.id;
     try {
-      await api.put(`/Events/${actionableEvent._raw.id}/publish`);
+      await api.put(`/Events/${eventId}/publish`);
       setToast({ message: "Event published successfully.", type: "success" });
       setActionableEvent(null);
+      setActionType(null);
+
+      // Refresh the event list
       loadedPages.current.clear();
-      fetchEvents(1, true);
+      await fetchEvents(1, true);
+
+      // Re-select the event to show updated status
+      try {
+        const full = await api.get(`/Events/${eventId}`);
+        setSelectedEventDetails(full);
+        const selectedRowData = {
+          id: full.id,
+          title: full.title || "—",
+          dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+          status: full.status,
+          _raw: full,
+        };
+        setSelectedRow(selectedRowData);
+        lastSelectedId.current = eventId;
+      } catch (err) {
+        console.error("Failed to reload event details:", err);
+      }
     } catch (err) {
       setToast({ message: err.response?.data?.message || "Failed to publish event.", type: "error" });
     }
@@ -158,12 +220,33 @@ export default function Events() {
 
   const confirmCancel = async () => {
     if (!actionableEvent) return;
+    const eventId = actionableEvent._raw.id;
     try {
-      await api.put(`/Events/${actionableEvent._raw.id}/cancel`);
+      await api.put(`/Events/${eventId}/cancel`);
       setToast({ message: "Event canceled successfully.", type: "success" });
       setActionableEvent(null);
+      setActionType(null);
+
+      // Refresh the event list
       loadedPages.current.clear();
-      fetchEvents(1, true);
+      await fetchEvents(1, true);
+
+      // Re-select the event to show updated status
+      try {
+        const full = await api.get(`/Events/${eventId}`);
+        setSelectedEventDetails(full);
+        const selectedRowData = {
+          id: full.id,
+          title: full.title || "—",
+          dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+          status: full.status,
+          _raw: full,
+        };
+        setSelectedRow(selectedRowData);
+        lastSelectedId.current = eventId;
+      } catch (err) {
+        console.error("Failed to reload event details:", err);
+      }
     } catch (err) {
       setToast({ message: err.response?.data?.message || "Failed to cancel event.", type: "error" });
     }
@@ -172,6 +255,7 @@ export default function Events() {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
+    setShowFilters(false);
   };
 
 
@@ -197,20 +281,36 @@ export default function Events() {
         status: {
             key: "status",
             render: (data) => {
-                const statusColors = {
-                    Created: "var(--info)",
-                    Published: "var(--success)",
-                    Finished: "var(--secondary)",
-                    Canceled: "var(--error)",
+                const statusStyles = {
+                    Created: {
+                        bg: "#ebf8ff",
+                        border: "#1e3a8a",
+                        text: "#1e3a8a"
+                    },
+                    Published: {
+                        bg: "#e6fffa",
+                        border: "#22543d",
+                        text: "#22543d"
+                    },
+                    Finished: {
+                        bg: "#fffbea",
+                        border: "#744210",
+                        text: "#744210"
+                    },
+                    Canceled: {
+                        bg: "#fff5f5",
+                        border: "#742a2a",
+                        text: "#742a2a"
+                    }
                 };
+                const style = statusStyles[data.status] || statusStyles.Created;
                 return (
                     <div
                         className="badge"
                         style={{
-                            backgroundColor: statusColors[data.status] || "var(--secondary)",
-                            color: "white",
-                            padding: "0.25rem 0.75rem",
-                            borderRadius: "4px",
+                            backgroundColor: style.bg,
+                            borderColor: style.border,
+                            color: style.text,
                         }}
                     >
                         {data.status}
@@ -280,13 +380,17 @@ export default function Events() {
           detailsConfig={detailsConfig}
           onAdd={openCreateModal}
           onEdit={() => openEditModal(selectedRow)}
+          disableEdit={!selectedRow || selectedRow?._raw?.status !== 'Created'}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={(value) => setSearchQuery(value)}
           searchValue={searchQuery}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           // Publish button (using changePassword slot)
-          onChangePassword={() => setActionableEvent(selectedRow)}
+          onChangePassword={() => {
+            setActionableEvent(selectedRow);
+            setActionType('publish');
+          }}
           changePasswordButtonLabel="Publish"
           changePasswordButtonClass="btn-confirm-positive"
           changePasswordDisabled={!selectedRow || selectedRow?._raw?.status !== 'Created'}
@@ -301,7 +405,10 @@ export default function Events() {
             </svg>
           }
           // Cancel button (using changeLogin slot)
-          onChangeLogin={() => setActionableEvent(selectedRow)}
+          onChangeLogin={() => {
+            setActionableEvent(selectedRow);
+            setActionType('cancel');
+          }}
           changeLoginButtonLabel="Cancel Event"
           changeLoginButtonClass="btn-confirm-negative"
           changeLoginDisabled={!selectedRow || selectedRow?._raw?.status === 'Canceled' || selectedRow?._raw?.status === 'Finished'}
@@ -350,21 +457,27 @@ export default function Events() {
         onEventSaved={handleEventSuccess}
       />
 
-      {actionableEvent && actionableEvent._raw?.status === 'Created' &&
+      {actionableEvent && actionType === 'publish' && (
         <PublishConfirmDialog
           event={actionableEvent}
           onConfirm={confirmPublish}
-          onCancel={() => setActionableEvent(null)}
+          onCancel={() => {
+            setActionableEvent(null);
+            setActionType(null);
+          }}
         />
-      }
+      )}
 
-      {actionableEvent && actionableEvent._raw?.status !== 'Canceled' && actionableEvent._raw?.status !== 'Finished' &&
+      {actionableEvent && actionType === 'cancel' && (
         <CancelConfirmDialog
           event={actionableEvent}
           onConfirm={confirmCancel}
-          onCancel={() => setActionableEvent(null)}
+          onCancel={() => {
+            setActionableEvent(null);
+            setActionType(null);
+          }}
         />
-      }
+      )}
 
       {toast && (
         <MessageBox
