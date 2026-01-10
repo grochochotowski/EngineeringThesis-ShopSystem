@@ -157,7 +157,8 @@ export default function Clients() {
       }, 500);
       return () => clearTimeout(handler);
     }
-  }, [searchQuery, fetchClients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   /**
    * Infinite scroll observer

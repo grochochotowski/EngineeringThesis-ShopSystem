@@ -1989,6 +1989,7 @@ export default function IncomingShipments() {
         show={showAddModal}
         onClose={() => setShowAddModal(false)}
         addForm={addForm}
+        setAddForm={setAddForm}
         handleAddFormChange={handleAddFormChange}
         handleSaveShipment={handleSaveShipment}
         savingShipment={savingShipment}
@@ -2007,6 +2008,7 @@ export default function IncomingShipments() {
         selectedProducts={selectedProducts}
         handleProductQuantityChange={handleProductQuantityChange}
         handleRemoveProduct={handleRemoveProduct}
+        setToast={setToast}
       />
 
       {/* Edit Shipment Modal */}

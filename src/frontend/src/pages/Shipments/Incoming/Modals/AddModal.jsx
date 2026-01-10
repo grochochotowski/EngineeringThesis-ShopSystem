@@ -1,7 +1,8 @@
 // === IMPORTS ===
-import React from "react";
+import React, { useState, useRef } from "react";
 import Modal from "../../../../components/Modal";
-import { countries } from "../../../../data/countries";
+import { countries, getCountryName } from "../../../../data/countries";
+import { api } from "../../../../api/apiClient";
 
 // === COMPONENT ===
 /**
@@ -9,11 +10,12 @@ import { countries } from "../../../../data/countries";
  *
  * Allows users to create new incoming shipment records with:
  * - Basic shipment information (status, dates, dimensions)
- * - Sender information (name, tax ID, address)
+ * - Sender information (name, tax ID) with address autocomplete
  * - Receiver information (read-only store details)
  * - Product selection with searchable dropdown and quantities
  *
  * Features:
+ * - Address autocomplete with search and create new functionality
  * - Searchable product dropdown with keyboard navigation
  * - Infinite scroll for product suggestions
  * - Current stock display for selected products
@@ -41,6 +43,8 @@ import { countries } from "../../../../data/countries";
  * @param {array} props.selectedProducts - Array of products added to shipment
  * @param {function} props.handleProductQuantityChange - Handler for product quantity changes
  * @param {function} props.handleRemoveProduct - Handler for removing product from shipment
+ * @param {function} props.setAddForm - Setter for addForm state
+ * @param {function} props.setToast - Setter for toast notifications
  */
 export default function AddModal({
   show,
@@ -64,8 +68,138 @@ export default function AddModal({
   selectedProducts,
   handleProductQuantityChange,
   handleRemoveProduct,
+  setAddForm,
+  setToast,
 }) {
+  // Address search state
+  const [addressSearchInput, setAddressSearchInput] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [highlightedAddressIndex, setHighlightedAddressIndex] = useState(0);
+  const addressDropdownRef = useRef(null);
+
   if (!show) return null;
+
+  // Search addresses
+  const searchAddresses = async (searchTerm) => {
+    if (searchTerm.length < 2) {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+      return;
+    }
+
+    try {
+      const response = await api.get("/Addresses", {
+        params: {
+          pageNumber: 1,
+          pageSize: 10,
+          search: searchTerm,
+        },
+      });
+      setAddressSuggestions(response.items || []);
+      setShowAddressDropdown(true);
+    } catch (err) {
+      console.error("Failed to search addresses", err);
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+    }
+  };
+
+  // Handle address search input change
+  const handleAddressSearchChange = async (e) => {
+    const value = e.target.value;
+    setAddressSearchInput(value);
+    await searchAddresses(value);
+    setHighlightedAddressIndex(0);
+  };
+
+  // Handle address selection from dropdown
+  const handleSelectAddress = (address) => {
+    setSelectedAddress(address);
+    setAddForm(prev => ({
+      ...prev,
+      senderStreet: address.street,
+      senderBuilding: address.building,
+      senderPremises: address.premises || "",
+      senderPostalCode: address.postalCode,
+      senderCity: address.city,
+      senderCountry: address.country,
+    }));
+    setShowAddressDropdown(false);
+    setAddressSearchInput("");
+    setAddressSuggestions([]);
+  };
+
+  // Handle "Create New Address" button click
+  const handleCreateNewAddress = () => {
+    setShowAddressForm(true);
+    setShowAddressDropdown(false);
+    setSelectedAddress(null);
+    setAddressSearchInput("");
+    setAddressSuggestions([]);
+    // Reset address fields to allow user input
+    setAddForm(prev => ({
+      ...prev,
+      senderStreet: "",
+      senderBuilding: "",
+      senderPremises: "",
+      senderPostalCode: "",
+      senderCity: "",
+      senderCountry: 141,
+    }));
+  };
+
+  // Handle "Change Address" button click (clears selection)
+  const handleChangeAddress = () => {
+    setSelectedAddress(null);
+    setShowAddressForm(false);
+    setAddressSearchInput("");
+    setAddForm(prev => ({
+      ...prev,
+      senderStreet: "",
+      senderBuilding: "",
+      senderPremises: "",
+      senderPostalCode: "",
+      senderCity: "",
+      senderCountry: 141,
+    }));
+  };
+
+  // Handle keyboard navigation in address dropdown
+  const handleAddressKeyDown = (e) => {
+    if (!showAddressDropdown) {
+      return;
+    }
+
+    const totalOptions = addressSuggestions.length + 1; // +1 for "Create New" option
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedAddressIndex(prev => Math.min(prev + 1, totalOptions - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedAddressIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedAddressIndex < addressSuggestions.length) {
+          handleSelectAddress(addressSuggestions[highlightedAddressIndex]);
+        } else {
+          // "Create New" option selected
+          handleCreateNewAddress();
+        }
+        break;
+      case "Escape":
+        setShowAddressDropdown(false);
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <Modal
@@ -189,9 +323,9 @@ export default function AddModal({
               </div>
             </div>
 
-            {/* Section B: Sender Information */}
+            {/* Section B: Sender Details */}
             <div className="form-section">
-              <h4 className="section-title">Sender Information</h4>
+              <h4 className="section-title">Sender Details</h4>
               <div className="form-grid-2col">
                 <div className="form-field">
                   <label htmlFor="senderName">Name *</label>
@@ -230,89 +364,169 @@ export default function AddModal({
                     onChange={handleAddFormChange}
                   />
                 </div>
-
-                <div className="form-field">
-                  <label htmlFor="senderStreet">Street *</label>
-                  <input
-                    type="text"
-                    id="senderStreet"
-                    name="senderStreet"
-                    placeholder="Street name"
-                    value={addForm.senderStreet}
-                    onChange={handleAddFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="senderBuilding">Building *</label>
-                  <input
-                    type="text"
-                    id="senderBuilding"
-                    name="senderBuilding"
-                    placeholder="Building number"
-                    value={addForm.senderBuilding}
-                    onChange={handleAddFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="senderPremises">Premises</label>
-                  <input
-                    type="text"
-                    id="senderPremises"
-                    name="senderPremises"
-                    placeholder="Apartment/Suite (optional)"
-                    value={addForm.senderPremises}
-                    onChange={handleAddFormChange}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="senderPostalCode">Postal Code *</label>
-                  <input
-                    type="text"
-                    id="senderPostalCode"
-                    name="senderPostalCode"
-                    placeholder="12-345"
-                    value={addForm.senderPostalCode}
-                    onChange={handleAddFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="senderCity">City *</label>
-                  <input
-                    type="text"
-                    id="senderCity"
-                    name="senderCity"
-                    placeholder="City name"
-                    value={addForm.senderCity}
-                    onChange={handleAddFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="senderCountry">Country *</label>
-                  <select
-                    id="senderCountry"
-                    name="senderCountry"
-                    value={addForm.senderCountry}
-                    onChange={handleAddFormChange}
-                    required
-                  >
-                    {Object.entries(countries).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
             </div>
 
-            {/* Section C: Receiver Information (Display Only) */}
+            {/* Section C: Sender Address */}
+            <div className="form-section">
+              <h4 className="section-title">Sender Address</h4>
+
+              {!selectedAddress && !showAddressForm && (
+                <div className="address-search-container">
+                  <label>Search Address *</label>
+                  <input
+                    type="text"
+                    placeholder="Search existing address or create new..."
+                    value={addressSearchInput}
+                    onChange={handleAddressSearchChange}
+                    onKeyDown={handleAddressKeyDown}
+                    className="product-search-input"
+                    autoComplete="off"
+                  />
+
+                  {/* Address Suggestions Dropdown */}
+                  {showAddressDropdown && (
+                    <div className="address-suggestions" ref={addressDropdownRef}>
+                      {addressSuggestions.map((addr, index) => (
+                        <div
+                          key={addr.id}
+                          className={`address-suggestion-item ${index === highlightedAddressIndex ? "highlighted" : ""}`}
+                          onClick={() => handleSelectAddress(addr)}
+                          onMouseEnter={() => setHighlightedAddressIndex(index)}
+                        >
+                          <div className="address-suggestion-main">
+                            <strong>{addr.street} {addr.building}</strong>
+                            {addr.premises && <span>, {addr.premises}</span>}
+                          </div>
+                          <span className="address-suggestion-details">
+                            {addr.city}, {addr.postalCode} • {getCountryName(addr.country) || countries[addr.country] || addr.country}
+                          </span>
+                        </div>
+                      ))}
+
+                      {/* "Create New" option */}
+                      <div
+                        className={`address-suggestion-item create-new ${highlightedAddressIndex === addressSuggestions.length ? "highlighted" : ""}`}
+                        onClick={handleCreateNewAddress}
+                        onMouseEnter={() => setHighlightedAddressIndex(addressSuggestions.length)}
+                      >
+                        + Create New Address
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Selected Address Display (Read-Only) */}
+              {selectedAddress && !showAddressForm && (
+                <div className="selected-address-display">
+                  <label>Selected Address</label>
+                  <div className="address-display-box">
+                    <strong>{selectedAddress.street} {selectedAddress.building}</strong>
+                    {selectedAddress.premises && <span>, {selectedAddress.premises}</span>}
+                    <br />
+                    {selectedAddress.postalCode} {selectedAddress.city}
+                    <br />
+                    {getCountryName(selectedAddress.country) || countries[selectedAddress.country] || selectedAddress.country}
+                  </div>
+                  <button type="button" onClick={handleChangeAddress} className="btn-change-address">
+                    Change Address
+                  </button>
+                </div>
+              )}
+
+              {/* Address Input Form (Only for "Create New") */}
+              {showAddressForm && (
+                <div className="address-form-fields">
+                  <div className="form-grid-2col">
+                    <div className="form-field">
+                      <label htmlFor="senderCountry">Country *</label>
+                      <select
+                        id="senderCountry"
+                        name="senderCountry"
+                        value={addForm.senderCountry}
+                        onChange={handleAddFormChange}
+                        required
+                      >
+                        {Object.entries(countries).map(([id, name]) => (
+                          <option key={id} value={id}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="senderCity">City *</label>
+                      <input
+                        type="text"
+                        id="senderCity"
+                        name="senderCity"
+                        placeholder="City name"
+                        value={addForm.senderCity}
+                        onChange={handleAddFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="senderPostalCode">Postal Code *</label>
+                      <input
+                        type="text"
+                        id="senderPostalCode"
+                        name="senderPostalCode"
+                        placeholder="12-345"
+                        value={addForm.senderPostalCode}
+                        onChange={handleAddFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="senderStreet">Street *</label>
+                      <input
+                        type="text"
+                        id="senderStreet"
+                        name="senderStreet"
+                        placeholder="Street name"
+                        value={addForm.senderStreet}
+                        onChange={handleAddFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="senderBuilding">Building *</label>
+                      <input
+                        type="text"
+                        id="senderBuilding"
+                        name="senderBuilding"
+                        placeholder="Building number"
+                        value={addForm.senderBuilding}
+                        onChange={handleAddFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label htmlFor="senderPremises">Premises</label>
+                      <input
+                        type="text"
+                        id="senderPremises"
+                        name="senderPremises"
+                        placeholder="Apartment/Suite (optional)"
+                        value={addForm.senderPremises}
+                        onChange={handleAddFormChange}
+                      />
+                    </div>
+                  </div>
+
+                  <button type="button" onClick={handleChangeAddress} className="btn-cancel-address-form">
+                    Cancel & Search Again
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Section D: Receiver Information (Display Only) */}
             <div className="form-section">
               <h4 className="section-title">Receiver Information (Store)</h4>
               <div className="receiver-info-display">

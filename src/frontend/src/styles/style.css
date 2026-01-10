@@ -192,19 +192,19 @@ textarea:focus {
     transition: 0.25s ease;
 }
 
-.btn-action.btn-add:hover {
+.btn-action.btn-add:hover:not(:disabled):not(.disabled) {
     background-color: var(--btn-success-bg);
     color: white;
 }
 
-.btn-action.btn-edit:hover {
+.btn-action.btn-edit:hover:not(:disabled):not(.disabled) {
     background-color: var(--btn-edit-bg);
     color: white;
 }
 
-.btn-action.btn-go-to:hover,
-.btn-action.btn-view-details:hover,
-.btn-action.btn-view:hover {
+.btn-action.btn-go-to:hover:not(:disabled):not(.disabled),
+.btn-action.btn-view-details:hover:not(:disabled):not(.disabled),
+.btn-action.btn-view:hover:not(:disabled):not(.disabled) {
     background-color: #007bff;
     color: white;
 }
@@ -228,7 +228,14 @@ textarea:focus {
     border-color: var(--border-muted);
 }
 
-.btn-action.btn-confirm-positive:hover {
+/* Prevent hover on disabled class as well */
+.btn-action.disabled:hover {
+    background: white;
+    color: #0f172a;
+    transform: none;
+}
+
+.btn-action.btn-confirm-positive:hover:not(:disabled):not(.disabled) {
     background-color: var(--btn-success-bg);
     color: white;
 }
@@ -237,7 +244,7 @@ textarea:focus {
     background-color: var(--accent-main);
     color: white;
 }
-.btn-action.btn-primary:hover {
+.btn-action.btn-primary:hover:not(:disabled):not(.disabled) {
     background-color: var(--accent-hover);
 }
 
@@ -245,7 +252,7 @@ textarea:focus {
     background-color: var(--btn-danger-bg);
     color: white;
 }
-.btn-action.btn-danger:hover {
+.btn-action.btn-danger:hover:not(:disabled):not(.disabled) {
     background-color: var(--btn-danger-hover);
 }
 

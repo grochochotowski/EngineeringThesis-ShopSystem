@@ -1,7 +1,8 @@
 // === IMPORTS ===
-import React from "react";
+import React, { useState, useRef } from "react";
 import Modal from "../../../../components/Modal";
-import { countries } from "../../../../data/countries";
+import { countries, getCountryName } from "../../../../data/countries";
+import { api } from "../../../../api/apiClient";
 
 // === COMPONENT ===
 /**
@@ -9,12 +10,13 @@ import { countries } from "../../../../data/countries";
  *
  * Allows users to modify existing shipment records with:
  * - Updated basic information (status, dates, dimensions)
- * - Sender information updates
+ * - Sender information updates (read-only address in edit mode)
  * - Read-only receiver information
  * - Product list modifications (add/remove products, adjust quantities)
  *
  * Features:
  * - Full status dropdown with all shipment statuses
+ * - Read-only address display (address cannot be changed after creation)
  * - Searchable product dropdown for adding new products
  * - Infinite scroll for product suggestions
  * - Real-time quantity validation
@@ -192,9 +194,9 @@ export default function EditModal({
               </div>
             </div>
 
-            {/* Section B: Sender Information */}
+            {/* Section B: Sender Details */}
             <div className="form-section">
-              <h4 className="section-title">Sender Information</h4>
+              <h4 className="section-title">Sender Details</h4>
               <div className="form-grid-2col">
                 <div className="form-field">
                   <label htmlFor="edit-senderName">Name *</label>
@@ -233,89 +235,29 @@ export default function EditModal({
                     onChange={handleEditFormChange}
                   />
                 </div>
-
-                <div className="form-field">
-                  <label htmlFor="edit-senderStreet">Street *</label>
-                  <input
-                    type="text"
-                    id="edit-senderStreet"
-                    name="senderStreet"
-                    placeholder="Street name"
-                    value={editForm.senderStreet}
-                    onChange={handleEditFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="edit-senderBuilding">Building *</label>
-                  <input
-                    type="text"
-                    id="edit-senderBuilding"
-                    name="senderBuilding"
-                    placeholder="Building number"
-                    value={editForm.senderBuilding}
-                    onChange={handleEditFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="edit-senderPremises">Premises</label>
-                  <input
-                    type="text"
-                    id="edit-senderPremises"
-                    name="senderPremises"
-                    placeholder="Apartment/Suite (optional)"
-                    value={editForm.senderPremises}
-                    onChange={handleEditFormChange}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="edit-senderPostalCode">Postal Code *</label>
-                  <input
-                    type="text"
-                    id="edit-senderPostalCode"
-                    name="senderPostalCode"
-                    placeholder="12-345"
-                    value={editForm.senderPostalCode}
-                    onChange={handleEditFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="edit-senderCity">City *</label>
-                  <input
-                    type="text"
-                    id="edit-senderCity"
-                    name="senderCity"
-                    placeholder="City name"
-                    value={editForm.senderCity}
-                    onChange={handleEditFormChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="edit-senderCountry">Country *</label>
-                  <select
-                    id="edit-senderCountry"
-                    name="senderCountry"
-                    value={editForm.senderCountry}
-                    onChange={handleEditFormChange}
-                    required
-                  >
-                    {Object.entries(countries).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
             </div>
 
-            {/* Section C: Receiver Information (Display Only) */}
+            {/* Section C: Sender Address (Read-Only in Edit Mode) */}
+            <div className="form-section">
+              <h4 className="section-title">Sender Address</h4>
+              <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                <label>Address (Read Only)</label>
+                <p style={{ margin: "0.5rem 0", color: "#374151", padding: "1rem", background: "#f9fafb", border: "1px solid var(--border-muted)", borderRadius: "var(--radius-sm)", lineHeight: "1.6" }}>
+                  <strong>{editForm.senderStreet} {editForm.senderBuilding}</strong>
+                  {editForm.senderPremises && <span>, {editForm.senderPremises}</span>}
+                  <br />
+                  {editForm.senderPostalCode} {editForm.senderCity}
+                  <br />
+                  {getCountryName(editForm.senderCountry) || countries[editForm.senderCountry] || "N/A"}
+                </p>
+                <small style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                  Address cannot be changed after shipment creation
+                </small>
+              </div>
+            </div>
+
+            {/* Section D: Receiver Information (Display Only) */}
             <div className="form-section">
               <h4 className="section-title">Receiver Information (Read Only)</h4>
               <div className="receiver-info-display">
@@ -341,7 +283,7 @@ export default function EditModal({
               </div>
             </div>
 
-            {/* Section D: Product Management */}
+            {/* Section E: Product Management */}
             <div className="form-section">
               <h4 className="section-title">Products *</h4>
               <div className="product-search-panel">
@@ -430,7 +372,7 @@ export default function EditModal({
             </div>
           </div>
 
-          {/* Section E: Actions */}
+          {/* Section F: Actions */}
           <div className="form-actions" style={{ flexShrink: 0, paddingTop: "10px", borderTop: "1px solid #ddd" }}>
             <button
               type="button"

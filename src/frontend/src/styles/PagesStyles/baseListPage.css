@@ -92,7 +92,7 @@
     background: var(--accent-main);
 }
 
-.btn-confirm-negative:hover {
+.btn-action.btn-confirm-negative:hover:not(:disabled):not(.disabled) {
     background-color: var(--btn-danger-hover); /* A slightly darker red */
     color: white;
 }
