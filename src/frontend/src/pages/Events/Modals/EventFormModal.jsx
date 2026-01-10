@@ -217,8 +217,10 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
         return "";
 
       case "building":
-        if (!value.trim()) return "Building number is required";
-        if (!/^[a-zA-Z0-9\s\-/]+$/.test(value)) return "Building number contains invalid characters";
+        // Building is now optional for events
+        if (value && value.trim() && !/^[a-zA-Z0-9\s\-/]+$/.test(value)) {
+          return "Building number contains invalid characters";
+        }
         return "";
 
       case "postalCode":
@@ -267,8 +269,8 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
       return;
     }
 
-    // Check required fields
-    if (!newAddress.country || !newAddress.city || !newAddress.street || !newAddress.building || !newAddress.postalCode) {
+    // Check required fields (building is now optional)
+    if (!newAddress.country || !newAddress.city || !newAddress.street || !newAddress.postalCode) {
       setToast({
         message: "Please fill in all required address fields",
         type: "error",
@@ -363,12 +365,15 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
 
     try {
       let response;
+      let savedEventId;
       if (mode === "create") {
         response = await api.post("/Events", eventData);
+        savedEventId = response.id;
       } else {
         response = await api.put(`/Events/${event.id}`, eventData);
+        savedEventId = event.id; // PUT returns 204 No Content, use existing ID
       }
-      onEventSaved(response.id);
+      onEventSaved(savedEventId);
       onClose();
     } catch (err) {
       console.error(err);
@@ -603,14 +608,13 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
 
                   <div className="form-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     <label>
-                      Building *
+                      Building
                       <input
                         type="text"
                         name="building"
                         value={newAddress.building}
                         onChange={handleAddressFormChange}
-                        placeholder="Building #"
-                        required
+                        placeholder="Building # (optional)"
                         style={{
                           borderColor: addressFormErrors.building ? "var(--error, #ef4444)" : undefined
                         }}
@@ -664,7 +668,6 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
                     disabled={
                       !newAddress.city ||
                       !newAddress.street ||
-                      !newAddress.building ||
                       !newAddress.postalCode ||
                       Object.values(addressFormErrors).some(error => error !== "")
                     }
@@ -694,8 +697,11 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
               <div className="selected-address-display">
                 <label>Selected Address</label>
                 <div className="address-display-box">
-                  <strong>{selectedAddress.street} {selectedAddress.building}</strong>
-                  {selectedAddress.premises && <span>, {selectedAddress.premises}</span>}
+                  <strong>
+                    {[selectedAddress.street, selectedAddress.building, selectedAddress.premises]
+                      .filter(Boolean)
+                      .join(' ')}
+                  </strong>
                   <br />
                   {selectedAddress.postalCode} {selectedAddress.city}
                   <br />
