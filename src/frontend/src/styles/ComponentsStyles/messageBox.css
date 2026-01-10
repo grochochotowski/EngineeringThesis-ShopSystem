@@ -8,7 +8,7 @@
     flex-direction: column-reverse;
     align-items: center;
     gap: 10px;
-    z-index: 99999;
+    z-index: var(--z-toast);
     pointer-events: none;
 }
 
@@ -48,31 +48,31 @@
 }
 
 /* === Show/hide states === */
-.message-box.show { animation: fadeInToast 0.35s ease forwards; }
-.message-box.hide { animation: fadeOutToast 0.35s ease forwards; }
+.message-box.show { animation: fadeInToast var(--transition-slow) ease forwards; }
+.message-box.hide { animation: fadeOutToast var(--transition-slow) ease forwards; }
 
 /* === Message types === */
 .message-box.success {
     background-color: var(--toast-success-bg);
-    border: 1px solid var(--toast-success-border);
+    border: var(--border-width) solid var(--toast-success-border);
     color: var(--toast-success-text);
 }
 
 .message-box.error {
     background-color: var(--toast-error-bg);
-    border: 1px solid var(--toast-error-border);
+    border: var(--border-width) solid var(--toast-error-border);
     color: var(--toast-error-text);
 }
 
 .message-box.info {
     background-color: var(--toast-info-bg);
-    border: 1px solid var(--toast-info-border);
+    border: var(--border-width) solid var(--toast-info-border);
     color: var(--toast-info-text);
 }
 
 .message-box.warning {
     background-color: var(--toast-warning-bg);
-    border: 1px solid var(--toast-warning-border);
+    border: var(--border-width) solid var(--toast-warning-border);
     color: var(--toast-warning-text);
 }
 

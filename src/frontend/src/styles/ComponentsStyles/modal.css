@@ -6,8 +6,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999;
-    animation: fadeIn 0.2s ease-out;
+    z-index: var(--z-overlay);
+    animation: fadeIn var(--anim-fadeIn) ease-out;
 }
 
 .modal-container {
@@ -17,7 +17,7 @@
     max-width: 90%;
     box-shadow: var(--shadow-lg);
     overflow: hidden;
-    animation: slideUp 0.25s ease-out;
+    animation: slideUp var(--anim-slideUp) ease-out;
 }
 
 .modal-container.wide {
@@ -80,12 +80,12 @@
 }
 
 .form-info {
-    padding: 0.75rem 1rem;
-    background-color: #f0f9ff;
-    border-left: 4px solid #0ea5e9;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--color-info-light);
+    border-left: var(--border-width-heavy) solid var(--color-info);
     border-radius: var(--radius-md);
-    color: #0c4a6e;
-    font-size: 0.95rem;
+    color: var(--color-info-dark);
+    font-size: var(--font-size-base);
 }
 
 .product-form {
@@ -100,11 +100,11 @@
 .product-form .form-grid.client-info-company,
 .product-form .form-grid.client-info-person,
 .product-form .form-grid.address-grid {
-    background: #f8fafc;
+    background: var(--form-section-bg);
     padding: 0.9rem;
     border-radius: var(--radius-md);
-    border: var(--border-muted);
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06);
+    border: var(--form-section-border);
+    box-shadow: var(--form-section-shadow);
 }
 
 /* Two Column Grid */
@@ -179,11 +179,11 @@
 
 /* === FORM SECTIONS AND ROWS === */
 .form-section {
-    background: #f8fafc;
+    background: var(--form-section-bg);
     padding: 0.9rem;
     border-radius: var(--radius-md);
-    border: var(--border-muted);
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06);
+    border: var(--form-section-border);
+    box-shadow: var(--form-section-shadow);
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
@@ -218,8 +218,8 @@
 
 .form-section-title {
     margin: 0.4rem 0 0.2rem;
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
     color: var(--text-dark);
 }
 
@@ -249,8 +249,8 @@
 }
 
 .product-details-modal ul li {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f1f5f9;
+    padding: var(--spacing-sm) 0;
+    border-bottom: var(--border-width) solid var(--bg-panel);
 }
 
 .product-details-modal ul li:last-child {
@@ -261,7 +261,7 @@
     display: inline-block;
     min-width: 150px;
     color: var(--text-dark);
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
 }
 
 .locations-table {
@@ -274,43 +274,43 @@
 .locations-table td {
     padding: 0.6rem;
     text-align: left;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: var(--border-width) solid var(--border-color);
 }
 
 .locations-table th {
-    background: #f8fafc;
-    font-weight: 600;
+    background: var(--bg-secondary);
+    font-weight: var(--font-weight-semibold);
     color: var(--text-dark);
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
 }
 
 .locations-table tbody tr:hover {
-    background: #f8fafc;
+    background: var(--bg-secondary);
 }
 
 .locations-table .current-location {
-    background: #dbeafe;
-    font-weight: 600;
+    background: var(--bg-selected);
+    font-weight: var(--font-weight-semibold);
 }
 
 .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
     border-top: var(--border-muted);
 }
 
 .modal-actions button {
-    padding: 0.6rem 1.5rem;
+    padding: 0.6rem var(--spacing-xl);
     border: none;
     border-radius: var(--radius-md);
     background: var(--color-primary);
     color: white;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background var(--transition-base);
     min-width: auto;
 }
 
@@ -321,9 +321,9 @@
 .form-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
     border-top: var(--border-muted);
 }
 

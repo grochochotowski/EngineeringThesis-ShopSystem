@@ -22,8 +22,8 @@
     height: 64px;
     border: 8px solid rgba(255, 255, 255, 0.2);
     border-top-color: var(--accent-main);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    border-radius: var(--radius-circle);
+    animation: spin var(--anim-spin) linear infinite;
 
     z-index: 1;
 }

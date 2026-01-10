@@ -1,22 +1,64 @@
 :root {
     /* === Typography === */
     --font-family-main: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    --font-family-mono: 'Courier New', monospace;
     --font-size-h1: 3.5rem;
+    --font-size-h2: 1.75rem;
+    --font-size-h3: 1.5rem;
+    --font-size-base: 0.95rem;
+    --font-size-sm: 0.9rem;
+    --font-size-xs: 0.85rem;
+    --font-size-xxs: 0.8rem;
+    --font-size-tiny: 0.75rem;
     --font-weight-h1: 800;
-    --font-size-small: 0.75rem;
-    --transition-fast: 150ms ease-in-out;
+    --font-weight-bold: 700;
+    --font-weight-semibold: 600;
+    --font-weight-medium: 500;
+    --font-weight-normal: 400;
 
     /* === Text colors === */
     --text-dark: #0f1624;
     --text-white: #ffffff;
     --text-light: #e0e6ff;
     --text-muted: #8592ad;
+    --text-gray: #475569;
+    --text-slate: #64748b;
+    --text-secondary: #0f172a;
 
     /* === Accent colors === */
     --accent-main: #3b82f6;
     --accent-hover: #60a5fa;
     --accent-light: #93c5fd;
     --accent-dark: #1e3a8a;
+    --accent-focus: rgba(59, 130, 246, 0.2);
+
+    /* === Semantic colors === */
+    --color-success: #10b981;
+    --color-success-dark: #059669;
+    --color-success-light: #d1fae5;
+    --color-success-text: #065f46;
+    --color-success-hover: #047857;
+
+    --color-danger: #ef4444;
+    --color-danger-dark: #dc2626;
+    --color-danger-light: #fee2e2;
+    --color-danger-text: #991b1b;
+    --color-danger-hover: rgba(220, 53, 69, 0.1);
+
+    --color-warning: #f59e0b;
+    --color-warning-dark: #d97706;
+    --color-warning-light: #fef3c7;
+    --color-warning-text: #78350f;
+    --color-warning-amber: #fbbf24;
+
+    --color-info: #0ea5e9;
+    --color-info-dark: #0c4a6e;
+    --color-info-light: #f0f9ff;
+
+    --color-purple: #a855f7;
+    --color-purple-dark: #6b21a8;
+    --color-orange: #f97316;
+    --color-gray: #6b7280;
 
     /* === Backgrounds === */
     --bg-dashboard: #0a255c;
@@ -24,10 +66,15 @@
     --bg-app: #f8fafc;
     --bg-panel: #f1f5f9;
     --bg-alt: #f3f4f6;
+    --bg-input: rgba(255, 255, 255, 0.8);
+    --bg-secondary: #f8fafc;
     --bg-gradient-light: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
     --bg-hover: #e0f2fe;
     --bg-selected: #dbeafe;
     --bg-overlay: rgba(0, 0, 0, 0.45);
+    --bg-disabled: #f1f5f9;
+    --bg-subtle: #f9fafb;
+    --bg-blue-light: #eff6ff;
 
     /* === Buttons & interactive === */
     --btn-bg: var(--accent-main);
@@ -41,21 +88,60 @@
     --btn-edit-bg: #f59e0b;
     --btn-edit-hover: #ffc107;
 
-    /* === Borders & radius === */
+    /* === Borders === */
+    --border-width: 1px;
+    --border-width-thick: 2px;
+    --border-width-medium: 3px;
+    --border-width-heavy: 4px;
+    --border-color: #e2e8f0;
+    --border-light: 1px solid rgba(255, 255, 255, 0.3);
+    --border-muted: 1px solid #e2e8f0;
+    --border-input: 1px solid #3b4b9a;
+    --border-slate: #cbd5e1;
+    --border-blue: #bfdbfe;
+
+    /* === Border radius === */
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    --border-light: 1px solid rgba(255, 255, 255, 0.3);
-    --border-muted: 1px solid #e2e8f0;
+    --radius-circle: 50%;
+    --radius-xs: 4px;
 
     /* === Shadows === */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.15);
     --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --shadow-focus: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    --shadow-inset: inset 0 0 5px rgba(0, 0, 0, 0.05);
+
+    /* === Transitions === */
+    --transition-fast: 150ms ease-in-out;
+    --transition-base: 0.2s ease;
+    --transition-medium: 0.25s ease;
+    --transition-slow: 0.35s ease;
+
+    /* === Spacing === */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+
+    /* === Z-index === */
+    --z-dropdown: 100;
+    --z-modal-content: 150;
+    --z-modal: 1000;
+    --z-overlay: 9999;
+    --z-toast: 99999;
+    --z-max: 10000;
 
     /* === Scrollbars === */
+    --scrollbar-width: 8px;
     --scrollbar-thumb: rgba(100, 116, 139, 0.3);
     --scrollbar-thumb-hover: rgba(100, 116, 139, 0.5);
+    --scrollbar-thumb-alt: #cbd5e1;
+    --scrollbar-thumb-alt-hover: #94a3b8;
 
     /* === Toast colors === */
     --toast-success-bg: #e6fffa;
@@ -79,6 +165,46 @@
     --row-success-hover: #d1f7dd;
     --row-error-bg: #ffe6e6;
     --row-error-hover: #ffd1d1;
+
+    /* === Badge colors === */
+    --badge-unspecified-bg: #f3f4f6;
+    --badge-unspecified-border: #9ca3af;
+    --badge-unspecified-text: #4b5563;
+
+    --badge-preparation-bg: #dbeafe;
+    --badge-preparation-border: #3b82f6;
+    --badge-preparation-text: #1e40af;
+
+    --badge-ready-bg: #fef3c7;
+    --badge-ready-border: #f59e0b;
+    --badge-ready-text: #92400e;
+
+    --badge-transit-bg: #e9d5ff;
+    --badge-transit-border: #a855f7;
+    --badge-transit-text: #6b21a8;
+
+    --badge-delivered-bg: #d1fae5;
+    --badge-delivered-border: #10b981;
+    --badge-delivered-text: #065f46;
+
+    --badge-cancelled-bg: #fee2e2;
+    --badge-cancelled-border: #ef4444;
+    --badge-cancelled-text: #991b1b;
+
+    --badge-returned-bg: #fef3c7;
+    --badge-returned-border: #d97706;
+    --badge-returned-text: #78350f;
+
+    /* === Form section colors === */
+    --form-section-bg: #f8fafc;
+    --form-section-border: var(--border-muted);
+    --form-section-shadow: 0 2px 4px rgba(15, 23, 42, 0.06);
+
+    /* === Animation durations === */
+    --anim-fadeIn: 0.2s;
+    --anim-slideUp: 0.25s;
+    --anim-popIn: 0.25s;
+    --anim-spin: 0.8s;
 }
 
 
