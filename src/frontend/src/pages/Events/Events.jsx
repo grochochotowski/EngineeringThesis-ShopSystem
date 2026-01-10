@@ -5,8 +5,8 @@ import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
 import MessageBox from "../../components/MessageBox";
 import EventFormModal from "./Modals/EventFormModal";
-import PublishConfirmDialog from "./Modals/PublishConfirmDialog";
 import CancelConfirmDialog from "./Modals/CancelConfirmDialog";
+import SocialMediaShareModal from "./Modals/SocialMediaShareModal";
 import "../../styles/PagesStyles/organizationPages.css";
 
 // === COMPONENT ===
@@ -29,9 +29,11 @@ export default function Events() {
   const [formEventData, setFormEventData] = useState(null);
   const [actionableEvent, setActionableEvent] = useState(null);
   const [actionType, setActionType] = useState(null); // 'publish' or 'cancel'
+  const [showSocialMediaModal, setShowSocialMediaModal] = useState(false);
+  const [eventToPublish, setEventToPublish] = useState(null);
 
   const [filters, setFilters] = useState({ status: "" });
-  const [sortColumn, setSortColumn] = useState("dateOfEvent");
+  const [sortColumn, setSortColumn] = useState("id");
   const [sortDirection, setSortDirection] = useState("desc");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -42,9 +44,10 @@ export default function Events() {
   const currentUser = JSON.parse(localStorage.getItem("user"));
 
   const sortKeyMap = useMemo(() => ({
+    id: "id",
     title: "title",
-    dateOfEvent: "dateOfEvent",
-    status: "status",
+    dateOfEvent: "dateofevent",
+    dateOfPublish: "dateofpublish",
   }), []);
 
   // === DATA FETCHING ===
@@ -101,7 +104,8 @@ export default function Events() {
       }, 500);
       return () => clearTimeout(handler);
     }
-  }, [searchQuery, fetchEvents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!showFilters) return;
@@ -170,6 +174,7 @@ export default function Events() {
         id: full.id,
         title: full.title || "—",
         dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+        dateOfPublish: full.dateOfPublish ? new Date(full.dateOfPublish).toLocaleDateString() : "—",
         status: full.status,
         _raw: full,
       };
@@ -184,14 +189,10 @@ export default function Events() {
     }
   };
 
-  const confirmPublish = async () => {
-    if (!actionableEvent) return;
-    const eventId = actionableEvent._raw.id;
+  const handlePublishAfterShare = async (eventId) => {
     try {
       await api.put(`/Events/${eventId}/publish`);
-      setToast({ message: "Event published successfully.", type: "success" });
-      setActionableEvent(null);
-      setActionType(null);
+      setToast({ message: "Event published successfully!", type: "success" });
 
       // Refresh the event list
       loadedPages.current.clear();
@@ -205,6 +206,7 @@ export default function Events() {
           id: full.id,
           title: full.title || "—",
           dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+          dateOfPublish: full.dateOfPublish ? new Date(full.dateOfPublish).toLocaleDateString() : "—",
           status: full.status,
           _raw: full,
         };
@@ -214,7 +216,7 @@ export default function Events() {
         console.error("Failed to reload event details:", err);
       }
     } catch (err) {
-      setToast({ message: err.response?.data?.message || "Failed to publish event.", type: "error" });
+      throw err; // Re-throw to be handled by the modal
     }
   };
 
@@ -239,6 +241,7 @@ export default function Events() {
           id: full.id,
           title: full.title || "—",
           dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+          dateOfPublish: full.dateOfPublish ? new Date(full.dateOfPublish).toLocaleDateString() : "—",
           status: full.status,
           _raw: full,
         };
@@ -258,19 +261,35 @@ export default function Events() {
     setShowFilters(false);
   };
 
+  const handleSort = (column) => {
+    const colDef = columns.find(c => c.key === column);
+    if (!colDef || colDef.sortable === false) return;
+
+    if (sortColumn === column) {
+      // Toggle between asc and desc for the same column
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Switch to new column, start with asc
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
 
   // === TABLE CONFIGURATION ===
   const columns = [
-    { key: "id", label: "ID", width: "8%", sortable: false },
-    { key: "title", label: "Title", width: "30%", sortable: true },
-    { key: "dateOfEvent", label: "Event Date", width: "22%", sortable: true },
-    { key: "status", label: "Status", width: "20%", sortable: true },
+    { key: "id", label: "ID", width: "8%", sortable: true },
+    { key: "title", label: "Title", width: "25%", sortable: true },
+    { key: "dateOfEvent", label: "Event Date", width: "20%", sortable: true },
+    { key: "dateOfPublish", label: "Date Published", width: "20%", sortable: true },
+    { key: "status", label: "Status", width: "17%", sortable: false },
   ];
 
   const toRow = useCallback((e) => ({
     id: e.id,
     title: e.title || "—",
     dateOfEvent: new Date(e.dateOfEvent).toLocaleDateString(),
+    dateOfPublish: e.dateOfPublish ? new Date(e.dateOfPublish).toLocaleDateString() : "—",
     status: e.status,
     _raw: e,
   }), []);
@@ -324,7 +343,15 @@ export default function Events() {
             { label: "Description", key: "description", isColumn: true },
             { label: "Event Date", key: "dateOfEvent", render: (data) => new Date(data.dateOfEvent).toLocaleString() },
             { label: "Publish Date", key: "dateOfPublish", render: (data) => data.dateOfPublish ? new Date(data.dateOfPublish).toLocaleString() : "—" },
-            { label: "Address", key: "address", render: (data) => data.address ? `${data.address.street} ${data.address.building}, ${data.address.city}` : "—" },
+            { label: "Address", key: "address", render: (data) => {
+              if (!data.address) return "—";
+              const parts = [
+                data.address.street,
+                data.address.building,
+                data.address.premises
+              ].filter(Boolean);
+              return `${parts.join(' ')}, ${data.address.city}`;
+            }},
             { label: "Created By", key: "createdByUser", render: (data) => data.createdByUser ? `${data.createdByUser.firstName} ${data.createdByUser.lastName}` : "—" },
             {
                 label: "Image",
@@ -384,12 +411,23 @@ export default function Events() {
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={(value) => setSearchQuery(value)}
           searchValue={searchQuery}
+          onSort={handleSort}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           // Publish button (using changePassword slot)
           onChangePassword={() => {
-            setActionableEvent(selectedRow);
-            setActionType('publish');
+            // Check if event has an image before opening the modal
+            const eventData = selectedRow?._raw || selectedRow;
+            if (!eventData?.image) {
+              setToast({
+                message: "Cannot publish event without an image. Please add an image to the event first.",
+                type: "error"
+              });
+              return;
+            }
+            // Open social media modal directly WITHOUT publishing yet
+            setEventToPublish(selectedRow);
+            setShowSocialMediaModal(true);
           }}
           changePasswordButtonLabel="Publish"
           changePasswordButtonClass="btn-confirm-positive"
@@ -457,17 +495,6 @@ export default function Events() {
         onEventSaved={handleEventSuccess}
       />
 
-      {actionableEvent && actionType === 'publish' && (
-        <PublishConfirmDialog
-          event={actionableEvent}
-          onConfirm={confirmPublish}
-          onCancel={() => {
-            setActionableEvent(null);
-            setActionType(null);
-          }}
-        />
-      )}
-
       {actionableEvent && actionType === 'cancel' && (
         <CancelConfirmDialog
           event={actionableEvent}
@@ -478,6 +505,16 @@ export default function Events() {
           }}
         />
       )}
+
+      <SocialMediaShareModal
+        isOpen={showSocialMediaModal}
+        onClose={() => {
+          setShowSocialMediaModal(false);
+          setEventToPublish(null);
+        }}
+        event={eventToPublish}
+        onPublish={handlePublishAfterShare}
+      />
 
       {toast && (
         <MessageBox
