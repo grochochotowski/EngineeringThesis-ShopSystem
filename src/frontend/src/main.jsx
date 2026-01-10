@@ -5,6 +5,7 @@ import React, { useContext, Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { GlobalStateProvider, GlobalStateContext } from './GlobalState';
+import { ToastProvider } from './components/ToastContext';
 
 import './styles/style.css'
 
@@ -332,9 +333,11 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <GlobalStateProvider>
-            <Suspense fallback={<Fallback />}>
-                <RouterProvider router={router} />
-            </Suspense>
+            <ToastProvider>
+                <Suspense fallback={<Fallback />}>
+                    <RouterProvider router={router} />
+                </Suspense>
+            </ToastProvider>
         </GlobalStateProvider>
     </React.StrictMode>
 )

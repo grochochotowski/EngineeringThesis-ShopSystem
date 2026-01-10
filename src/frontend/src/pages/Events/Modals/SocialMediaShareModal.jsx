@@ -1,7 +1,7 @@
 // === IMPORTS ===
 import React, { useState, useEffect } from "react";
 import Modal from "../../../components/Modal";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import "../../../styles/ComponentsStyles/modal.css";
 
 // === STYLES ===
@@ -22,11 +22,11 @@ if (typeof document !== 'undefined' && !document.querySelector('#spinner-keyfram
 
 // === COMPONENT ===
 export default function SocialMediaShareModal({ isOpen, onClose, event, onPublish }) {
+  const { showToast } = useToast();
   const [selectedPlatforms, setSelectedPlatforms] = useState({
     facebook: false,
     twitter: false,
   });
-  const [toast, setToast] = useState(null);
   const [isPublishing, setIsPublishing] = useState(false);
 
   // Reset state when modal closes
@@ -34,7 +34,6 @@ export default function SocialMediaShareModal({ isOpen, onClose, event, onPublis
     if (!isOpen) {
       setSelectedPlatforms({ facebook: false, twitter: false });
       setIsPublishing(false);
-      setToast(null);
     }
   }, [isOpen]);
 
@@ -93,19 +92,13 @@ export default function SocialMediaShareModal({ isOpen, onClose, event, onPublis
       await onPublish(eventData.id);
 
       // Show success message
-      setToast({
-        message: "Event published successfully! Opening social media...",
-        type: "success"
-      });
+      showToast("Event published successfully! Opening social media...", "success");
 
       // Wait a moment to let the user see the success message
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (err) {
       setIsPublishing(false);
-      setToast({
-        message: err.response?.data?.message || "Failed to publish event. Please try again.",
-        type: "error"
-      });
+      showToast(err.response?.data?.message || "Failed to publish event. Please try again.", "error");
       return; // Don't proceed with social media sharing if publish failed
     }
     setIsPublishing(false);
@@ -117,15 +110,9 @@ export default function SocialMediaShareModal({ isOpen, onClose, event, onPublis
     if (image) {
       imageDownloaded = downloadEventImage(image, title);
       if (imageDownloaded) {
-        setToast({
-          message: "Event image downloaded to your Downloads folder! You can now drag it into your social media posts.",
-          type: "success"
-        });
+        showToast("Event image downloaded to your Downloads folder! You can now drag it into your social media posts.", "success");
       } else {
-        setToast({
-          message: "Failed to download image. You can right-click the image in event details to save it manually.",
-          type: "warning"
-        });
+        showToast("Failed to download image. You can right-click the image in event details to save it manually.", "warning");
       }
     }
 
@@ -200,10 +187,7 @@ export default function SocialMediaShareModal({ isOpen, onClose, event, onPublis
         // Use the first approach - if quote doesn't work, user can paste from clipboard
         const facebookUrl = facebookShareUrls[0];
 
-        setToast({
-          message: "Opening Facebook share dialog. If text is not pre-filled, it has been copied to your clipboard - paste (Ctrl+V or Cmd+V) into your post.",
-          type: "success"
-        });
+        showToast("Opening Facebook share dialog. If text is not pre-filled, it has been copied to your clipboard - paste (Ctrl+V or Cmd+V) into your post.", "success");
 
         // Open Facebook share dialog
         setTimeout(() => {
@@ -211,10 +195,7 @@ export default function SocialMediaShareModal({ isOpen, onClose, event, onPublis
         }, 500);
       } catch (error) {
         console.error("Failed to prepare Facebook sharing:", error);
-        setToast({
-          message: "Failed to copy event details. Please copy the text manually from the event details.",
-          type: "error"
-        });
+        showToast("Failed to copy event details. Please copy the text manually from the event details.", "error");
       }
     }
 
@@ -471,16 +452,6 @@ export default function SocialMediaShareModal({ isOpen, onClose, event, onPublis
           </div>
         </div>
       </Modal>
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </>
   );
 }

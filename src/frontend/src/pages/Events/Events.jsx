@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { api } from "../../api/apiClient";
 import Header from "../../components/Header";
 import BaseListPage from "../BaseListPage";
-import MessageBox from "../../components/MessageBox";
+import { useToast } from "../../components/ToastContext";
 import EventFormModal from "./Modals/EventFormModal";
 import CancelConfirmDialog from "./Modals/CancelConfirmDialog";
 import SocialMediaShareModal from "./Modals/SocialMediaShareModal";
@@ -11,6 +11,8 @@ import "../../styles/PagesStyles/organizationPages.css";
 
 // === COMPONENT ===
 export default function Events() {
+  const { showToast } = useToast();
+
   // === STATE ===
   const [events, setEvents] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
@@ -18,7 +20,6 @@ export default function Events() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedEventDetails, setSelectedEventDetails] = useState(null);
@@ -137,10 +138,7 @@ export default function Events() {
       setSelectedEventDetails(full);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load event details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load event details.", "error");
     }
   }, []);
 
@@ -159,7 +157,7 @@ export default function Events() {
 
   const handleEventSuccess = async (eventId) => {
     setShowEventModal(false);
-    setToast({ message: `Event ${eventFormMode === 'create' ? 'created' : 'updated'} successfully!`, type: 'success' });
+    showToast(`Event ${eventFormMode === 'create' ? 'created' : 'updated'} successfully!`, 'success');
 
     // Refresh the event list
     loadedPages.current.clear();
@@ -182,17 +180,14 @@ export default function Events() {
       lastSelectedId.current = eventId;
     } catch (err) {
       console.error("Failed to load event details after save:", err);
-      setToast({
-        message: "Event saved, but failed to load details. Please select the event manually.",
-        type: "error",
-      });
+      showToast("Event saved, but failed to load details. Please select the event manually.", "error");
     }
   };
 
   const handlePublishAfterShare = async (eventId) => {
     try {
       await api.put(`/Events/${eventId}/publish`);
-      setToast({ message: "Event published successfully!", type: "success" });
+      showToast("Event published successfully!", "success");
 
       // Refresh the event list
       loadedPages.current.clear();
@@ -225,7 +220,7 @@ export default function Events() {
     const eventId = actionableEvent._raw.id;
     try {
       await api.put(`/Events/${eventId}/cancel`);
-      setToast({ message: "Event canceled successfully.", type: "success" });
+      showToast("Event canceled successfully.", "success");
       setActionableEvent(null);
       setActionType(null);
 
@@ -251,7 +246,7 @@ export default function Events() {
         console.error("Failed to reload event details:", err);
       }
     } catch (err) {
-      setToast({ message: err.response?.data?.message || "Failed to cancel event.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to cancel event.", "error");
     }
   };
 
@@ -419,10 +414,7 @@ export default function Events() {
             // Check if event has an image before opening the modal
             const eventData = selectedRow?._raw || selectedRow;
             if (!eventData?.image) {
-              setToast({
-                message: "Cannot publish event without an image. Please add an image to the event first.",
-                type: "error"
-              });
+              showToast("Cannot publish event without an image. Please add an image to the event first.", "error");
               return;
             }
             // Open social media modal directly WITHOUT publishing yet
@@ -515,16 +507,6 @@ export default function Events() {
         event={eventToPublish}
         onPublish={handlePublishAfterShare}
       />
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

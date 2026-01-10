@@ -1,8 +1,20 @@
-.message-box {
+/* === Toast Container === */
+.toast-container {
     position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 10px;
+    z-index: 99999;
+    pointer-events: none;
+}
+
+/* === Individual Toast === */
+.message-box {
+    position: relative;
     width: fit-content;
     max-width: 480px;
     min-width: 260px;
@@ -18,8 +30,8 @@
 
     opacity: 0;
     transition: var(--transition-fast);
-    z-index: 99999;
     overflow: hidden;
+    pointer-events: auto;
 
     background: var(--bg-card);
     color: var(--text-dark);
@@ -27,12 +39,12 @@
 
 /* === Animations === */
 @keyframes fadeInToast {
-    0% { opacity: 0; transform: translate(-50%, 10px) scale(0.97); }
-    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    0% { opacity: 0; transform: translateY(10px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes fadeOutToast {
-    0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, 10px) scale(0.97); }
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(10px) scale(0.97); }
 }
 
 /* === Show/hide states === */
