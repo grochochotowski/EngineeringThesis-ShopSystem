@@ -127,7 +127,8 @@ export default function Addresses() {
       }, 500);
       return () => clearTimeout(handler);
     }
-  }, [searchQuery, fetchAddresses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   /**
    * Infinite scroll observer
