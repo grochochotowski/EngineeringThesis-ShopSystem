@@ -41,7 +41,7 @@ export default function POS() {
   };
 
   // Mode management
-  const [activeMode, setActiveMode] = useState('Sale'); // Sale, Returns, Exchange
+  const [activeMode, setActiveMode] = useState('Sale'); // Sale, Returns
 
   // Scanned products state
   const [scannedProducts, setScannedProducts] = useState([]);
@@ -2236,13 +2236,6 @@ export default function POS() {
             >
               Returns
             </button>
-            <button
-              className={activeMode === 'Exchange' ? 'active' : ''}
-              disabled
-              title="Coming soon"
-            >
-              Exchange
-            </button>
           </div>
 
           {/* Sale Mode Options */}
@@ -2468,15 +2461,6 @@ export default function POS() {
                     </button>
                   )}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Exchange Mode (disabled) */}
-          {activeMode === 'Exchange' && (
-            <div className="pos-options">
-              <div className="pos-empty-message">
-                Exchange mode coming soon
               </div>
             </div>
           )}
