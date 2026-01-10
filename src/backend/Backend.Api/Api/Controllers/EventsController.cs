@@ -51,6 +51,20 @@ namespace Backend.Api.Api.Controllers
             return Ok(result);
         }
 
+        [HttpPut("{id:int}/publish")]
+        public async Task<IActionResult> Publish([FromRoute] int id, CancellationToken ct)
+        {
+            var ok = await _service.PublishAsync(id, ct);
+            return ok ? NoContent() : NotFound();
+        }
+
+        [HttpPut("{id:int}/cancel")]
+        public async Task<IActionResult> Cancel([FromRoute] int id, CancellationToken ct)
+        {
+            var ok = await _service.CancelAsync(id, ct);
+            return ok ? NoContent() : NotFound();
+        }
+
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateEventDto dto, CancellationToken ct)
         {
@@ -65,20 +79,6 @@ namespace Backend.Api.Api.Controllers
         public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct)
         {
             var ok = await _service.DeleteAsync(id, ct);
-            return ok ? NoContent() : NotFound();
-        }
-
-        [HttpPut("{id:int}/publish")]
-        public async Task<IActionResult> Publish([FromRoute] int id, CancellationToken ct)
-        {
-            var ok = await _service.PublishAsync(id, ct);
-            return ok ? NoContent() : NotFound();
-        }
-
-        [HttpPut("{id:int}/cancel")]
-        public async Task<IActionResult> Cancel([FromRoute] int id, CancellationToken ct)
-        {
-            var ok = await _service.CancelAsync(id, ct);
             return ok ? NoContent() : NotFound();
         }
     }

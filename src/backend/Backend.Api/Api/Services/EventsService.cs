@@ -70,8 +70,10 @@ namespace Backend.Api.Api.Services
             {
                 query = orderBy.ToLower() switch
                 {
+                    "id" => sortDirection?.ToLower() == "desc" ? query.OrderByDescending(e => e.Id) : query.OrderBy(e => e.Id),
                     "title" => sortDirection?.ToLower() == "desc" ? query.OrderByDescending(e => e.Title) : query.OrderBy(e => e.Title),
                     "dateofevent" => sortDirection?.ToLower() == "desc" ? query.OrderByDescending(e => e.DateOfEvent) : query.OrderBy(e => e.DateOfEvent),
+                    "dateofpublish" => sortDirection?.ToLower() == "desc" ? query.OrderByDescending(e => e.DateOfPublish) : query.OrderBy(e => e.DateOfPublish),
                     "status" => sortDirection?.ToLower() == "desc" ? query.OrderByDescending(e => e.Status) : query.OrderBy(e => e.Status),
                     _ => query
                 };
