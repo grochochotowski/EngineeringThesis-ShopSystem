@@ -12,7 +12,7 @@ namespace Backend.Api.Objects.Entities.Models
         public string City          { get; set; } = default!;
         public string PostalCode    { get; set; } = default!;
         public string Street        { get; set; } = default!;
-        public string Building      { get; set; } = default!;
+        public string? Building     { get; set; }
         public string? Premises     { get; set; }
     }
 }
