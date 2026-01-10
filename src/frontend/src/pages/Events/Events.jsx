@@ -15,10 +15,7 @@ export default function Events() {
 
   // === STATE ===
   const [events, setEvents] = useState([]);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
   const [selectedRow, setSelectedRow] = useState(null);
@@ -57,42 +54,34 @@ export default function Events() {
       if (loadedPages.current.has(page) && !reset) return;
       loadedPages.current.add(page);
 
-      try {
-        setLoading(true);
-        const mappedSort = sortKeyMap[sortColumn] || undefined;
-        const { items = [], totalPages = 1 } = await api.get("/Events", {
-          params: {
-            pageNumber: page,
-            pageSize: 20,
-            ...(searchQuery && { q: searchQuery }),
-            ...(filters.status && { status: filters.status }),
-            ...(mappedSort && { orderBy: mappedSort }),
-            ...(sortDirection && { sortDirection }),
-          },
-        });
+      setLoading(true);
+      const mappedSort = sortKeyMap[sortColumn] || undefined;
+      const { items = [] } = await api.get("/Events", {
+        params: {
+          pageNumber: page,
+          pageSize: 20,
+          ...(searchQuery && { q: searchQuery }),
+          ...(filters.status && { status: filters.status }),
+          ...(mappedSort && { orderBy: mappedSort }),
+          ...(sortDirection && { sortDirection }),
+        },
+      });
 
-        setEvents((prev) =>
-          page === 1 ? items : [...prev, ...items.filter((i) => !prev.some((p) => p.id === i.id))]
-        );
-        setHasMore(page < (totalPages || 1));
+      setEvents((prev) =>
+        page === 1 ? items : [...prev, ...items.filter((i) => !prev.some((p) => p.id === i.id))]
+      );
 
-        if (page === 1 && items.length === 0) {
-          setSelectedRow(null);
-          setSelectedEventDetails(null);
-        }
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load events.");
-      } finally {
-        setLoading(false);
+      if (page === 1 && items.length === 0) {
+        setSelectedRow(null);
+        setSelectedEventDetails(null);
       }
+      setLoading(false);
     },
     [filters, searchQuery, sortColumn, sortDirection, sortKeyMap]
   );
 
   useEffect(() => {
     loadedPages.current.clear();
-    setPageNumber(1);
     fetchEvents(1, true);
   }, [filters, sortColumn, sortDirection, fetchEvents]);
 
@@ -100,7 +89,6 @@ export default function Events() {
     if (searchQuery !== undefined) {
       const handler = setTimeout(() => {
         loadedPages.current.clear();
-        setPageNumber(1);
         fetchEvents(1, true);
       }, 500);
       return () => clearTimeout(handler);
@@ -123,7 +111,7 @@ export default function Events() {
     };
   }, [showFilters]);
 
-    const handleRowSelect = useCallback(async (row) => {
+  const handleRowSelect = useCallback(async (row) => {
     if (!row) {
       setSelectedRow(null);
       setSelectedEventDetails(null);
@@ -140,7 +128,7 @@ export default function Events() {
       console.error(err);
       showToast(err.response?.data?.message || "Failed to load event details.", "error");
     }
-  }, []);
+  }, [showToast]);
 
   const openCreateModal = () => {
     setFormEventData(null);
@@ -185,33 +173,29 @@ export default function Events() {
   };
 
   const handlePublishAfterShare = async (eventId) => {
+    await api.put(`/Events/${eventId}/publish`);
+    showToast("Event published successfully!", "success");
+
+    // Refresh the event list
+    loadedPages.current.clear();
+    await fetchEvents(1, true);
+
+    // Re-select the event to show updated status
     try {
-      await api.put(`/Events/${eventId}/publish`);
-      showToast("Event published successfully!", "success");
-
-      // Refresh the event list
-      loadedPages.current.clear();
-      await fetchEvents(1, true);
-
-      // Re-select the event to show updated status
-      try {
-        const full = await api.get(`/Events/${eventId}`);
-        setSelectedEventDetails(full);
-        const selectedRowData = {
-          id: full.id,
-          title: full.title || "—",
-          dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
-          dateOfPublish: full.dateOfPublish ? new Date(full.dateOfPublish).toLocaleDateString() : "—",
-          status: full.status,
-          _raw: full,
-        };
-        setSelectedRow(selectedRowData);
-        lastSelectedId.current = eventId;
-      } catch (err) {
-        console.error("Failed to reload event details:", err);
-      }
+      const full = await api.get(`/Events/${eventId}`);
+      setSelectedEventDetails(full);
+      const selectedRowData = {
+        id: full.id,
+        title: full.title || "—",
+        dateOfEvent: new Date(full.dateOfEvent).toLocaleDateString(),
+        dateOfPublish: full.dateOfPublish ? new Date(full.dateOfPublish).toLocaleDateString() : "—",
+        status: full.status,
+        _raw: full,
+      };
+      setSelectedRow(selectedRowData);
+      lastSelectedId.current = eventId;
     } catch (err) {
-      throw err; // Re-throw to be handled by the modal
+      console.error("Failed to reload event details:", err);
     }
   };
 
@@ -395,7 +379,6 @@ export default function Events() {
           columns={columns}
           data={rows}
           loading={loading}
-          error={error}
           selectedRow={selectedRow}
           onSelectRow={handleRowSelect}
           detailsData={selectedEventDetails}

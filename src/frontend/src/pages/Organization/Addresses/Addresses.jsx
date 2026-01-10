@@ -182,7 +182,7 @@ export default function Addresses() {
     }
     if (selectedRow?.id === target.id && selectedAddressDetails) return;
     handleRowSelect(toRow(target));
-  }, [addresses, selectedRow, selectedAddressDetails]);
+  }, [addresses, selectedRow, selectedAddressDetails, handleRowSelect, toRow]);
 
   // === TABLE CONFIGURATION ===
   const columns = [
