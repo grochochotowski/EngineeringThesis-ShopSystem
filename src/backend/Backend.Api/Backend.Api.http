@@ -612,3 +612,109 @@ Content-Type: application/json
 
 ###
 
+# ==========================================
+# REPORTS API TESTS
+# ==========================================
+
+### Get sales report for all time
+GET {{Backend.Api_HostAddress}}/api/Reports/sales
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get sales report for custom date range
+GET {{Backend.Api_HostAddress}}/api/Reports/sales?dateFrom=2024-01-01&dateTo=2024-12-31
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get sales report for today
+GET {{Backend.Api_HostAddress}}/api/Reports/sales?dateFrom=2025-12-29&dateTo=2025-12-29
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get sales report for last month
+GET {{Backend.Api_HostAddress}}/api/Reports/sales?dateFrom=2024-11-29&dateTo=2024-12-29
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+# ==========================================
+# EVENTS API TESTS
+# ==========================================
+
+### Get all events (with pagination and filters)
+GET {{Backend.Api_HostAddress}}/api/Events?pageNumber=1&pageSize=10
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get all events with status filter
+GET {{Backend.Api_HostAddress}}/api/Events?pageNumber=1&pageSize=10&status=Published
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Get event by ID
+GET {{Backend.Api_HostAddress}}/api/Events/1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+### Create a new event
+POST {{Backend.Api_HostAddress}}/api/Events
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Test Event",
+  "description": "This is a test event description",
+  "dateOfEvent": "2026-02-15T18:00:00Z",
+  "image": null,
+  "addressId": 1,
+  "createdByUserId": 1
+}
+
+###
+
+### Update event
+PUT {{Backend.Api_HostAddress}}/api/Events/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Updated Event Title",
+  "description": "Updated event description",
+  "dateOfEvent": "2026-02-20T19:00:00Z",
+  "image": null
+}
+
+###
+
+### Publish event (changes status from Created to Published)
+### Requires: event must have an image uploaded
+PUT {{Backend.Api_HostAddress}}/api/Events/1/publish
+Authorization: Bearer {{token}}
+
+###
+
+### Cancel event (changes status to Canceled)
+PUT {{Backend.Api_HostAddress}}/api/Events/1/cancel
+Authorization: Bearer {{token}}
+
+###
+
+### Delete event
+DELETE {{Backend.Api_HostAddress}}/api/Events/1
+Authorization: Bearer {{token}}
+
+###
+
