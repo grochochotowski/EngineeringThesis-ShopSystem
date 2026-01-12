@@ -11,10 +11,10 @@ namespace Backend.Api.Objects.Entities.Models
 
         [Required]
         [MaxLength(100)]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
-        [Required]
-        public string Description { get; set; }
+        
+        public string? Description { get; set; }
 
         public DateTime? DateOfPublish { get; set; }
 
@@ -32,6 +32,6 @@ namespace Backend.Api.Objects.Entities.Models
 
         public int CreatedByUserId { get; set; }    
         [ForeignKey("CreatedByUserId")]
-        public virtual User CreatedByUser { get; set; }
+        public virtual User? CreatedByUser { get; set; }
     }
 }
