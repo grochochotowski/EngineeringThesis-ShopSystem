@@ -102,6 +102,9 @@ namespace Backend.Api.Api.Services
         // --- REMOVE PRODUCT FROM LOCATION ---
         public async Task<bool> RemoveProductFromLocationAsync(int productId, int locationId, int quantityToRemove, int userId, CancellationToken ct = default)
         {
+            if (quantityToRemove <= 0)
+                throw new ArgumentException("Quantity to remove must be positive.", nameof(quantityToRemove));
+
             var entry = await _db.ProductsInWarehouse
                 .FirstOrDefaultAsync(pw => pw.ProductId == productId && pw.LocationId == locationId, ct);
 
@@ -141,6 +144,9 @@ namespace Backend.Api.Api.Services
         // --- TRANSFER PRODUCT BETWEEN LOCATIONS ---
         public async Task<bool> TransferProductAsync(int productId, int fromLocationId, int toLocationId, int quantity, int userId, CancellationToken ct = default)
         {
+            if (quantity <= 0)
+                throw new ArgumentException("Quantity to transfer must be positive.", nameof(quantity));
+
             // Validate product exists
             if (!await _db.Products.AnyAsync(p => p.Id == productId, ct))
                 throw new ArgumentException($"Product with ID {productId} not found.");

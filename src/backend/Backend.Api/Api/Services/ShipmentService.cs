@@ -233,6 +233,18 @@ namespace Backend.Api.Api.Services
                     throw new InvalidOperationException($"Receiver address {dto.ReceiverAddressId.Value} not found.");
             }
 
+            if (dto.Status >= (int)ShipmentStatus.AwaitingPickup && dto.Status != (int)ShipmentStatus.Collected)
+            {
+                if (dto.Weight == null) throw new InvalidOperationException("Weight is required for this status.");
+                if (dto.Length == null) throw new InvalidOperationException("Length is required for this status.");
+                if (dto.Width == null) throw new InvalidOperationException("Width is required for this status.");
+                if (dto.Height == null) throw new InvalidOperationException("Height is required for this status.");
+                if (dto.SenderAddressId == null) throw new InvalidOperationException("Sender address is required for this status.");
+                if (string.IsNullOrWhiteSpace(dto.SenderName)) throw new InvalidOperationException("Sender name is required for this status.");
+                if (string.IsNullOrWhiteSpace(dto.ReceiverName)) throw new InvalidOperationException("Receiver name is required for this status.");
+                if (dto.ReceiverAddressId == null) throw new InvalidOperationException("Receiver address is required for this status.");
+            }
+
             var entity = new Shipment
             {
                 Type = (ShipmentType)dto.Type,
@@ -280,6 +292,18 @@ namespace Backend.Api.Api.Services
                 var receiverExists = await _db.Addresses.AnyAsync(a => a.Id == dto.ReceiverAddressId.Value, ct);
                 if (!receiverExists)
                     throw new InvalidOperationException($"Receiver address {dto.ReceiverAddressId.Value} not found.");
+            }
+
+            if (dto.Status >= (int)ShipmentStatus.AwaitingPickup && dto.Status != (int)ShipmentStatus.Collected)
+            {
+                if (dto.Weight == null) throw new InvalidOperationException("Weight is required for this status.");
+                if (dto.Length == null) throw new InvalidOperationException("Length is required for this status.");
+                if (dto.Width == null) throw new InvalidOperationException("Width is required for this status.");
+                if (dto.Height == null) throw new InvalidOperationException("Height is required for this status.");
+                if (dto.SenderAddressId == null) throw new InvalidOperationException("Sender address is required for this status.");
+                if (string.IsNullOrWhiteSpace(dto.SenderName)) throw new InvalidOperationException("Sender name is required for this status.");
+                if (string.IsNullOrWhiteSpace(dto.ReceiverName)) throw new InvalidOperationException("Receiver name is required for this status.");
+                if (dto.ReceiverAddressId == null) throw new InvalidOperationException("Receiver address is required for this status.");
             }
 
             s.Type = (ShipmentType)dto.Type;
@@ -480,6 +504,12 @@ namespace Backend.Api.Api.Services
             // Process each collected product
             foreach (var collectedProduct in dto.CollectedProducts)
             {
+                if (collectedProduct.CollectedQuantity > 0 && !collectedProduct.LocationIds.Any())
+                    throw new InvalidOperationException("Locations must be selected if quantity is greater than 0.");
+
+                if (collectedProduct.CollectedQuantity == 0 && collectedProduct.LocationIds.Any())
+                    throw new InvalidOperationException("Quantity must be greater than 0 if locations are selected.");
+
                 var shipmentProduct = shipment.ShipmentProducts
                     .FirstOrDefault(sp => sp.ProductId == collectedProduct.ProductId);
 
@@ -625,6 +655,11 @@ namespace Backend.Api.Api.Services
                 {
                     throw new InvalidOperationException(
                         "All dimensions (Weight, Length, Width, Height) are required when finishing preparation.");
+                }
+                if (!dto.PreparedProducts.Any())
+                {
+                    throw new InvalidOperationException(
+                        "At least one product must be prepared when finishing preparation.");
                 }
             }
 
