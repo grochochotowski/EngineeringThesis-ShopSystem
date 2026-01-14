@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Backend.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,7 +21,7 @@ namespace Backend.Api.Migrations
                     City = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
                     PostalCode = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
                     Street = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    Building = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
+                    Building = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: true),
                     Premises = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: true)
                 },
                 constraints: table =>
@@ -236,7 +236,7 @@ namespace Backend.Api.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Title = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DateOfPublish = table.Column<DateTime>(type: "datetime2", nullable: true),
                     DateOfEvent = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
@@ -571,7 +571,7 @@ namespace Backend.Api.Migrations
                 table: "Addresses",
                 columns: new[] { "Country", "City", "PostalCode", "Street", "Building", "Premises" },
                 unique: true,
-                filter: "[Premises] IS NOT NULL");
+                filter: "[Building] IS NOT NULL AND [Premises] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_Name",

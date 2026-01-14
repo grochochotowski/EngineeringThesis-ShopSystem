@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260110115846_adress-update")]
-    partial class adressupdate
+    [Migration("20260114234848_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -174,7 +174,6 @@ namespace Backend.Api.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<byte[]>("Image")
