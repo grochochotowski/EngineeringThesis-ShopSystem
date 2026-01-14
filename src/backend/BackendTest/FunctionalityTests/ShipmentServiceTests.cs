@@ -39,7 +39,7 @@ namespace BackendTest.Services
         #region Add New Shipment Tests
 
         [Fact]
-        public async Task AddNewShipment_CorrectData_Success()
+        public async Task ShipmentIncoming_AddNew_CorrectData_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -64,7 +64,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task AddNewShipment_MissingSenderInformation_Error()
+        public async Task ShipmentIncoming_AddNew_MissingSenderInformation_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -87,7 +87,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task AddNewShipment_MissingSenderAddress_Error()
+        public async Task ShipmentIncoming_AddNew_MissingSenderAddress_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -109,7 +109,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task AddNewShipment_StatusReadyToCollect_NoSizes_Error()
+        public async Task ShipmentIncoming_AddNew_StatusReadyToCollect_NoSizes_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -132,7 +132,7 @@ namespace BackendTest.Services
         #region Edit Shipment Tests
 
         [Fact]
-        public async Task EditShipment_CorrectData_Success()
+        public async Task ShipmentIncoming_Edit_CorrectData_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -167,7 +167,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task EditShipment_MissingSenderInformation_Error()
+        public async Task ShipmentIncoming_Edit_MissingSenderInformation_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -201,7 +201,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task EditShipment_MissingSenderAddress_Error()
+        public async Task ShipmentIncoming_Edit_MissingSenderAddress_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -233,7 +233,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task EditShipment_StatusReadyToCollect_NoSizes_Error()
+        public async Task ShipmentIncoming_Edit_StatusReadyToCollect_NoSizes_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -269,7 +269,7 @@ namespace BackendTest.Services
         #region Collect Shipment Tests
 
         [Fact]
-        public async Task CollectShipment_LocationSelected_NoQuantity_Error()
+        public async Task ShipmentIncoming_Collect_LocationSelected_NoQuantity_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -303,7 +303,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task CollectShipment_LocationNotSelected_QuantityGiven_Error()
+        public async Task ShipmentIncoming_Collect_LocationNotSelected_QuantityGiven_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -332,7 +332,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task CollectShipment_LocationNotSelected_NoQuantity_Success()
+        public async Task ShipmentIncoming_Collect_LocationNotSelected_NoQuantity_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -363,7 +363,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task CollectShipment_LocationSelected_QuantityGiven_Success()
+        public async Task ShipmentIncoming_Collect_LocationSelected_QuantityGiven_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -404,7 +404,7 @@ namespace BackendTest.Services
         #region Leaving Shipments Tests
 
         [Fact]
-        public async Task AddNewLeavingShipment_CorrectData_Success()
+        public async Task ShipmentLeaving_AddNew_CorrectData_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -430,7 +430,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task AddNewLeavingShipment_MissingReceiverInformation_Error()
+        public async Task ShipmentLeaving_AddNew_MissingReceiverInformation_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -454,7 +454,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task AddNewLeavingShipment_MissingReceiverAddress_Error()
+        public async Task ShipmentLeaving_AddNew_MissingReceiverAddress_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -477,7 +477,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task EditLeavingShipment_CorrectData_Success()
+        public async Task ShipmentLeaving_Edit_CorrectData_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -513,7 +513,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task EditLeavingShipment_MissingReceiverInformation_Error()
+        public async Task ShipmentLeaving_Edit_MissingReceiverInformation_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -548,7 +548,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task EditLeavingShipment_MissingReceiverAddress_Error()
+        public async Task ShipmentLeaving_Edit_MissingReceiverAddress_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -581,7 +581,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task PrepareShipment_CorrectData_Success()
+        public async Task ShipmentLeaving_Prepare_CorrectData_Success()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -637,7 +637,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task PrepareShipment_MissingSizes_Error()
+        public async Task ShipmentLeaving_Prepare_MissingSizes_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -684,7 +684,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task PrepareShipment_MissingProducts_Error()
+        public async Task ShipmentLeaving_Prepare_MissingProducts_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -713,7 +713,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task PrepareShipment_MissingLocation_Error()
+        public async Task ShipmentLeaving_Prepare_MissingLocation_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
@@ -756,7 +756,7 @@ namespace BackendTest.Services
         }
 
         [Fact]
-        public async Task PrepareShipment_MissingQuantity_Error()
+        public async Task ShipmentLeaving_Prepare_MissingQuantity_Error()
         {
             // Arrange
             using var context = _fixture.CreateContext();
