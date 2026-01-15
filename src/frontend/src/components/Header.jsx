@@ -143,7 +143,20 @@ export default function Header({ user, onLogout }) {
             {/* === USER MENU === */}
             <div className="nav-right" ref={userRef}>
                 <button onClick={toggleUserModal} className="user">
-                    {user?.name || "User"}
+                    {user
+                        ? (() => {
+                            const fromStorage = localStorage.getItem("user");
+                            if (fromStorage) {
+                                try {
+                                    const parsed = JSON.parse(fromStorage);
+                                    const name = `${parsed.firstName || ""} ${parsed.lastName || ""}`.trim();
+                                    if (name) return name;
+                                } catch (_) { /* ignore */ }
+                            }
+                            const name = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+                            return name || "User";
+                        })()
+                        : "User"}
                 </button>
 
                 {isUserModalOpen && (

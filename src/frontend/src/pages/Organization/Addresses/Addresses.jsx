@@ -169,21 +169,6 @@ export default function Addresses() {
     };
   }, [showFilters]);
 
-  /**
-   * Reselect previously chosen row after data refresh
-   */
-  useEffect(() => {
-    if (!lastSelectedId.current || addresses.length === 0) return;
-    const target = addresses.find((a) => a.id === lastSelectedId.current);
-    if (!target) {
-      setSelectedRow(null);
-      setSelectedAddressDetails(null);
-      return;
-    }
-    if (selectedRow?.id === target.id && selectedAddressDetails) return;
-    handleRowSelect(toRow(target));
-  }, [addresses, selectedRow, selectedAddressDetails, handleRowSelect, toRow]);
-
   // === TABLE CONFIGURATION ===
   const columns = [
     { key: "id", label: "ID", width: "8%", sortable: false },
@@ -288,6 +273,21 @@ export default function Addresses() {
       });
     }
   }, []);
+
+  /**
+   * Reselect previously chosen row after data refresh
+   */
+  useEffect(() => {
+    if (!lastSelectedId.current || addresses.length === 0) return;
+    const target = addresses.find((a) => a.id === lastSelectedId.current);
+    if (!target) {
+      setSelectedRow(null);
+      setSelectedAddressDetails(null);
+      return;
+    }
+    if (selectedRow?.id === target.id && selectedAddressDetails) return;
+    handleRowSelect(toRow(target));
+  }, [addresses, selectedRow, selectedAddressDetails, handleRowSelect, toRow]);
 
   // === RENDER ===
   return (

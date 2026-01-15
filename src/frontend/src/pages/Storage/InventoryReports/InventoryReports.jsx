@@ -330,7 +330,7 @@ export default function InventoryReports() {
   // === RENDER ===
   return (
     <div className="page-container">
-      <Header />
+      <Header user={currentUser} />
       <main className="page-content">
         <div className="base-list-wrapper">
           <div className="base-list-container">

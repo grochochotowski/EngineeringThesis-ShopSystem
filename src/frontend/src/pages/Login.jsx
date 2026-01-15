@@ -37,6 +37,8 @@ export default function LoginPage() {
                 JSON.stringify({
                     id: data.id,
                     name: `${data.firstName} ${data.lastName}`,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
                     email: data.email,
                     role: data.role,
                 })

@@ -21,7 +21,7 @@ namespace Backend.Api
             // --- DATABASE ---
             builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
             builder.Services.AddTransient<DbSeeder>();
-            builder.Services.AddTransient<DbExampleDataSeeder>();
+            builder.Services.AddTransient<DbElectronicsWarehouseSeeder>();
             builder.Services.AddControllers().AddJsonOptions(o =>
             {
                 o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -127,7 +127,7 @@ namespace Backend.Api
             using (var scope = app.Services.CreateScope())
             {
                 // var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
-                var seeder = scope.ServiceProvider.GetRequiredService<DbExampleDataSeeder>();
+                var seeder = scope.ServiceProvider.GetRequiredService<DbElectronicsWarehouseSeeder>();
                 seeder.Seed();
             }
 

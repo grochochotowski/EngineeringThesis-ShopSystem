@@ -172,7 +172,7 @@ export default function Reports() {
 
   return (
     <div className="page-container">
-      <Header />
+      <Header user={JSON.parse(localStorage.getItem("user") || "{}")} />
       <main className="page-content">
         <div className="base-list-wrapper">
           <div className="base-list-container">
