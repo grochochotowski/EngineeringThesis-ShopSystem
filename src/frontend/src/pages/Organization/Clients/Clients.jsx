@@ -5,7 +5,7 @@ import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
 import ClientFormModal from "../../../components/Forms/ClientFormModal";
 import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import { clientTypesData } from "../../../data/clientTypes";
 
 // === CONSTANTS ===
@@ -26,6 +26,7 @@ const initialAddress = {
  * Handles both Individual and Company client types with conditional Tax ID field
  */
 export default function Clients() {
+  const { showToast } = useToast();
   // === STATE ===
   const [clients, setClients] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
@@ -33,7 +34,6 @@ export default function Clients() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedClientDetails, setSelectedClientDetails] = useState(null);
@@ -179,7 +179,8 @@ export default function Clients() {
    */
   useEffect(() => {
     if (pageNumber > 1) fetchClients(pageNumber);
-  }, [pageNumber, fetchClients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -377,10 +378,8 @@ export default function Clients() {
       setSelectedClientDetails(full);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load client details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load client details.", "error",
+      );
     }
   }, []);
 
@@ -429,10 +428,8 @@ export default function Clients() {
       lastSelectedId.current = row.id;
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load full client details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load full client details.", "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -455,10 +452,10 @@ export default function Clients() {
       setLoading(true);
       if (actionableClient._isActive) {
         await api.delete(`/Clients/${actionableClient.id}`);
-        setToast({ message: "Client deactivated successfully.", type: "success" });
+        showToast("Client deactivated successfully.", "success" );
       } else {
         await api.put(`/Clients/${actionableClient.id}/activate`);
-        setToast({ message: "Client activated successfully.", type: "success" });
+        showToast("Client activated successfully.", "success" );
       }
 
       setClients((prev) =>
@@ -481,10 +478,8 @@ export default function Clients() {
       lastSelectedId.current = actionableClient.id;
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to update client status.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to update client status.", "error",
+      );
     } finally {
       setLoading(false);
       setActionableClient(null);
@@ -592,16 +587,6 @@ export default function Clients() {
         onConfirm={confirmStatusChange}
         onCancel={() => setActionableClient(null)}
       />
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

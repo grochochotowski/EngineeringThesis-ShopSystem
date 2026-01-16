@@ -7,7 +7,7 @@ import AddEditModal from "./Modals/AddEditModal";
 import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
 import ChangePasswordModal from "./Modals/ChangePasswordModal";
 import ChangeLoginModal from "./Modals/ChangeLoginModal";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 
 // === CONSTANTS ===
 const roles = [
@@ -61,6 +61,8 @@ const sortKeyMap = {
  * Includes role-based access control for user management operations
  */
 export default function Users() {
+  const { showToast } = useToast();
+
   // === STATE ===
   const [users, setUsers] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
@@ -68,7 +70,6 @@ export default function Users() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedUserDetails, setSelectedUserDetails] = useState(null);
@@ -220,7 +221,8 @@ export default function Users() {
    */
   useEffect(() => {
     if (pageNumber > 1) fetchUsers(pageNumber);
-  }, [pageNumber, fetchUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -401,10 +403,7 @@ export default function Users() {
       setSelectedUserDetails({ ...full, isActive: full.isActive ?? row._isActive, address });
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load user details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load user details.", "error");
     }
   }, []);
 
@@ -414,7 +413,7 @@ export default function Users() {
    */
   const openCreateModal = () => {
     if (!canManageUsers) {
-      setToast({ message: "Only Deputy Manager or higher can register users.", type: "error" });
+      showToast("Only Deputy Manager or higher can register users.", "error");
       return;
     }
     setFormUserData(null);
@@ -430,7 +429,7 @@ export default function Users() {
   const openEditModal = async (row) => {
     if (!row) return;
     if (!canManageUsers) {
-      setToast({ message: "Only Deputy Manager or higher can edit users.", type: "error" });
+      showToast("Only Deputy Manager or higher can edit users.", "error");
       return;
     }
 
@@ -461,10 +460,7 @@ export default function Users() {
       lastSelectedId.current = row.id;
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load full user details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load full user details.", "error");
     } finally {
       setLoading(false);
     }
@@ -475,7 +471,7 @@ export default function Users() {
    */
   const handleStatusToggle = (row) => {
     if (!canManageUsers) {
-      setToast({ message: "Only Deputy Manager or higher can change user status.", type: "error" });
+      showToast("Only Deputy Manager or higher can change user status.", "error");
       return;
     }
     setActionableUser(row);
@@ -490,10 +486,10 @@ export default function Users() {
       setLoading(true);
       if (actionableUser._isActive) {
         await api.delete(`/Users/${actionableUser.id}`);
-        setToast({ message: "User deactivated successfully.", type: "success" });
+        showToast("User deactivated successfully.", "success");
       } else {
         await api.put(`/Users/${actionableUser.id}/activate`);
-        setToast({ message: "User activated successfully.", type: "success" });
+        showToast("User activated successfully.", "success");
       }
 
       setUsers((prev) =>
@@ -516,10 +512,7 @@ export default function Users() {
       lastSelectedId.current = actionableUser.id;
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to update user status.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to update user status.", "error");
     } finally {
       setLoading(false);
       setShowConfirm(false);
@@ -534,7 +527,7 @@ export default function Users() {
   const handleOpenPasswordModal = (row) => {
     if (!row) return;
     if (!canChangeAnyPassword) {
-      setToast({ message: "Only Deputy Manager or higher can change passwords.", type: "error" });
+      showToast("Only Deputy Manager or higher can change passwords.", "error");
       return;
     }
     if (currentUser && row.role && currentUser.role) {
@@ -542,7 +535,7 @@ export default function Users() {
       const actorRank = hierarchy.indexOf(currentUser.role);
       const targetRank = hierarchy.indexOf(row.role);
       if (targetRank >= actorRank && row.id !== currentUser.id) {
-        setToast({ message: "You can only change password for users with lower role or yourself.", type: "error" });
+        showToast("You can only change password for users with lower role or yourself.", "error");
         return;
       }
     }
@@ -556,7 +549,7 @@ export default function Users() {
   const handleOpenLoginModal = (row) => {
     if (!row) return;
     if (!canChangeAnyPassword) {
-      setToast({ message: "Only Deputy Manager or higher can change logins.", type: "error" });
+      showToast("Only Deputy Manager or higher can change logins.", "error");
       return;
     }
     if (currentUser && row.role && currentUser.role) {
@@ -564,7 +557,7 @@ export default function Users() {
       const actorRank = hierarchy.indexOf(currentUser.role);
       const targetRank = hierarchy.indexOf(row.role);
       if (targetRank >= actorRank && row.id !== currentUser.id) {
-        setToast({ message: "You can only change login for users with lower role or yourself.", type: "error" });
+        showToast("You can only change login for users with lower role or yourself.", "error");
         return;
       }
     }
@@ -592,7 +585,7 @@ export default function Users() {
    */
   const handleSubmitPassword = async (passwordForm) => {
     if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
-      setToast({ message: "Passwords do not match.", type: "error" });
+      showToast("Passwords do not match.", "error");
       return;
     }
 
@@ -604,14 +597,11 @@ export default function Users() {
         newPassword: passwordForm.newPassword,
         confirmNewPassword: passwordForm.confirmNewPassword,
       });
-      setToast({ message: "Password changed successfully.", type: "success" });
+      showToast("Password changed successfully.", "success");
       setShowPasswordModal(false);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to change password.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to change password.", "error");
     } finally {
       setLoading(false);
     }
@@ -630,14 +620,11 @@ export default function Users() {
         currentPassword: "",
         newLogin: loginForm.newLogin,
       });
-      setToast({ message: "Login changed successfully.", type: "success" });
+      showToast("Login changed successfully.", "success");
       setShowLoginModal(false);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to change login.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to change login.", "error");
     } finally {
       setLoading(false);
     }
@@ -767,16 +754,6 @@ export default function Users() {
         onClose={() => setShowLoginModal(false)}
         onSubmit={handleSubmitLogin}
       />
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

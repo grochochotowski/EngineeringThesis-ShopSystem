@@ -2,10 +2,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { api } from "../../../api/apiClient";
+import { useNavigate } from "react-router-dom";
 import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
 import ConfirmDialog from "../../../components/ConfirmDialog";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import { shipmentStatusesData } from "../../../data/shipmentStatuses";
 import { userRolesData } from "../../../data/userRoles";
 import { getValidStatusOptions } from "../../../utils/shipmentStatusUtils";
@@ -13,6 +14,11 @@ import AddEditModal from "./Modals/AddEditModal";
 import PrepareModal from "./Modals/PrepareModal";
 import ViewProductsModal from "./Modals/ViewProductsModal";
 import "../../../styles/PagesStyles/shipments.css";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => getRoleLevel(role) >= getRoleLevel("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -44,6 +50,9 @@ import "../../../styles/PagesStyles/shipments.css";
  * @returns {JSX.Element} The leaving shipments management page
  */
 export default function LeavingShipments() {
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+
   // === STATE ===
   const [shipments, setShipments] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
@@ -52,7 +61,6 @@ export default function LeavingShipments() {
   const [error, setError] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedShipmentDetails, setSelectedShipmentDetails] = useState(null);
-  const [toast, setToast] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortColumn, setSortColumn] = useState("id");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -83,14 +91,17 @@ export default function LeavingShipments() {
   const userRole = user?.role;
   const userRoleLevel = userRolesData.find(r => r.value === userRole)?.id || 0;
 
-  // Helper: get role level by name
-  const getRoleLevel = (roleName) => {
+  // Helper: get role level by name (legacy function for compatibility)
+  const getRoleLevelById = (roleName) => {
     return userRolesData.find(r => r.value === roleName)?.id || 0;
   };
 
   // Check if user can change shipment status (DeputyManager and above = level 4+)
-  const deputyManagerLevel = getRoleLevel("DeputyManager");
+  const deputyManagerLevel = getRoleLevelById("DeputyManager");
   const canChangeShipmentStatus = userRoleLevel >= deputyManagerLevel;
+
+  // Permission check: only DeputyManager and above can access this page
+  const canAccessPage = isDeputyManagerOrAbove(userRole);
 
   // State for status change confirmation
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
@@ -213,7 +224,15 @@ export default function LeavingShipments() {
     }
   };
 
+  // Redirect if user doesn't have access
   useEffect(() => {
+    if (!canAccessPage) {
+      navigate("/403");
+    }
+  }, [canAccessPage, navigate]);
+
+  useEffect(() => {
+    if (!canAccessPage) return; // Don't fetch if no access
     fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     fetchLocations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,7 +275,8 @@ export default function LeavingShipments() {
       fetchShipmentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   // Close filters when clicking outside
   useEffect(() => {
@@ -338,10 +358,8 @@ export default function LeavingShipments() {
       setSelectedShipmentDetails(full);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load shipment details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load shipment details.", "error",
+      );
     }
   };
 
@@ -374,23 +392,17 @@ export default function LeavingShipments() {
       // Reload the main list
       fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
 
-      setToast({
-        message: "Status updated successfully!",
-        type: "success",
-      });
+      showToast("Status updated successfully!", "success",
+      );
     } catch (err) {
       console.error(err);
 
       if (err.response?.status === 409) {
-        setToast({
-          message: err.response?.data?.message || err.response?.data || "Conflict: Cannot change to this status.",
-          type: "error",
-        });
+        showToast(err.response?.data?.message || err.response?.data || "Conflict: Cannot change to this status.", "error",
+        );
       } else {
-        setToast({
-          message: err.response?.data?.message || err.response?.data || "Failed to update status.",
-          type: "error",
-        });
+        showToast(err.response?.data?.message || err.response?.data || "Failed to update status.", "error",
+        );
       }
     } finally {
       setPendingStatusChange(null);
@@ -513,18 +525,14 @@ export default function LeavingShipments() {
   // Handle Edit Shipment
   const handleOpenEditModal = () => {
     if (!selectedRow) {
-      setToast({
-        message: "Please select a shipment to edit.",
-        type: "error",
-      });
+      showToast("Please select a shipment to edit.", "error",
+      );
       return;
     }
     // Check if shipment is locked (status >= AwaitingPickup)
     if (selectedRow.statusRaw >= 2) {
-      setToast({
-        message: "Cannot edit shipment that is awaiting pickup or later",
-        type: "warning",
-      });
+      showToast("Cannot edit shipment that is awaiting pickup or later", "warning",
+      );
       return;
     }
     setShowEditModal(true);
@@ -533,18 +541,14 @@ export default function LeavingShipments() {
   // Handle Prepare Shipment
   const handleStartPreparation = () => {
     if (!selectedRow) {
-      setToast({
-        message: "Please select a shipment to prepare.",
-        type: "error",
-      });
+      showToast("Please select a shipment to prepare.", "error",
+      );
       return;
     }
     // Check if shipment is locked
     if (selectedRow.statusRaw >= 2) {
-      setToast({
-        message: "Cannot prepare shipment that is awaiting pickup or later",
-        type: "warning",
-      });
+      showToast("Cannot prepare shipment that is awaiting pickup or later", "warning",
+      );
       return;
     }
     setShowPrepareModal(true);
@@ -553,10 +557,8 @@ export default function LeavingShipments() {
   // Handle View Products
   const handleViewProducts = () => {
     if (!selectedRow) {
-      setToast({
-        message: "Please select a shipment to view products.",
-        type: "error",
-      });
+      showToast("Please select a shipment to view products.", "error",
+      );
       return;
     }
     setShowViewProductsModal(true);
@@ -577,6 +579,11 @@ export default function LeavingShipments() {
       handleRowSelect(selectedRow);
     }
   };
+
+  // Don't render anything if no access (will redirect)
+  if (!canAccessPage) {
+    return null;
+  }
 
   return (
     <div className="page-container">
@@ -699,7 +706,6 @@ export default function LeavingShipments() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSave={handleShipmentSaved}
-          setToast={setToast}
           mode="add"
         />
       )}
@@ -710,7 +716,6 @@ export default function LeavingShipments() {
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           onSave={handleShipmentSaved}
-          setToast={setToast}
           mode="edit"
           shipment={selectedRow}
           shipmentDetails={selectedShipmentDetails}
@@ -723,7 +728,6 @@ export default function LeavingShipments() {
           isOpen={showPrepareModal}
           onClose={() => setShowPrepareModal(false)}
           onComplete={handlePreparationCompleted}
-          setToast={setToast}
           shipment={selectedRow}
           locations={locations}
         />
@@ -735,7 +739,6 @@ export default function LeavingShipments() {
           isOpen={showViewProductsModal}
           onClose={() => setShowViewProductsModal(false)}
           shipmentId={selectedRow.id}
-          setToast={setToast}
         />
       )}
 
@@ -752,15 +755,6 @@ export default function LeavingShipments() {
       )}
 
       {/* Toast messages */}
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

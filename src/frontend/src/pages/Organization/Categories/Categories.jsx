@@ -6,7 +6,12 @@ import BaseListPage from "../../BaseListPage";
 import AddModal from "./Modals/AddModal";
 import EditModal from "./Modals/EditModal";
 import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -15,6 +20,8 @@ import MessageBox from "../../../components/MessageBox";
  * Supports creating, editing, and activating/deactivating categories
  */
 export default function Categories() {
+  const { showToast } = useToast();
+
   // === STATE ===
   const [categories, setCategories] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
@@ -22,7 +29,6 @@ export default function Categories() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const [selectedRow, setSelectedRow] = useState(null);
   const [actionableCategory, setActionableCategory] = useState(null);
@@ -40,6 +46,10 @@ export default function Categories() {
   const filtersRef = useRef(null);
 
   const currentUser = JSON.parse(localStorage.getItem("user"));
+  const userRole = currentUser?.role;
+
+  // Permission checks
+  const canAddEdit = isDeputyManagerOrAbove(userRole);
 
   // === DATA FETCHING ===
   /**
@@ -116,7 +126,8 @@ export default function Categories() {
     if (pageNumber > 1) {
       fetchCategories(pageNumber);
     }
-  }, [pageNumber, fetchCategories]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -220,6 +231,10 @@ export default function Categories() {
    * Opens add modal for creating new category
    */
   const openCreateModal = () => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to add categories", "error");
+      return;
+    }
     setSelectedRow(null);
     setShowAddModal(true);
   };
@@ -228,6 +243,10 @@ export default function Categories() {
    * Opens edit modal for updating selected category
    */
   const openEditModal = (row) => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to edit categories", "error");
+      return;
+    }
     setSelectedRow(row);
     setShowEditModal(true);
   };
@@ -237,6 +256,10 @@ export default function Categories() {
    */
   const handleStatusToggle = (row) => {
     if (!row) return;
+    if (!canAddEdit) {
+      showToast("You don't have permission to activate/deactivate categories", "error");
+      return;
+    }
     setActionableCategory(row);
   };
 
@@ -253,7 +276,7 @@ export default function Categories() {
     try {
       setLoading(true);
       await api.put(endpoint);
-      setToast({ message: `Category ${_isActive ? "deactivated" : "activated"} successfully.`, type: "success" });
+      showToast(`Category ${_isActive ? "deactivated" : "activated"} successfully.`, "success");
 
       const newActiveState = !_isActive;
 
@@ -272,7 +295,7 @@ export default function Categories() {
       }
 
     } catch (err) {
-      setToast({ message: err.response?.data?.message || "Failed to update status.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to update status.", "error");
     } finally {
       setLoading(false);
       setActionableCategory(null);
@@ -306,8 +329,11 @@ export default function Categories() {
           detailsData={selectedRow}
           detailsConfig={detailsConfig}
           onAdd={openCreateModal}
+          disableAdd={!canAddEdit}
           onEdit={openEditModal}
+          disableEdit={!selectedRow || !canAddEdit}
           onDelete={handleStatusToggle}
+          disableDelete={!selectedRow || !canAddEdit}
           onToggleFilters={() => setShowFilters(p => !p)}
           onSort={handleSort}
           sortColumn={sortColumn}
@@ -350,10 +376,6 @@ export default function Categories() {
         onConfirm={confirmStatusChange}
         onCancel={() => setActionableCategory(null)}
       />
-
-      {toast && (
-        <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} className="centered" />
-      )}
     </div>
   );
 }

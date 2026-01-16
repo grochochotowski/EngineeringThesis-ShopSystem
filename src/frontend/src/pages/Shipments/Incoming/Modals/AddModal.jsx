@@ -44,7 +44,6 @@ import { api } from "../../../../api/apiClient";
  * @param {function} props.handleProductQuantityChange - Handler for product quantity changes
  * @param {function} props.handleRemoveProduct - Handler for removing product from shipment
  * @param {function} props.setAddForm - Setter for addForm state
- * @param {function} props.setToast - Setter for toast notifications
  */
 export default function AddModal({
   show,
@@ -69,7 +68,6 @@ export default function AddModal({
   handleProductQuantityChange,
   handleRemoveProduct,
   setAddForm,
-  setToast,
 }) {
   // Address search state
   const [addressSearchInput, setAddressSearchInput] = useState("");

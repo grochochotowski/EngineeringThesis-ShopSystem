@@ -116,7 +116,7 @@ const router = createBrowserRouter([
         path: '/organization/users',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="DeputyManager">
+                <ProtectedRoute userRole={getUserRole()} requiredRole="Manager">
                     <Users />
                 </ProtectedRoute>
             </PrivateRoute>

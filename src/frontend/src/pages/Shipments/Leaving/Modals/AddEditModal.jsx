@@ -2,14 +2,15 @@ import React, { useState, useEffect, useRef } from "react";
 import Modal from "../../../../components/Modal";
 import { api } from "../../../../api/apiClient";
 import { countries, getCountryValue, getCountryName } from "../../../../data/countries";
+import { useToast } from "../../../../components/ToastContext";
 
 export default function AddEditModal({
   onClose,
   onSave,
-  setToast,
   mode, // "add" or "edit"
   shipmentDetails = null,
 }) {
+  const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     description: "",
@@ -196,12 +197,12 @@ export default function AddEditModal({
   // Validate form
   const validateForm = () => {
     if (!form.receiverName || !form.receiverTaxId) {
-      setToast({ type: "error", message: "Receiver name and Tax ID are required" });
+      showToast("Receiver name and Tax ID are required", "error");
       return false;
     }
 
     if (!form.receiverStreet || !form.receiverBuilding || !form.receiverPostalCode || !form.receiverCity || !form.receiverCountry) {
-      setToast({ type: "error", message: "Complete receiver address is required" });
+      showToast("Complete receiver address is required", "error");
       return false;
     }
 
@@ -223,15 +224,12 @@ export default function AddEditModal({
         await updateShipment();
       }
 
-      setToast({ type: "success", message: `Shipment ${mode === "add" ? "created" : "updated"} successfully` });
+      showToast(`Shipment ${mode === "add" ? "created" : "updated"} successfully`, "success");
       onSave();
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({
-        type: "error",
-        message: err.response?.data?.message || `Failed to ${mode === "add" ? "create" : "update"} shipment`,
-      });
+      showToast(err.response?.data?.message || `Failed to ${mode === "add" ? "create" : "update"} shipment`, "error");
     } finally {
       setSaving(false);
     }

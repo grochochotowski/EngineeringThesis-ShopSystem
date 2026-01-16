@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../api/apiClient";
-import MessageBox from "../MessageBox";
+import { useToast } from "../ToastContext";
 import { getUniqueCountries, getPrimaryCodeForCountry } from "../../data/eanCountryCodes";
 import { generateEAN13, validateEAN13, autoGenerateEAN13 } from "../../utils/eanGenerator";
 
 export default function ProductForm({ product, categories, onSuccess }) {
+  const { showToast } = useToast();
     const [form, setForm] = useState({
         sku: "",
         ean: "",
@@ -29,7 +30,6 @@ export default function ProductForm({ product, categories, onSuccess }) {
 
     const [taxRates, setTaxRates] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [toast, setToast] = useState(null);
     const [eanValidation, setEanValidation] = useState({
         isChecking: false,
         isValid: null,
@@ -193,10 +193,8 @@ export default function ProductForm({ product, categories, onSuccess }) {
 
         // Prevent submission if EAN is invalid or duplicate
         if (form.ean && eanValidation.isValid === false) {
-            setToast({
-                message: `Cannot save: ${eanValidation.message}`,
-                type: "error",
-            });
+            showToast(`Cannot save: ${eanValidation.message}`, "error",
+            );
             return;
         }
 
@@ -244,10 +242,8 @@ export default function ProductForm({ product, categories, onSuccess }) {
                 message = raw.replace(/^API error.*?:\s*/, "").trim();
             }
 
-            setToast({
-                message: `${message}`,
-                type: "error",
-            });
+            showToast(`${message}`, "error",
+            );
         } finally {
             setLoading(false);
         }
@@ -412,9 +408,9 @@ export default function ProductForm({ product, categories, onSuccess }) {
                                 try {
                                     const generatedEAN = autoGenerateEAN13(eanBuilder.countryCode);
                                     setForm(prev => ({ ...prev, ean: generatedEAN }));
-                                    setToast({ type: "success", message: "New random EAN generated!" });
+                                    showToast("New random EAN generated!", "success");
                                 } catch (err) {
-                                    setToast({ type: "error", message: `Failed to generate EAN: ${err.message}` });
+                                    showToast(`Failed to generate EAN: ${err.message}`, "error");
                                 }
                             }}
                             style={{
@@ -533,15 +529,6 @@ export default function ProductForm({ product, categories, onSuccess }) {
                 {loading ? "Saving..." : "Save"}
             </button>
         </div>
-        {toast && (
-            <MessageBox
-                message={toast.message}
-                type={toast.type}
-                duration={3000}
-                onClose={() => setToast(null)}
-                className="centered"
-            />
-        )}
         </form>
     );
 }

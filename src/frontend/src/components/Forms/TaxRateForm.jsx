@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../api/apiClient";
-import MessageBox from "../MessageBox";
+import { useToast } from "../ToastContext";
 
 const initialTaxRate = {
   code: "",
@@ -9,9 +9,9 @@ const initialTaxRate = {
 };
 
 export default function TaxRateForm({ mode = "create", taxRate, onSuccess }) {
+  const { showToast } = useToast();
   const [form, setForm] = useState(initialTaxRate);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     if (mode === "edit" && taxRate) {
@@ -65,10 +65,8 @@ export default function TaxRateForm({ mode = "create", taxRate, onSuccess }) {
       }
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to save tax rate.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to save tax rate.", "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -123,15 +121,6 @@ export default function TaxRateForm({ mode = "create", taxRate, onSuccess }) {
           {loading ? "Saving..." : "Save"}
         </button>
       </div>
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-        />
-      )}
     </form>
   );
 }

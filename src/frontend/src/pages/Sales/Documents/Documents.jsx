@@ -4,7 +4,7 @@ import axios from "axios";
 import { api } from "../../../api/apiClient";
 import { useSearchParams } from "react-router-dom";
 import Header from "../../../components/Header";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import ViewDetailsModal from "./Modals/ViewDetailsModal";
 import { salesDocumentTypesData } from "../../../data/salesDocumentTypes";
 import { paymentOptionsData } from "../../../data/paymentOptions";
@@ -20,6 +20,7 @@ import "../../../styles/PagesStyles/baseListPage.css";
  * Supports viewing detailed document information and generating PDF printouts
  */
 export default function SalesDocuments() {
+  const { showToast } = useToast();
   // === STATE ===
   // URL state
   const [searchParams, setSearchParams] = useSearchParams(); // Query parameters for search
@@ -35,8 +36,7 @@ export default function SalesDocuments() {
   const [selectedDocument, setSelectedDocument] = useState(null); // Currently selected document row
   const [selectedDocumentDetails, setSelectedDocumentDetails] = useState(null); // Full document with items/payments
 
-  // UI state
-  const [toast, setToast] = useState(null); // Toast notification state (message, type)
+  // UI state // Toast notification state (message, type)
   const [showDetailsModal, setShowDetailsModal] = useState(false); // Controls Details modal visibility
   const [showFilters, setShowFilters] = useState(false); // Toggle for filter panel visibility
   const [showDocumentTypeFilters, setShowDocumentTypeFilters] = useState(false); // Expand/collapse document types
@@ -248,7 +248,8 @@ export default function SalesDocuments() {
     if (pageNumber > 1) {
       fetchDocumentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes);
     }
-  }, [pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedDocumentTypes, selectedPaymentTypes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -519,10 +520,8 @@ export default function SalesDocuments() {
    */
   const handleViewDetails = async () => {
     if (!selectedDocument) {
-      setToast({
-        message: "Please select a document to view details.",
-        type: "warning",
-      });
+      showToast("Please select a document to view details.", "warning",
+      );
       return;
     }
 
@@ -547,10 +546,8 @@ export default function SalesDocuments() {
       setShowDetailsModal(true);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load document details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load document details.", "error",
+      );
     }
   };
 
@@ -561,19 +558,15 @@ export default function SalesDocuments() {
    */
   const handlePrint = async () => {
     if (!selectedDocument) {
-      setToast({
-        message: "Please select a document to print.",
-        type: "warning",
-      });
+      showToast("Please select a document to print.", "warning",
+      );
       return;
     }
 
     try {
       // Show loading toast
-      setToast({
-        message: "Generating PDF...",
-        type: "info",
-      });
+      showToast("Generating PDF...", "info",
+      );
 
       // Fetch full document details if not already loaded
       let documentToPrint = selectedDocumentDetails;
@@ -603,16 +596,12 @@ export default function SalesDocuments() {
         getPaymentOptionLabel,
       });
 
-      setToast({
-        message: `PDF generated successfully: ${fileName}`,
-        type: "success",
-      });
+      showToast(`PDF generated successfully: ${fileName}`, "success",
+      );
     } catch (err) {
       console.error("Failed to generate PDF:", err);
-      setToast({
-        message: err.message || "Failed to generate PDF.",
-        type: "error",
-      });
+      showToast(err.message || "Failed to generate PDF.", "error",
+      );
     }
   };
 
@@ -905,15 +894,6 @@ export default function SalesDocuments() {
       )}
 
       {/* === TOAST NOTIFICATIONS === */}
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

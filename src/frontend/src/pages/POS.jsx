@@ -3,12 +3,13 @@ import Header from '../components/Header';
 import Modal from '../components/Modal';
 import ClientFormModal from '../components/Forms/ClientFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
-import MessageBox from '../components/MessageBox';
+import { useToast } from "../components/ToastContext";
 import { api } from '../api/apiClient';
 import { clientTypesData } from '../data/clientTypes';
 import '../styles/PagesStyles/pos.css';
 
 export default function POS() {
+  const { showToast } = useToast();
   // User context
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const userRole = currentUser?.role || 0;
@@ -100,7 +101,6 @@ export default function POS() {
   const [productToDelete, setProductToDelete] = useState(null);
 
   // Toast messages
-  const [toast, setToast] = useState(null);
 
   // Tax rates cache (for price calculations)
   const [taxRates, setTaxRates] = useState(new Map());
@@ -198,10 +198,7 @@ export default function POS() {
         // VALIDATION: Check if product has any stock in warehouse
         const totalStock = locations?.reduce((sum, loc) => sum + loc.quantity, 0) || 0;
         if (totalStock === 0 || !locations || locations.length === 0) {
-          setToast({
-            type: 'error',
-            message: `Cannot add "${product.name}": No stock available in warehouse`
-          });
+          showToast(`Cannot add "${product.name}": No stock available in warehouse`, 'error');
           setProductSearchQuery('');
           setShowProductDropdown(false);
           return;
@@ -244,7 +241,7 @@ export default function POS() {
         }]);
       } catch (error) {
         console.error('Failed to load locations for product:', error);
-        setToast({ type: 'error', message: `Failed to load locations: ${error.message}` });
+        showToast(`Failed to load locations: ${error.message}`, 'error');
       }
     }
 
@@ -262,13 +259,13 @@ export default function POS() {
 
     // Validate SKU is not empty
     if (!sku) {
-      setToast({ type: 'error', message: 'Please enter a SKU' });
+      showToast('Please enter a SKU', 'error');
       return;
     }
 
     // Validate minimum SKU length (adjust as needed for your business rules)
     if (sku.length < 3) {
-      setToast({ type: 'error', message: 'SKU too short (minimum 3 characters)' });
+      showToast('SKU too short (minimum 3 characters)', 'error');
       return;
     }
 
@@ -283,7 +280,7 @@ export default function POS() {
       });
 
       if (!items || items.length === 0) {
-        setToast({ type: 'error', message: `Product not found: ${sku}` });
+        showToast(`Product not found: ${sku}`, 'error');
         // Keep the value in input for correction
         return;
       }
@@ -294,20 +291,20 @@ export default function POS() {
       if (exactMatch) {
         // Add the exact match
         handleAddProduct(exactMatch);
-        setToast({ type: 'success', message: `Added: ${exactMatch.name}` });
+        showToast(`Added: ${exactMatch.name}`, 'success');
       } else if (items.length === 1) {
         // If only one result and it's a partial match, add it
         handleAddProduct(items[0]);
-        setToast({ type: 'success', message: `Added: ${items[0].name}` });
+        showToast(`Added: ${items[0].name}`, 'success');
       } else {
         // Multiple partial matches - show dropdown for user to select
         setProductSearchResults(items);
         setShowProductDropdown(true);
-        setToast({ type: 'info', message: `Found ${items.length} matches - please select` });
+        showToast(`Found ${items.length} matches - please select`, 'info');
       }
     } catch (error) {
       console.error('SKU scan failed:', error);
-      setToast({ type: 'error', message: `Scan failed: ${error.message || 'Network error'}` });
+      showToast(`Scan failed: ${error.message || 'Network error'}`, 'error');
       // Keep the value in input for retry
     }
   }, [productSearchQuery, handleAddProduct]);
@@ -454,10 +451,7 @@ export default function POS() {
         if (availableLocation && currentQty > availableLocation.quantity) {
           // Cap to maximum available quantity
           finalQuantity = availableLocation.quantity;
-          setToast({
-            type: 'warning',
-            message: `Quantity capped to available stock at ${availableLocation.locationCode}: ${availableLocation.quantity}`
-          });
+          showToast(`Quantity capped to available stock at ${availableLocation.locationCode}: ${availableLocation.quantity}`, 'warning');
         }
       }
 
@@ -480,10 +474,7 @@ export default function POS() {
 
         // Show warning toast for empty input
         if (wasEmptyInput) {
-          setToast({
-            type: 'warning',
-            message: 'Empty quantity set to 1'
-          });
+          showToast('Empty quantity set to 1', 'warning');
         }
 
         return {
@@ -506,7 +497,7 @@ export default function POS() {
       const isDuplicate = lines.some((line, idx) => idx !== lineIndex && line.locationId === parsedLocationId);
 
       if (isDuplicate) {
-        setToast({ type: 'error', message: 'This location is already selected for this product' });
+        showToast('This location is already selected for this product', 'error');
         return;
       }
     }
@@ -523,10 +514,7 @@ export default function POS() {
 
         if (availableLocation && currentQuantity > availableLocation.quantity) {
           adjustedQuantity = availableLocation.quantity;
-          setToast({
-            type: 'warning',
-            message: `Quantity adjusted to available stock at ${availableLocation.locationCode}: ${availableLocation.quantity}`
-          });
+          showToast(`Quantity adjusted to available stock at ${availableLocation.locationCode}: ${availableLocation.quantity}`, 'warning');
         }
       }
 
@@ -618,7 +606,7 @@ export default function POS() {
       setSelectedProduct(null);
     }
 
-    setToast({ type: 'success', message: 'Product removed from list' });
+    showToast('Product removed from list', 'success');
     setShowDeleteConfirm(false);
     setProductToDelete(null);
   };
@@ -626,12 +614,12 @@ export default function POS() {
   // Change price (Deputy Manager or higher)
   const handleChangePrice = () => {
     if (!selectedProduct) {
-      setToast({ type: 'error', message: 'Please select a product first' });
+      showToast('Please select a product first', 'error');
       return;
     }
 
     if (userRole < 4) { // DeputyManager is role 4
-      setToast({ type: 'error', message: 'Insufficient permissions to change price' });
+      showToast('Insufficient permissions to change price', 'error');
       return;
     }
 
@@ -642,7 +630,7 @@ export default function POS() {
   const handlePriceChangeConfirm = () => {
     const price = parseFloat(newPrice);
     if (isNaN(price) || price < 0) {
-      setToast({ type: 'error', message: 'Invalid price value' });
+      showToast('Invalid price value', 'error');
       return;
     }
 
@@ -670,7 +658,7 @@ export default function POS() {
       unitTaxAmount: price - (price / (1 + selectedProduct.taxRate))
     });
     setShowPriceChangeModal(false);
-    setToast({ type: 'success', message: 'Price updated successfully' });
+    showToast('Price updated successfully', 'success');
   };
 
   // Client selection
@@ -692,7 +680,7 @@ export default function POS() {
       setClients(items || []);
     } catch (error) {
       console.error('Failed to load clients:', error);
-      setToast({ type: 'error', message: 'Failed to load clients' });
+      showToast('Failed to load clients', 'error');
     } finally {
       setClientsLoading(false);
     }
@@ -706,12 +694,12 @@ export default function POS() {
 
   const handleClientSelect = () => {
     if (!selectedClientRow) {
-      setToast({ type: 'error', message: 'Please select a client' });
+      showToast('Please select a client', 'error');
       return;
     }
     setSelectedClient(selectedClientRow);
     setShowClientModal(false);
-    setToast({ type: 'success', message: `Client ${selectedClientRow.name} selected` });
+    showToast(`Client ${selectedClientRow.name} selected`, 'success');
   };
 
   const handleClientCreated = async (clientId) => {
@@ -727,10 +715,10 @@ export default function POS() {
       setSelectedClient(newClient);
 
       // Show success message
-      setToast({ type: 'success', message: `Client ${newClient.name} created and selected` });
+      showToast(`Client ${newClient.name} created and selected`, 'success');
     } catch (error) {
       console.error('Failed to fetch newly created client:', error);
-      setToast({ type: 'error', message: 'Client created but failed to select automatically' });
+      showToast('Client created but failed to select automatically', 'error');
 
       // Still close the modals
       setShowClientCreateModal(false);
@@ -742,7 +730,7 @@ export default function POS() {
   const handleRemovePayment = (method) => {
     setPayments(prev => prev.filter(p => p.method !== method));
     setPaymentMethod(null);
-    setToast({ type: 'success', message: `${method} payment removed` });
+    showToast(`${method} payment removed`, 'success');
   };
 
   // Revert all payments and unlock interface
@@ -750,7 +738,7 @@ export default function POS() {
     setPayments([]);
     setPaymentMethod(null);
     setPaymentAmount(0);
-    setToast({ type: 'success', message: 'All payments reverted' });
+    showToast('All payments reverted', 'success');
   };
 
   // Gift Card Payment handlers
@@ -763,7 +751,7 @@ export default function POS() {
 
   const handleGiftCardValidate = async () => {
     if (!giftCardCode.trim()) {
-      setToast({ type: 'error', message: 'Please enter a gift card code' });
+      showToast('Please enter a gift card code', 'error');
       return;
     }
 
@@ -781,51 +769,39 @@ export default function POS() {
         const autoAmount = Math.min(result.value, remainingBalance);
         setPaymentAmount(autoAmount.toFixed(2));
 
-        setToast({
-          type: 'success',
-          message: `Gift card validated. Balance: $${result.value.toFixed(2)}`
-        });
+        showToast(`Gift card validated. Balance: $${result.value.toFixed(2)}`, 'success');
       } else {
         setValidatedGiftCard(null);
-        setToast({ type: 'error', message: result.errorMessage || 'Invalid gift card' });
+        showToast(result.errorMessage || 'Invalid gift card', 'error');
       }
     } catch (error) {
       console.error('Gift card validation failed:', error);
       setValidatedGiftCard(null);
-      setToast({
-        type: 'error',
-        message: error.response?.data?.error || 'Failed to validate gift card'
-      });
+      showToast(error.response?.data?.error || 'Failed to validate gift card', 'error');
     }
   };
 
   const handleGiftCardPaymentConfirm = () => {
     if (!validatedGiftCard) {
-      setToast({ type: 'error', message: 'Please validate gift card first' });
+      showToast('Please validate gift card first', 'error');
       return;
     }
 
     const enteredAmount = parseFloat(paymentAmount);
     if (isNaN(enteredAmount) || enteredAmount <= 0) {
-      setToast({ type: 'error', message: 'Please enter a valid payment amount' });
+      showToast('Please enter a valid payment amount', 'error');
       return;
     }
 
     // Validate amount doesn't exceed gift card balance
     if (enteredAmount > validatedGiftCard.value) {
-      setToast({
-        type: 'error',
-        message: `Amount exceeds gift card balance of $${validatedGiftCard.value.toFixed(2)}`
-      });
+      showToast(`Amount exceeds gift card balance of $${validatedGiftCard.value.toFixed(2)}`, 'error');
       return;
     }
 
     // Validate amount doesn't exceed remaining balance
     if (enteredAmount > remainingBalance) {
-      setToast({
-        type: 'error',
-        message: `Amount exceeds remaining balance of $${remainingBalance.toFixed(2)}`
-      });
+      showToast(`Amount exceeds remaining balance of $${remainingBalance.toFixed(2)}`, 'error');
       return;
     }
 
@@ -848,27 +824,24 @@ export default function POS() {
     setGiftCardCode('');
     setValidatedGiftCard(null);
 
-    setToast({
-      type: 'success',
-      message: `Gift card payment of $${enteredAmount.toFixed(2)} recorded`
-    });
+    showToast(`Gift card payment of $${enteredAmount.toFixed(2)} recorded`, 'success');
   };
 
   // Payment Step 1: Record a payment
   const handlePayClick = () => {
     // Validation
     if (scannedProducts.length === 0) {
-      setToast({ type: 'error', message: 'Please add at least one product' });
+      showToast('Please add at least one product', 'error');
       return;
     }
 
     if (!paymentMethod) {
-      setToast({ type: 'error', message: 'Please select a payment method' });
+      showToast('Please select a payment method', 'error');
       return;
     }
 
     if (documentType === 'Invoice' && !selectedClient) {
-      setToast({ type: 'error', message: 'Please select a client for invoice' });
+      showToast('Please select a client for invoice', 'error');
       return;
     }
 
@@ -880,7 +853,7 @@ export default function POS() {
 
     const enteredAmount = parseFloat(paymentAmount);
     if (isNaN(enteredAmount) || enteredAmount <= 0) {
-      setToast({ type: 'error', message: 'Please enter a valid payment amount' });
+      showToast('Please enter a valid payment amount', 'error');
       return;
     }
 
@@ -948,7 +921,7 @@ export default function POS() {
     const successMsg = paymentMethod === 'Cash' && changeAmount > 0
       ? `${paymentMethod} payment of $${actualAmount.toFixed(2)} recorded. Change: $${changeAmount.toFixed(2)}`
       : `${paymentMethod} payment of $${actualAmount.toFixed(2)} recorded`;
-    setToast({ type: 'success', message: successMsg });
+    showToast(successMsg, 'success');
   };
 
   // Buy Gift Card handlers
@@ -962,7 +935,7 @@ export default function POS() {
 
     // Validation
     if (isNaN(value) || value < 20 || value > 1000) {
-      setToast({ type: 'error', message: 'Gift card value must be between $20 and $1000' });
+      showToast('Gift card value must be between $20 and $1000', 'error');
       return;
     }
 
@@ -972,7 +945,7 @@ export default function POS() {
       const giftCardProduct = products.items?.find(p => p.sku === '_gc');
 
       if (!giftCardProduct) {
-        setToast({ type: 'error', message: 'Gift Card product not found in system' });
+        showToast('Gift Card product not found in system', 'error');
         return;
       }
 
@@ -1000,19 +973,19 @@ export default function POS() {
         giftCardValue: value // Store the value for gift card creation
       }]);
 
-      setToast({ type: 'success', message: `Gift card ($${value.toFixed(2)}) added to cart` });
+      showToast(`Gift card ($${value.toFixed(2)}) added to cart`, 'success');
       setShowBuyGiftCardModal(false);
       setGiftCardValue('');
     } catch (error) {
       console.error('Failed to add gift card:', error);
-      setToast({ type: 'error', message: `Failed to add gift card: ${error.message}` });
+      showToast(`Failed to add gift card: ${error.message}`, 'error');
     }
   };
 
   // Payment Step 2: Finalize transaction
   const handleFinishTransaction = () => {
     if (!isFullyPaid) {
-      setToast({ type: 'error', message: 'Transaction is not fully paid' });
+      showToast('Transaction is not fully paid', 'error');
       return;
     }
     setShowFinishConfirm(true);
@@ -1038,10 +1011,7 @@ export default function POS() {
       }
 
       if (productsWithMissingLocations.length > 0) {
-        setToast({
-          type: 'error',
-          message: `Please select locations for all lines: ${productsWithMissingLocations.join(', ')}`
-        });
+        showToast(`Please select locations for all lines: ${productsWithMissingLocations.join(', ')}`, 'error');
         setShowFinishConfirm(false);
         return;
       }
@@ -1111,10 +1081,7 @@ export default function POS() {
           }
         } catch (error) {
           console.error('Failed to use gift card:', error);
-          setToast({
-            type: 'warning',
-            message: `${response.documentNumber} - Transaction completed but gift card use failed: ${error.message}`
-          });
+          showToast(`${response.documentNumber} - Transaction completed but gift card use failed: ${error.message}`, 'warning');
         }
       }
 
@@ -1129,22 +1096,13 @@ export default function POS() {
             });
             createdCodes.push(created.code);
           }
-          setToast({
-            type: 'success',
-            message: `${response.documentNumber} - Gift card(s) created: ${createdCodes.join(', ')}`
-          });
+          showToast(`${response.documentNumber} - Gift card(s) created: ${createdCodes.join(', ')}`, 'success');
         } catch (error) {
           console.error('Failed to create gift card:', error);
-          setToast({
-            type: 'warning',
-            message: `${response.documentNumber} - Transaction completed but gift card creation failed: ${error.message}`
-          });
+          showToast(`${response.documentNumber} - Transaction completed but gift card creation failed: ${error.message}`, 'warning');
         }
       } else {
-        setToast({
-          type: 'success',
-          message: response.documentNumber
-        });
+        showToast(response.documentNumber, 'success');
       }
 
       setShowFinishConfirm(false);
@@ -1170,7 +1128,7 @@ export default function POS() {
       if (details) fullMsg += `\n\nDetails: ${details}`;
       if (innerException) fullMsg += `\n\nRoot cause: ${innerException}`;
 
-      setToast({ type: 'error', message: `Transaction failed: ${fullMsg}` });
+      showToast(`Transaction failed: ${fullMsg}`, 'error');
       setShowFinishConfirm(false);
     }
   };
@@ -1178,7 +1136,7 @@ export default function POS() {
   // Returns mode - Load sale document
   const handleSaleDocumentSearch = async () => {
     if (!saleDocumentNumber.trim()) {
-      setToast({ type: 'error', message: 'Please enter a sale document number' });
+      showToast('Please enter a sale document number', 'error');
       return;
     }
 
@@ -1193,13 +1151,13 @@ export default function POS() {
       console.log('Received document:', fullDoc);
 
       if (!fullDoc) {
-        setToast({ type: 'error', message: 'Sale document not found' });
+        showToast('Sale document not found', 'error');
         return;
       }
 
       // Validate document type (cannot return a return document)
       if (fullDoc.documentType === 4 || fullDoc.documentType === 5) { // ReceiptReturn or InvoiceReturn
-        setToast({ type: 'error', message: 'Cannot return a return document' });
+        showToast('Cannot return a return document', 'error');
         return;
       }
 
@@ -1217,7 +1175,7 @@ export default function POS() {
         }));
 
       if (returnableItems.length === 0) {
-        setToast({ type: 'warning', message: 'This document contains only non-returnable items (gift cards)' });
+        showToast('This document contains only non-returnable items (gift cards)', 'warning');
         return;
       }
 
@@ -1244,7 +1202,7 @@ export default function POS() {
       setAvailableLocationsForReturn(productLocationsMap);
 
       setSaleDocumentLocked(true);
-      setToast({ type: 'success', message: `Sale document ${fullDoc.documentNumber} loaded` });
+      showToast(`Sale document ${fullDoc.documentNumber} loaded`, 'success');
     } catch (error) {
       console.error('Failed to load sale document:', error);
       console.error('Error details:', {
@@ -1262,7 +1220,7 @@ export default function POS() {
         errorMsg = error.message;
       }
 
-      setToast({ type: 'error', message: errorMsg });
+      showToast(errorMsg, 'error');
     }
   };
 
@@ -1341,10 +1299,7 @@ export default function POS() {
           i.id === itemId ? { ...i, returnQuantity: totalReturnQty } : i
         ));
 
-        setToast({
-          type: 'warning',
-          message: 'Empty quantity set to 0'
-        });
+        showToast('Empty quantity set to 0', 'warning');
 
         return {
           ...prev,
@@ -1366,7 +1321,7 @@ export default function POS() {
       const isDuplicate = lines.some((line, idx) => idx !== lineIndex && line.locationId === parsedLocationId);
 
       if (isDuplicate) {
-        setToast({ type: 'error', message: 'This location is already selected for this product' });
+        showToast('This location is already selected for this product', 'error');
         return;
       }
     }
@@ -1429,12 +1384,12 @@ export default function POS() {
     const returningItems = returnItems.filter(item => item.returnQuantity > 0);
 
     if (returningItems.length === 0) {
-      setToast({ type: 'error', message: 'Please specify return quantities (must be > 0)' });
+      showToast('Please specify return quantities (must be > 0)', 'error');
       return;
     }
 
     if (!refundMethod) {
-      setToast({ type: 'error', message: 'Please select a refund method' });
+      showToast('Please select a refund method', 'error');
       return;
     }
 
@@ -1466,18 +1421,12 @@ export default function POS() {
     }
 
     if (itemsWithMissingLocations.length > 0) {
-      setToast({
-        type: 'error',
-        message: `Please select locations for: ${itemsWithMissingLocations.join(', ')}`
-      });
+      showToast(`Please select locations for: ${itemsWithMissingLocations.join(', ')}`, 'error');
       return;
     }
 
     if (itemsWithMismatchedQuantities.length > 0) {
-      setToast({
-        type: 'error',
-        message: `Location quantities must match return quantities: ${itemsWithMismatchedQuantities.join(', ')}`
-      });
+      showToast(`Location quantities must match return quantities: ${itemsWithMismatchedQuantities.join(', ')}`, 'error');
       return;
     }
 
@@ -1525,22 +1474,13 @@ export default function POS() {
           const giftCard = await api.post('/GiftCard', {
             value: giftCardValue
           });
-          setToast({
-            type: 'success',
-            message: `Return processed. Document: ${response.returnDocumentNumber}. Gift card created: ${giftCard.code} ($${giftCardValue.toFixed(2)})`
-          });
+          showToast(`Return processed. Document: ${response.returnDocumentNumber}. Gift card created: ${giftCard.code} ($${giftCardValue.toFixed(2)})`, 'success');
         } catch (error) {
           console.error('Failed to create gift card for return:', error);
-          setToast({
-            type: 'warning',
-            message: `Return processed (${response.returnDocumentNumber}), but gift card creation failed: ${error.message}`
-          });
+          showToast(`Return processed (${response.returnDocumentNumber}), but gift card creation failed: ${error.message}`, 'warning');
         }
       } else {
-        setToast({
-          type: 'success',
-          message: `Return processed successfully. Document: ${response.returnDocumentNumber}`
-        });
+        showToast(`Return processed successfully. Document: ${response.returnDocumentNumber}`, 'success');
       }
       setShowReturnConfirm(false);
 
@@ -1557,7 +1497,7 @@ export default function POS() {
       console.error('Error response:', error.response);
       console.error('Error response data:', error.response?.data);
       const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Return failed';
-      setToast({ type: 'error', message: `Return failed: ${errorMsg}` });
+      showToast(`Return failed: ${errorMsg}`, 'error');
       setShowReturnConfirm(false);
     }
   };
@@ -2454,7 +2394,7 @@ export default function POS() {
                         setReturnLocationLines({});
                         setRefundMethod(null);
                         setAvailableLocationsForReturn(new Map());
-                        setToast({ type: 'success', message: 'Return cleared' });
+                        showToast('Return cleared', 'success');
                       }}
                     >
                       Clear Return
@@ -2741,13 +2681,6 @@ export default function POS() {
       )}
 
       {/* Toast Messages */}
-      {toast && (
-        <MessageBox
-          type={toast.type}
-          message={toast.message}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   );
 }

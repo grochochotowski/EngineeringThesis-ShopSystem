@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import { api } from "../api/apiClient";
 import Header from "../components/Header";
-import MessageBox from "../components/MessageBox";
+import { useToast } from "../components/ToastContext";
 import { printSalesReportPDF } from "../utils/printService";
 import "../styles/PagesStyles/baseListPage.css";
 import "../styles/PagesStyles/reports.css";
 
 export default function Reports() {
+  const { showToast } = useToast();
   const [datePreset, setDatePreset] = useState("custom");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
   const [includeProductDetails, setIncludeProductDetails] = useState(false);
 
   // Handle preset date selection
@@ -124,7 +124,7 @@ export default function Reports() {
   const handleGenerateReport = async () => {
     // Validate custom date range
     if (datePreset === "custom" && (!dateFrom || !dateTo)) {
-      setToast({ type: "error", message: "Please select both From Date and To Date for custom range." });
+      showToast("Please select both From Date and To Date for custom range.", "error");
       return;
     }
 
@@ -141,10 +141,10 @@ export default function Reports() {
 
       const data = await api.get("/Reports/sales", { params });
       setReportData(data);
-      setToast({ type: "success", message: "Report generated successfully!" });
+      showToast("Report generated successfully!", "success");
     } catch (err) {
       console.error("Failed to generate report:", err);
-      setToast({ type: "error", message: err.response?.data?.error || "Failed to generate report." });
+      showToast(err.response?.data?.error || "Failed to generate report.", "error");
     } finally {
       setLoading(false);
     }
@@ -166,7 +166,7 @@ export default function Reports() {
       // No toast message - PDF download starts automatically
     } catch (err) {
       console.error("Failed to print report:", err);
-      setToast({ type: "error", message: "Failed to generate PDF." });
+      showToast("Failed to generate PDF.", "error");
     }
   };
 
@@ -464,14 +464,6 @@ export default function Reports() {
           </div>
         </div>
       </main>
-
-      {toast && (
-        <MessageBox
-          type={toast.type}
-          message={toast.message}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   );
 }

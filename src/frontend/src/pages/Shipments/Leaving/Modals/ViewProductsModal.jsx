@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../components/Modal";
 import { api } from "../../../../api/apiClient";
+import { useToast } from "../../../../components/ToastContext";
 
 export default function ViewProductsModal({
   isOpen,
   onClose,
   shipmentId,
-  setToast,
 }) {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState([]);
   const [expandedProductIds, setExpandedProductIds] = useState({});
@@ -28,7 +29,7 @@ export default function ViewProductsModal({
       setProducts(response || []);
     } catch (err) {
       console.error("Failed to fetch shipment products", err);
-      setToast({ type: "error", message: "Failed to load shipment products" });
+      showToast("Failed to load shipment products", "error");
     } finally {
       setLoading(false);
     }
@@ -43,7 +44,7 @@ export default function ViewProductsModal({
       return productPrep?.sourceLocations || [];
     } catch (err) {
       console.error("Failed to fetch product locations", err);
-      setToast({ type: "error", message: "Failed to load product locations" });
+      showToast("Failed to load product locations", "error");
       return [];
     }
   };

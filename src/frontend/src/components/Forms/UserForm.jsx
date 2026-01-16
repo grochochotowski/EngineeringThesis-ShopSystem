@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../api/apiClient";
-import MessageBox from "../MessageBox";
+import { useToast } from "../ToastContext";
 
 const initialUser = {
     firstName: "",
@@ -24,11 +24,11 @@ const initialAddress = {
 };
 
 export default function UserForm({ mode = "create", user, address, roles = [], roleLimit, onSuccess }) {
+    const { showToast } = useToast();
     const [userForm, setUserForm] = useState(initialUser);
     const [addressForm, setAddressForm] = useState(initialAddress);
     const [countries, setCountries] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [toast, setToast] = useState(null);
 
     useEffect(() => {
         const fetchCountries = async () => {
@@ -69,7 +69,7 @@ export default function UserForm({ mode = "create", user, address, roles = [], r
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (mode === "create" && userForm.password !== userForm.confirmPassword) {
-            setToast({ message: "Passwords do not match.", type: "error" });
+            showToast("Passwords do not match.", "error");
             return;
         }
 
@@ -113,10 +113,7 @@ export default function UserForm({ mode = "create", user, address, roles = [], r
             }
         } catch (err) {
             console.error(err);
-            setToast({
-                message: err.response?.data?.message || "Failed to save user.",
-                type: "error",
-            });
+            showToast(err.response?.data?.message || "Failed to save user.", "error");
         } finally {
             setLoading(false);
         }
@@ -275,16 +272,6 @@ export default function UserForm({ mode = "create", user, address, roles = [], r
                     {loading ? "Saving..." : mode === "create" ? "Register" : "Save"}
                 </button>
             </div>
-
-            {toast && (
-                <MessageBox
-                    message={toast.message}
-                    type={toast.type}
-                    duration={3000}
-                    onClose={() => setToast(null)}
-                    className="centered"
-                />
-            )}
         </form>
     );
 }

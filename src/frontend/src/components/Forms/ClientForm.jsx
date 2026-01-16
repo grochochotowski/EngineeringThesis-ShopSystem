@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../api/apiClient";
-import MessageBox from "../MessageBox";
+import { useToast } from "../ToastContext";
 import { clientTypesData } from "../../data/clientTypes";
 
 const initialClient = {
@@ -21,11 +21,11 @@ const initialAddress = {
 };
 
 export default function ClientForm({ mode = "create", client, address, onSuccess }) {
+  const { showToast } = useToast();
   const [clientForm, setClientForm] = useState(initialClient);
   const [addressForm, setAddressForm] = useState(initialAddress);
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -126,10 +126,8 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
         errorMessage = err.response.data.title;
       }
 
-      setToast({
-        message: errorMessage,
-        type: "error",
-      });
+      showToast(errorMessage, "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -318,16 +316,6 @@ export default function ClientForm({ mode = "create", client, address, onSuccess
           {loading ? "Saving..." : mode === "create" ? "Create" : "Save"}
         </button>
       </div>
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </form>
   );
 }

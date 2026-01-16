@@ -7,7 +7,12 @@ import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
 import AddEditModal from "./Modals/AddEditModal";
 import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -17,13 +22,14 @@ import MessageBox from "../../../components/MessageBox";
  * Features advanced filtering by price, category, defective status, and active status
  */
 export default function Products() {
+  const { showToast } = useToast();
   // === STATE ===
   const [searchParams, setSearchParams] = useSearchParams();
   const [showModal, setShowModal] = useState(false);
   const [selectedProductDetails, setSelectedProductDetails] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [toast, setToast] = useState(null);
   const [actionableProduct, setActionableProduct] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const [categories, setCategories] = useState(new Map());
   const [taxRates, setTaxRates] = useState(new Map());
@@ -54,6 +60,10 @@ export default function Products() {
   const filtersRef = useRef(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const userRole = user?.role;
+
+  // Permission checks
+  const canAddEdit = isDeputyManagerOrAbove(userRole);
 
   // === INITIAL DATA LOADING ===
   /**
@@ -132,7 +142,7 @@ export default function Products() {
       });
 
       if (items?.length) {
-        setProducts(items);
+        setProducts(prev => page === 1 ? items : [...prev, ...items.filter(i => !prev.some(p => p.id === i.id))]);
         setHasMore(page < (totalPages || 1));
       } else {
         setProducts([]);
@@ -208,7 +218,8 @@ export default function Products() {
     if (pageNumber > 1) {
       fetchProductsData(pageNumber, filters, searchQuery, sortColumn, sortDirection);
     }
-  }, [pageNumber, filters, searchQuery, sortColumn, sortDirection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -332,10 +343,8 @@ export default function Products() {
       setSelectedProductDetails(full);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load product details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load product details.", "error",
+      );
     }
   };
 
@@ -364,6 +373,10 @@ export default function Products() {
    * Opens add modal for creating new product
    */
   const handleAdd = () => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to add products", "error");
+      return;
+    }
     setSelectedRow(null);
     setSelectedProductDetails(null);
     setShowModal(true);
@@ -373,6 +386,10 @@ export default function Products() {
    * Opens edit modal and loads full product details if needed
    */
   const handleEdit = async (row) => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to edit products", "error");
+      return;
+    }
     if (selectedProductDetails && selectedProductDetails.id === row.id && selectedProductDetails.description) {
       setShowModal(true);
       return;
@@ -384,10 +401,7 @@ export default function Products() {
       setShowModal(true);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load full product details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load full product details.", "error");
     }
   };
 
@@ -395,6 +409,10 @@ export default function Products() {
    * Opens confirmation dialog for status toggle
    */
   const handleDelete = (row) => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to activate/deactivate products", "error");
+      return;
+    }
     setActionableProduct({ ...row, isActive: row.isactive === "Yes" });
     setShowConfirm(true);
   };
@@ -411,17 +429,13 @@ export default function Products() {
       if (actionableProduct.isActive) {
         await api.delete(`/Products/${actionableProduct.id}`);
         newStatus = false;
-        setToast({
-          message: "Product deactivated successfully!",
-          type: "success",
-        });
+        showToast("Product deactivated successfully!", "success",
+        );
       } else {
         await api.post(`/Products/${actionableProduct.id}/restore`);
         newStatus = true;
-        setToast({
-          message: "Product activated successfully!",
-          type: "success",
-        });
+        showToast("Product activated successfully!", "success",
+        );
       }
 
       const newIsActiveString = newStatus ? "Yes" : "No";
@@ -438,10 +452,8 @@ export default function Products() {
 
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to update the product.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to update the product.", "error",
+      );
     } finally {
       setLoading(false);
       setShowConfirm(false);
@@ -478,12 +490,10 @@ export default function Products() {
     setPageNumber(1);
     immediateFetchProducts();
 
-    setToast({
-      message: productId
+    showToast(productId
         ? "Product updated successfully!"
-        : "Product created successfully!",
-      type: "success",
-    });
+        : "Product created successfully!", "success",
+    );
   };
 
   // === RENDER ===
@@ -511,8 +521,11 @@ export default function Products() {
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           onAdd={handleAdd}
+          disableAdd={!canAddEdit}
           onEdit={handleEdit}
+          disableEdit={!selectedRow || !canAddEdit}
           onDelete={handleDelete}
+          disableDelete={!selectedRow || !canAddEdit}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={handleSearchChange}
           searchValue={searchQuery}
@@ -607,16 +620,6 @@ export default function Products() {
         onConfirm={handleConfirmStatusChange}
         onCancel={() => setShowConfirm(false)}
       />
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

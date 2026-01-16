@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { api } from "../../../api/apiClient";
 import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import AddModal from "./Modals/AddModal";
 import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
 
@@ -15,6 +15,7 @@ import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
  * Gift cards can also be created through POS transactions
  */
 export default function GiftCards() {
+  const { showToast } = useToast();
   // === STATE ===
   // Data state
   const [giftCards, setGiftCards] = useState([]); // Array of gift card objects from API
@@ -24,8 +25,7 @@ export default function GiftCards() {
   const [error, setError] = useState(null); // Error message if API call fails
 
   // UI state
-  const [showFilters, setShowFilters] = useState(false); // Toggle for filter panel visibility
-  const [toast, setToast] = useState(null); // Toast notification state (message, type)
+  const [showFilters, setShowFilters] = useState(false); // Toggle for filter panel visibility // Toast notification state (message, type)
   const [selectedRow, setSelectedRow] = useState(null); // Currently selected gift card row
 
   // Modal state
@@ -121,7 +121,8 @@ export default function GiftCards() {
     if (pageNumber > 1) {
       fetchGiftCards(pageNumber);
     }
-  }, [pageNumber, fetchGiftCards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -282,7 +283,7 @@ export default function GiftCards() {
    */
   const handleAddSuccess = () => {
     fetchGiftCards(1, true);
-    setToast({ message: "Gift card created successfully", type: "success" });
+    showToast("Gift card created successfully", "success" );
   };
 
   /**
@@ -306,9 +307,9 @@ export default function GiftCards() {
       setGiftCardToDeactivate(null);
       setSelectedRow(null);
       fetchGiftCards(1, true);
-      setToast({ message: "Gift card deactivated successfully", type: "success" });
+      showToast("Gift card deactivated successfully", "success" );
     } catch (err) {
-      setToast({ message: err.response?.data?.error || "Failed to deactivate gift card", type: "error" });
+      showToast(err.response?.data?.error || "Failed to deactivate gift card", "error" );
     }
   };
 
@@ -396,9 +397,6 @@ export default function GiftCards() {
       />
 
       {/* Toast notifications */}
-      {toast && (
-        <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} className="centered" />
-      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { api, apiRequest } from "../../../api/apiClient";
 import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
 import ConfirmDialog from "../../../components/ConfirmDialog";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import { shipmentStatusesData } from "../../../data/shipmentStatuses";
 import { getCountryValue } from "../../../data/countries";
 import { userRolesData } from "../../../data/userRoles";
@@ -15,6 +15,11 @@ import EditModal from "./Modals/EditModal";
 import CollectModal from "./Modals/CollectModal";
 import ViewProductsModal from "./Modals/ViewProductsModal";
 import "../../../styles/PagesStyles/shipments.css";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => getRoleLevel(role) >= getRoleLevel("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -47,6 +52,7 @@ import "../../../styles/PagesStyles/shipments.css";
  * @returns {JSX.Element} The incoming shipments management page
  */
 export default function IncomingShipments() {
+  const { showToast } = useToast();
   // === STATE ===
   // Main data state
   const [shipments, setShipments] = useState([]);
@@ -56,7 +62,6 @@ export default function IncomingShipments() {
   const [error, setError] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedShipmentDetails, setSelectedShipmentDetails] = useState(null);
-  const [toast, setToast] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortColumn, setSortColumn] = useState("id");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -161,14 +166,17 @@ export default function IncomingShipments() {
   const userRole = user?.role;
   const userRoleLevel = userRolesData.find(r => r.value === userRole)?.id || 0;
 
-  // Helper: get role level by name
-  const getRoleLevel = (roleName) => {
+  // Helper: get role level by name (legacy function for compatibility)
+  const getRoleLevelById = (roleName) => {
     return userRolesData.find(r => r.value === roleName)?.id || 0;
   };
 
   // Check if user can change shipment status (DeputyManager and above = level 4+)
-  const deputyManagerLevel = getRoleLevel("DeputyManager");
+  const deputyManagerLevel = getRoleLevelById("DeputyManager");
   const canChangeShipmentStatus = userRoleLevel >= deputyManagerLevel;
+
+  // Permission checks for CRUD operations
+  const canAddEdit = isDeputyManagerOrAbove(userRole);
 
   // State for status change confirmation
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
@@ -339,7 +347,8 @@ export default function IncomingShipments() {
     if (pageNumber > 1) {
       fetchShipmentsData(pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     }
-  }, [pageNumber, filters, searchQuery, sortColumn, sortDirection, selectedStatuses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   // Close filters when clicking outside
   useEffect(() => {
@@ -423,10 +432,8 @@ export default function IncomingShipments() {
       setSelectedShipmentDetails(full);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load shipment details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load shipment details.", "error",
+      );
     }
   };
 
@@ -460,24 +467,18 @@ export default function IncomingShipments() {
       // Reload the main list to get updated dates and other fields
       fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
 
-      setToast({
-        message: "Status updated successfully!",
-        type: "success",
-      });
+      showToast("Status updated successfully!", "success",
+      );
     } catch (err) {
       console.error(err);
 
       // Handle 409 Conflict errors with specific message
       if (err.response?.status === 409) {
-        setToast({
-          message: err.response?.data?.message || err.response?.data || "Conflict: Cannot change to this status.",
-          type: "error",
-        });
+        showToast(err.response?.data?.message || err.response?.data || "Conflict: Cannot change to this status.", "error",
+        );
       } else {
-        setToast({
-          message: err.response?.data?.message || err.response?.data || "Failed to update status.",
-          type: "error",
-        });
+        showToast(err.response?.data?.message || err.response?.data || "Failed to update status.", "error",
+        );
       }
     } finally {
       setPendingStatusChange(null);
@@ -486,6 +487,10 @@ export default function IncomingShipments() {
 
   // Handle Add Shipment Modal Open
   const handleOpenAddModal = () => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to add shipments", "error");
+      return;
+    }
     setShowAddModal(true);
     setAddForm({
       status: 1,
@@ -600,10 +605,8 @@ export default function IncomingShipments() {
     const productId = product.productId || product.id;
     const existing = selectedProducts.find(p => p.id === productId);
     if (existing) {
-      setToast({
-        message: "Product already added to shipment",
-        type: "error",
-      });
+      showToast("Product already added to shipment", "error",
+      );
       return;
     }
 
@@ -691,17 +694,13 @@ export default function IncomingShipments() {
       if (products.length > 0 && products[0].sku.toLowerCase() === searchTerm.toLowerCase()) {
         handleAddProduct(products[0]);
       } else {
-        setToast({
-          message: `No exact SKU match found for "${searchTerm}"`,
-          type: "error",
-        });
+        showToast(`No exact SKU match found for "${searchTerm}"`, "error",
+        );
       }
     } catch (err) {
       console.error("Failed to search for exact SKU", err);
-      setToast({
-        message: "Failed to search for product",
-        type: "error",
-      });
+      showToast("Failed to search for product", "error",
+      );
     }
   };
 
@@ -801,10 +800,8 @@ export default function IncomingShipments() {
     const productId = product.productId || product.id;
     const existing = editSelectedProducts.find(p => p.id === productId);
     if (existing) {
-      setToast({
-        message: "Product already added to shipment",
-        type: "error",
-      });
+      showToast("Product already added to shipment", "error",
+      );
       return;
     }
 
@@ -888,17 +885,13 @@ export default function IncomingShipments() {
       if (products.length > 0 && products[0].sku.toLowerCase() === searchTerm.toLowerCase()) {
         handleEditAddProduct(products[0]);
       } else {
-        setToast({
-          message: `No exact SKU match found for "${searchTerm}"`,
-          type: "error",
-        });
+        showToast(`No exact SKU match found for "${searchTerm}"`, "error",
+        );
       }
     } catch (err) {
       console.error("Failed to search for exact SKU", err);
-      setToast({
-        message: "Failed to search for product",
-        type: "error",
-      });
+      showToast("Failed to search for product", "error",
+      );
     }
   };
 
@@ -918,22 +911,22 @@ export default function IncomingShipments() {
   const handleSaveShipment = async () => {
     // Validate required fields
     if (!addForm.status) {
-      setToast({ message: "Status is required", type: "error" });
+      showToast("Status is required", "error" );
       return;
     }
 
     if (!addForm.senderName || !addForm.senderTaxId) {
-      setToast({ message: "Sender name and Tax ID are required", type: "error" });
+      showToast("Sender name and Tax ID are required", "error" );
       return;
     }
 
     if (!addForm.senderStreet || !addForm.senderBuilding || !addForm.senderPostalCode || !addForm.senderCity || !addForm.senderCountry) {
-      setToast({ message: "Complete sender address is required", type: "error" });
+      showToast("Complete sender address is required", "error" );
       return;
     }
 
     if (selectedProducts.length === 0) {
-      setToast({ message: "At least one product is required", type: "error" });
+      showToast("At least one product is required", "error" );
       return;
     }
 
@@ -1023,19 +1016,15 @@ export default function IncomingShipments() {
 
       await api.post(`/Shipments/${shipmentId}/products`, productsPayload);
 
-      setToast({
-        message: "Shipment created successfully!",
-        type: "success",
-      });
+      showToast("Shipment created successfully!", "success",
+      );
 
       setShowAddModal(false);
       fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to create shipment.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to create shipment.", "error",
+      );
     } finally {
       setSavingShipment(false);
     }
@@ -1044,10 +1033,11 @@ export default function IncomingShipments() {
   // Handle Edit Shipment Modal Open
   const handleOpenEditModal = async () => {
     if (!selectedShipmentDetails) {
-      setToast({
-        message: "Please select a shipment to edit.",
-        type: "error",
-      });
+      showToast("Please select a shipment to edit.", "error");
+      return;
+    }
+    if (!canAddEdit) {
+      showToast("You don't have permission to edit shipments", "error");
       return;
     }
 
@@ -1159,22 +1149,22 @@ export default function IncomingShipments() {
   const handleSaveEdit = async () => {
     // Validate required fields
     if (!editForm.status) {
-      setToast({ message: "Status is required", type: "error" });
+      showToast("Status is required", "error" );
       return;
     }
 
     if (!editForm.senderName || !editForm.senderTaxId) {
-      setToast({ message: "Sender name and Tax ID are required", type: "error" });
+      showToast("Sender name and Tax ID are required", "error" );
       return;
     }
 
     if (!editForm.senderStreet || !editForm.senderBuilding || !editForm.senderPostalCode || !editForm.senderCity || !editForm.senderCountry) {
-      setToast({ message: "Complete sender address is required", type: "error" });
+      showToast("Complete sender address is required", "error" );
       return;
     }
 
     if (editSelectedProducts.length === 0) {
-      setToast({ message: "At least one product is required", type: "error" });
+      showToast("At least one product is required", "error" );
       return;
     }
 
@@ -1256,10 +1246,8 @@ export default function IncomingShipments() {
         });
       }
 
-      setToast({
-        message: "Shipment updated successfully!",
-        type: "success",
-      });
+      showToast("Shipment updated successfully!", "success",
+      );
 
       setShowEditModal(false);
 
@@ -1272,15 +1260,11 @@ export default function IncomingShipments() {
 
       // Handle 409 Conflict errors with specific message
       if (err.response?.status === 409) {
-        setToast({
-          message: err.response?.data?.message || err.response?.data || "Conflict: Cannot update shipment with these values.",
-          type: "error",
-        });
+        showToast(err.response?.data?.message || err.response?.data || "Conflict: Cannot update shipment with these values.", "error",
+        );
       } else {
-        setToast({
-          message: err.response?.data?.message || err.response?.data || "Failed to update shipment.",
-          type: "error",
-        });
+        showToast(err.response?.data?.message || err.response?.data || "Failed to update shipment.", "error",
+        );
       }
     } finally {
       setSavingEdit(false);
@@ -1290,10 +1274,8 @@ export default function IncomingShipments() {
   // Start collection workflow
   const handleStartCollection = () => {
     if (!selectedShipmentDetails || selectedShipmentDetails.status !== 4) {
-      setToast({
-        message: "Only delivered shipments can be collected.",
-        type: "error",
-      });
+      showToast("Only delivered shipments can be collected.", "error",
+      );
       return;
     }
 
@@ -1406,10 +1388,8 @@ export default function IncomingShipments() {
             }));
 
             setScanInput("");
-            setToast({
-              message: `+1 added to ${foundProduct.name}`,
-              type: "success",
-            });
+            showToast(`+1 added to ${foundProduct.name}`, "success",
+            );
             return;
           }
 
@@ -1432,22 +1412,16 @@ export default function IncomingShipments() {
           }));
 
           setScanInput("");
-          setToast({
-            message: `Added "${foundProduct.name}" to collection (not in shipment)`,
-            type: "success",
-          });
+          showToast(`Added "${foundProduct.name}" to collection (not in shipment)`, "success",
+          );
         } else {
-          setToast({
-            message: "Product not found in shipment or database",
-            type: "error",
-          });
+          showToast("Product not found in shipment or database", "error",
+          );
         }
       } catch (err) {
         console.error("Failed to search for product", err);
-        setToast({
-          message: "Product not found in shipment",
-          type: "error",
-        });
+        showToast("Product not found in shipment", "error",
+        );
       }
     }
   };
@@ -1478,10 +1452,8 @@ export default function IncomingShipments() {
     const isDuplicate = updatedRows.some((row, idx) => idx !== rowIndex && row.locationId === parseInt(locationId));
 
     if (isDuplicate && locationId) {
-      setToast({
-        message: "This location is already selected for this product",
-        type: "error",
-      });
+      showToast("This location is already selected for this product", "error",
+      );
       return;
     }
 
@@ -1511,10 +1483,8 @@ export default function IncomingShipments() {
     const currentRows = collectedQuantities[productId] || [];
 
     if (currentRows.length <= 1) {
-      setToast({
-        message: "Cannot remove the last location row",
-        type: "error",
-      });
+      showToast("Cannot remove the last location row", "error",
+      );
       return;
     }
 
@@ -1562,10 +1532,8 @@ export default function IncomingShipments() {
       // Validate all rows with quantity > 0 have locations
       for (const row of rows) {
         if ((parseInt(row.quantity) || 0) > 0 && !row.locationId) {
-          setToast({
-            message: `Please assign a location for all quantities of "${product.productName}"`,
-            type: "error",
-          });
+          showToast(`Please assign a location for all quantities of "${product.productName}"`, "error",
+          );
           return;
         }
       }
@@ -1586,10 +1554,8 @@ export default function IncomingShipments() {
       const fallbackLocationId = locations.length > 0 ? locations[0].id : null;
 
       if (!fallbackLocationId) {
-        setToast({
-          message: "No locations available. Please create at least one warehouse location first.",
-          type: "error",
-        });
+        showToast("No locations available. Please create at least one warehouse location first.", "error",
+        );
         setLoading(false);
         return;
       }
@@ -1629,10 +1595,8 @@ export default function IncomingShipments() {
         collectedProducts: collectedProductsData
       });
 
-      setToast({
-        message: "Collection completed successfully!",
-        type: "success",
-      });
+      showToast("Collection completed successfully!", "success",
+      );
 
       setShowCollectModal(false);
       setShowConfirmFinish(false);
@@ -1643,10 +1607,8 @@ export default function IncomingShipments() {
       setSelectedShipmentDetails(null);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to complete collection.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to complete collection.", "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -1764,10 +1726,8 @@ export default function IncomingShipments() {
   // Handle View Products button click
   const handleViewProducts = async () => {
     if (!selectedShipmentDetails) {
-      setToast({
-        message: "Please select a shipment to view products.",
-        type: "error",
-      });
+      showToast("Please select a shipment to view products.", "error",
+      );
       return;
     }
 
@@ -1831,10 +1791,8 @@ export default function IncomingShipments() {
       }
     } catch (err) {
       console.error("Failed to fetch product data", err);
-      setToast({
-        message: "Failed to load product information.",
-        type: "error",
-      });
+      showToast("Failed to load product information.", "error",
+      );
     }
   };
 
@@ -1851,10 +1809,8 @@ export default function IncomingShipments() {
         setExpandedProductLocations({ [productId]: locations });
       } catch (err) {
         console.error("Failed to fetch locations for product", productId, err);
-        setToast({
-          message: "Failed to load product locations.",
-          type: "error",
-        });
+        showToast("Failed to load product locations.", "error",
+        );
       }
     }
   };
@@ -1883,13 +1839,14 @@ export default function IncomingShipments() {
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           onAdd={handleOpenAddModal}
+          disableAdd={!canAddEdit}
           onEdit={handleOpenEditModal}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={setSearchQuery}
           searchValue={searchQuery}
           hideDeleteButton={true}
           hideAddButton={false}
-          disableEdit={!selectedRow || selectedRow.statusRaw === 5}
+          disableEdit={!selectedRow || selectedRow.statusRaw === 5 || !canAddEdit}
           changePasswordButtonLabel="Collect"
           changePasswordButtonClass="btn-go-to"
           changePasswordDisabled={!selectedRow || selectedRow.statusRaw !== 4}
@@ -2008,7 +1965,6 @@ export default function IncomingShipments() {
         selectedProducts={selectedProducts}
         handleProductQuantityChange={handleProductQuantityChange}
         handleRemoveProduct={handleRemoveProduct}
-        setToast={setToast}
       />
 
       {/* Edit Shipment Modal */}
@@ -2091,15 +2047,6 @@ export default function IncomingShipments() {
       )}
 
       {/* Toast messages */}
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

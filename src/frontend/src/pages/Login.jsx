@@ -2,17 +2,17 @@ import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { GlobalStateContext } from "../GlobalState";
 
-import MessageBox from "../components/MessageBox";
+import { useToast } from "../components/ToastContext";
 import "../styles/PagesStyles/login.css";
 
 export default function LoginPage() {
+  const { showToast } = useToast();
     const navigate = useNavigate();
     const { setState } = useContext(GlobalStateContext);
 
     const [login, setLogin] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [toast, setToast] = useState(null);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -48,11 +48,11 @@ export default function LoginPage() {
             setState(prev => ({ ...prev, isLoggedIn: true }));
 
             // send message & redirect
-            setToast({ message: "Login successful!", type: "success" });
+            showToast("Login successful!", "success" );
             navigate("/dashboard");
 
         } catch (err) {
-            setToast({ message: err.message || "Invalid login or password", type: "error" });
+            showToast(err.message || "Invalid login or password", "error" );
         } finally {
             setLoading(false);
         }
@@ -96,14 +96,6 @@ export default function LoginPage() {
                 <small>Engineering thesis project - Białystok University of Technology</small>
                 <small>&copy; 2025 Michał Grochowski</small>
             </footer>
-            {toast && (
-            <MessageBox
-                message={toast.message}
-                type={toast.type}
-                duration={2500}
-                onClose={() => setToast(null)}
-                className="centered"
-            />)}
         </div>
     );
 }

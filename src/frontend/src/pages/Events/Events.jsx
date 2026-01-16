@@ -9,6 +9,12 @@ import CancelConfirmDialog from "./Modals/CancelConfirmDialog";
 import SocialMediaShareModal from "./Modals/SocialMediaShareModal";
 import "../../styles/PagesStyles/organizationPages.css";
 
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => getRoleLevel(role) >= getRoleLevel("DeputyManager");
+const isManagerOrAbove = (role) => getRoleLevel(role) >= getRoleLevel("Manager");
+
 // === COMPONENT ===
 export default function Events() {
   const { showToast } = useToast();
@@ -40,6 +46,9 @@ export default function Events() {
   const filtersRef = useRef(null);
 
   const currentUser = JSON.parse(localStorage.getItem("user"));
+  const userRole = currentUser?.role;
+  const canCreateEdit = isDeputyManagerOrAbove(userRole);
+  const canCancelPublish = isManagerOrAbove(userRole);
 
   const sortKeyMap = useMemo(() => ({
     id: "id",
@@ -131,6 +140,10 @@ export default function Events() {
   }, [showToast]);
 
   const openCreateModal = () => {
+    if (!canCreateEdit) {
+      showToast("You don't have permission to create events", "error");
+      return;
+    }
     setFormEventData(null);
     setEventFormMode("create");
     setShowEventModal(true);
@@ -138,6 +151,10 @@ export default function Events() {
 
   const openEditModal = (row) => {
     if (!row) return;
+    if (!canCreateEdit) {
+      showToast("You don't have permission to edit events", "error");
+      return;
+    }
     setFormEventData(row._raw);
     setEventFormMode("edit");
     setShowEventModal(true);
@@ -201,6 +218,10 @@ export default function Events() {
 
   const confirmCancel = async () => {
     if (!actionableEvent) return;
+    if (!canCancelPublish) {
+      showToast("You don't have permission to cancel events", "error");
+      return;
+    }
     const eventId = actionableEvent._raw.id;
     try {
       await api.put(`/Events/${eventId}/cancel`);
@@ -384,8 +405,9 @@ export default function Events() {
           detailsData={selectedEventDetails}
           detailsConfig={detailsConfig}
           onAdd={openCreateModal}
+          disableAdd={!canCreateEdit}
           onEdit={() => openEditModal(selectedRow)}
-          disableEdit={!selectedRow || selectedRow?._raw?.status !== 'Created'}
+          disableEdit={!selectedRow || selectedRow?._raw?.status !== 'Created' || !canCreateEdit}
           onToggleFilters={() => setShowFilters((prev) => !prev)}
           onSearchChange={(value) => setSearchQuery(value)}
           searchValue={searchQuery}
@@ -394,6 +416,10 @@ export default function Events() {
           sortDirection={sortDirection}
           // Publish button (using changePassword slot)
           onChangePassword={() => {
+            if (!canCancelPublish) {
+              showToast("You don't have permission to publish events", "error");
+              return;
+            }
             // Check if event has an image before opening the modal
             const eventData = selectedRow?._raw || selectedRow;
             if (!eventData?.image) {
@@ -406,7 +432,7 @@ export default function Events() {
           }}
           changePasswordButtonLabel="Publish"
           changePasswordButtonClass="btn-confirm-positive"
-          changePasswordDisabled={!selectedRow || selectedRow?._raw?.status !== 'Created'}
+          changePasswordDisabled={!selectedRow || selectedRow?._raw?.status !== 'Created' || !canCancelPublish}
           changePasswordButtonIcon={
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
               <path
@@ -419,12 +445,16 @@ export default function Events() {
           }
           // Cancel button (using changeLogin slot)
           onChangeLogin={() => {
+            if (!canCancelPublish) {
+              showToast("You don't have permission to cancel events", "error");
+              return;
+            }
             setActionableEvent(selectedRow);
             setActionType('cancel');
           }}
           changeLoginButtonLabel="Cancel Event"
           changeLoginButtonClass="btn-confirm-negative"
-          changeLoginDisabled={!selectedRow || selectedRow?._raw?.status === 'Canceled' || selectedRow?._raw?.status === 'Finished'}
+          changeLoginDisabled={!selectedRow || selectedRow?._raw?.status === 'Canceled' || selectedRow?._raw?.status === 'Finished' || !canCancelPublish}
           changeLoginButtonIcon={
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
               <path

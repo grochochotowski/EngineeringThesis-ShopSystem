@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../api/apiClient";
-import MessageBox from "../MessageBox";
+import { useToast } from "../ToastContext";
 
 const initialCategory = {
     name: "",
@@ -8,9 +8,9 @@ const initialCategory = {
 };
 
 export default function CategoryForm({ mode = "create", category, onSuccess }) {
+  const { showToast } = useToast();
     const [form, setForm] = useState(initialCategory);
     const [loading, setLoading] = useState(false);
-    const [toast, setToast] = useState(null);
 
     useEffect(() => {
         if (mode === "edit" && category) {
@@ -42,10 +42,8 @@ export default function CategoryForm({ mode = "create", category, onSuccess }) {
             }
         } catch (err) {
             console.error(err);
-            setToast({
-                message: err.response?.data?.message || "Failed to save category.",
-                type: "error",
-            });
+            showToast(err.response?.data?.message || "Failed to save category.", "error",
+            );
         } finally {
             setLoading(false);
         }
@@ -82,15 +80,6 @@ export default function CategoryForm({ mode = "create", category, onSuccess }) {
                     {loading ? "Saving..." : "Save"}
                 </button>
             </div>
-
-            {toast && (
-                <MessageBox
-                    message={toast.message}
-                    type={toast.type}
-                    duration={3000}
-                    onClose={() => setToast(null)}
-                />
-            )}
         </form>
     );
 }

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { api } from "../../../api/apiClient";
 import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 
 // === COMPONENT ===
 /**
@@ -13,6 +13,7 @@ import MessageBox from "../../../components/MessageBox";
  * Addresses are managed through Users and Clients pages
  */
 export default function Addresses() {
+  const { showToast } = useToast();
   // === STATE ===
   const [addresses, setAddresses] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
@@ -20,7 +21,6 @@ export default function Addresses() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const [countries, setCountries] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -149,7 +149,8 @@ export default function Addresses() {
    */
   useEffect(() => {
     if (pageNumber > 1) fetchAddresses(pageNumber);
-  }, [pageNumber, fetchAddresses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -267,10 +268,8 @@ export default function Addresses() {
       setSelectedAddressDetails(full);
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || "Failed to load address details.",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to load address details.", "error",
+      );
     }
   }, []);
 
@@ -351,16 +350,6 @@ export default function Addresses() {
           <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
         )}
       </main>
-
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

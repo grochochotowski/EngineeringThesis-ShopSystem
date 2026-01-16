@@ -6,7 +6,12 @@ import BaseListPage from "../../BaseListPage";
 import AddModal from "./Modals/AddModal";
 import EditModal from "./Modals/EditModal";
 import StatusConfirmDialog from "./Modals/StatusConfirmDialog";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -15,11 +20,11 @@ import MessageBox from "../../../components/MessageBox";
  * Supports creating, editing, and activating/deactivating tax rates
  */
 export default function TaxRates() {
+  const { showToast } = useToast();
   // === STATE ===
   const [taxRates, setTaxRates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [toast, setToast] = useState(null);
 
   const [selectedRow, setSelectedRow] = useState(null);
   const [actionableTaxRate, setActionableTaxRate] = useState(null);
@@ -33,6 +38,10 @@ export default function TaxRates() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const currentUser = JSON.parse(localStorage.getItem("user"));
+  const userRole = currentUser?.role;
+
+  // Permission checks
+  const canAddEdit = isDeputyManagerOrAbove(userRole);
 
   // === DATA FETCHING ===
   /**
@@ -179,6 +188,10 @@ export default function TaxRates() {
    * Opens add modal for creating new tax rate
    */
   const openCreateModal = () => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to add tax rates", "error");
+      return;
+    }
     setSelectedRow(null);
     setShowAddModal(true);
   };
@@ -187,6 +200,10 @@ export default function TaxRates() {
    * Opens edit modal for updating selected tax rate
    */
   const openEditModal = (row) => {
+    if (!canAddEdit) {
+      showToast("You don't have permission to edit tax rates", "error");
+      return;
+    }
     setSelectedRow(row);
     setShowEditModal(true);
   };
@@ -196,6 +213,10 @@ export default function TaxRates() {
    */
   const handleStatusToggle = (row) => {
     if (!row) return;
+    if (!canAddEdit) {
+      showToast("You don't have permission to activate/deactivate tax rates", "error");
+      return;
+    }
     setActionableTaxRate(row);
   };
 
@@ -212,7 +233,7 @@ export default function TaxRates() {
     try {
       setLoading(true);
       await api.put(endpoint);
-      setToast({ message: `Tax rate ${_isActive ? "deactivated" : "activated"} successfully.`, type: "success" });
+      showToast(`Tax rate ${_isActive ? "deactivated" : "activated"} successfully.`, "success" );
 
       const newActiveState = !_isActive;
 
@@ -231,7 +252,7 @@ export default function TaxRates() {
       }
 
     } catch (err) {
-      setToast({ message: err.response?.data?.message || "Failed to update status.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to update status.", "error" );
     } finally {
       setLoading(false);
       setActionableTaxRate(null);
@@ -270,8 +291,11 @@ export default function TaxRates() {
           detailsData={selectedRow}
           detailsConfig={detailsConfig}
           onAdd={openCreateModal}
+          disableAdd={!canAddEdit}
           onEdit={openEditModal}
+          disableEdit={!selectedRow || !canAddEdit}
           onDelete={handleStatusToggle}
+          disableDelete={!selectedRow || !canAddEdit}
           onSort={handleSort}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
@@ -300,10 +324,6 @@ export default function TaxRates() {
         onConfirm={confirmStatusChange}
         onCancel={() => setActionableTaxRate(null)}
       />
-
-      {toast && (
-        <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} className="centered" />
-      )}
     </div>
   );
 }

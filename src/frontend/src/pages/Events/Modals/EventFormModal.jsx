@@ -1,19 +1,19 @@
 // === IMPORTS ===
 import React, { useState, useEffect, useRef } from "react";
 import Modal from "../../../components/Modal";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import { api } from "../../../api/apiClient";
 import { countries } from "../../../data/countries";
 
 // === COMPONENT ===
 export default function EventFormModal({ isOpen, onClose, mode, event, onEventSaved }) {
+  const { showToast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dateOfEvent, setDateOfEvent] = useState("");
   const [image, setImage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
@@ -262,19 +262,15 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
     const hasErrors = Object.values(errors).some(error => error !== "");
 
     if (hasErrors) {
-      setToast({
-        message: "Please fix all validation errors before saving",
-        type: "error",
-      });
+      showToast("Please fix all validation errors before saving", "error",
+      );
       return;
     }
 
     // Check required fields (building is now optional)
     if (!newAddress.country || !newAddress.city || !newAddress.street || !newAddress.postalCode) {
-      setToast({
-        message: "Please fill in all required address fields",
-        type: "error",
-      });
+      showToast("Please fill in all required address fields", "error",
+      );
       return;
     }
 
@@ -282,16 +278,12 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
       const response = await api.post("/Addresses", newAddress);
       setSelectedAddress(response);
       setShowAddressForm(false);
-      setToast({
-        message: "Address created successfully",
-        type: "success",
-      });
+      showToast("Address created successfully", "success",
+      );
     } catch (err) {
       console.error("Failed to create address", err);
-      setToast({
-        message: err.response?.data?.message || "Failed to create address",
-        type: "error",
-      });
+      showToast(err.response?.data?.message || "Failed to create address", "error",
+      );
     }
   };
 
@@ -336,20 +328,16 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
 
     // Prevent editing non-Created events
     if (mode === "edit" && event && event.status !== "Created") {
-      setToast({
-        message: `Cannot edit ${event.status.toLowerCase()} events. Only events with "Created" status can be modified.`,
-        type: "error",
-      });
+      showToast(`Cannot edit ${event.status.toLowerCase()} events. Only events with "Created" status can be modified.`, "error",
+      );
       setLoading(false);
       return;
     }
 
     // Validate required fields
     if (!title || !description || !dateOfEvent || !selectedAddress) {
-      setToast({
-        message: "Please fill in all required fields",
-        type: "error",
-      });
+      showToast("Please fill in all required fields", "error",
+      );
       setLoading(false);
       return;
     }
@@ -377,10 +365,8 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({
-        message: err.response?.data?.message || `Failed to ${mode} event.`,
-        type: "error",
-      });
+      showToast(err.response?.data?.message || `Failed to ${mode} event.`, "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -817,15 +803,6 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
           <div className="form-error" style={{ color: "red", marginTop: "0.5rem" }}>
             {error}
           </div>
-        )}
-
-        {toast && (
-          <MessageBox
-            message={toast.message}
-            type={toast.type}
-            duration={3000}
-            onClose={() => setToast(null)}
-          />
         )}
       </form>
     </Modal>
