@@ -586,6 +586,9 @@ namespace Backend.Api.Api.Services
                     "productname" or "name" => isDescending
                         ? groupedProducts.OrderByDescending(p => p.ProductInfo.Name).ToList()
                         : groupedProducts.OrderBy(p => p.ProductInfo.Name).ToList(),
+                    "productsku" or "sku" => isDescending
+                        ? groupedProducts.OrderByDescending(p => p.ProductInfo.SKU).ToList()
+                        : groupedProducts.OrderBy(p => p.ProductInfo.SKU).ToList(),
                     "productprice" or "price" => isDescending
                         ? groupedProducts.OrderByDescending(p => p.ProductInfo.Price).ToList()
                         : groupedProducts.OrderBy(p => p.ProductInfo.Price).ToList(),

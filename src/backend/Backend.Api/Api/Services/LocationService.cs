@@ -7,7 +7,7 @@ namespace Backend.Api.Api.Services
 {
     public interface ILocationService
     {
-        Task<PagedResult<GetLocationDto>> GetAllLocationsAsync(PaginationParams pagination, CancellationToken ct = default);
+        Task<PagedResult<GetLocationDto>> GetAllLocationsAsync(PaginationParams pagination, string? searchQuery = null, string? zoneFilter = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default);
         Task<GetLocationDto?> GetLocationByIdAsync(int id, CancellationToken ct = default);
         Task<GetLocationDto> CreateLocationAsync(CreateLocationDto dto, CancellationToken ct = default);
         Task<bool> UpdateLocationAsync(int id, UpdateLocationDto dto, CancellationToken ct = default);
@@ -23,12 +23,58 @@ namespace Backend.Api.Api.Services
         public LocationService(AppDbContext db) => _db = db;
 
         // --- GET ALL LOCATIONS ---
-        public async Task<PagedResult<GetLocationDto>> GetAllLocationsAsync(PaginationParams pagination, CancellationToken ct = default)
+        public async Task<PagedResult<GetLocationDto>> GetAllLocationsAsync(PaginationParams pagination, string? searchQuery = null, string? zoneFilter = null, string? orderBy = null, string? sortDirection = null, CancellationToken ct = default)
         {
             var query = _db.Locations
                 .AsNoTracking()
                 .Include(l => l.Products)
-                .OrderBy(l => l.LocationCode);
+                .AsQueryable();
+
+            // Apply search filter (location code)
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var term = searchQuery.Trim().ToLower();
+                query = query.Where(l => l.LocationCode.ToLower().Contains(term));
+            }
+
+            // Apply zone filter
+            if (!string.IsNullOrWhiteSpace(zoneFilter))
+            {
+                var zone = zoneFilter.Trim().ToUpper();
+                query = query.Where(l => l.Zone == zone);
+            }
+
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(orderBy))
+            {
+                var isDescending = sortDirection?.ToLower() == "desc";
+                query = orderBy.ToLower() switch
+                {
+                    "code" or "locationcode" => isDescending
+                        ? query.OrderByDescending(l => l.LocationCode)
+                        : query.OrderBy(l => l.LocationCode),
+                    "zone" => isDescending
+                        ? query.OrderByDescending(l => l.Zone)
+                        : query.OrderBy(l => l.Zone),
+                    "col" or "column" => isDescending
+                        ? query.OrderByDescending(l => l.Col)
+                        : query.OrderBy(l => l.Col),
+                    "shelf" => isDescending
+                        ? query.OrderByDescending(l => l.Shelf)
+                        : query.OrderBy(l => l.Shelf),
+                    "productcount" => isDescending
+                        ? query.OrderByDescending(l => l.Products.Count)
+                        : query.OrderBy(l => l.Products.Count),
+                    "totalquantity" => isDescending
+                        ? query.OrderByDescending(l => l.Products.Sum(p => p.Quantity))
+                        : query.OrderBy(l => l.Products.Sum(p => p.Quantity)),
+                    _ => query.OrderBy(l => l.LocationCode)
+                };
+            }
+            else
+            {
+                query = query.OrderBy(l => l.LocationCode);
+            }
 
             var totalCount = await query.CountAsync(ct);
 

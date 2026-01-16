@@ -19,10 +19,14 @@ namespace Backend.Api.Api.Controllers
         public async Task<ActionResult<PagedResult<GetLocationDto>>> GetAll(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
+            [FromQuery] string? q = null,
+            [FromQuery] string? zone = null,
+            [FromQuery] string? orderBy = null,
+            [FromQuery] string? sortDirection = null,
             CancellationToken ct = default)
         {
             var pagination = new PaginationParams { PageNumber = pageNumber, PageSize = pageSize };
-            var result = await _service.GetAllLocationsAsync(pagination, ct);
+            var result = await _service.GetAllLocationsAsync(pagination, q, zone, orderBy, sortDirection, ct);
             return Ok(result);
         }
 
