@@ -52,7 +52,15 @@ export default function EventFormModal({ isOpen, onClose, mode, event, onEventSa
         setTitle(event.title);
         setDescription(event.description);
         setDateOfEvent(new Date(event.dateOfEvent).toISOString().slice(0, 16));
-        setImage(event.image);
+        // If image exists and doesn't have data URL prefix, add it
+        if (event.image) {
+          const imageData = event.image.startsWith('data:')
+            ? event.image
+            : `data:image/jpeg;base64,${event.image}`;
+          setImage(imageData);
+        } else {
+          setImage(null);
+        }
 
         // Set selected address for edit mode
         if (event.address) {

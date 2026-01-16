@@ -149,15 +149,25 @@ export default function Events() {
     setShowEventModal(true);
   };
 
-  const openEditModal = (row) => {
+  const openEditModal = async (row) => {
     if (!row) return;
     if (!canCreateEdit) {
       showToast("You don't have permission to edit events", "error");
       return;
     }
-    setFormEventData(row._raw);
-    setEventFormMode("edit");
-    setShowEventModal(true);
+    // Fetch full event details including image (list view excludes image for performance)
+    try {
+      setLoading(true);
+      const fullEvent = await api.get(`/Events/${row.id}`);
+      setFormEventData(fullEvent);
+      setEventFormMode("edit");
+      setShowEventModal(true);
+    } catch (err) {
+      console.error("Failed to load event details:", err);
+      showToast(err.response?.data?.message || "Failed to load event details.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEventSuccess = async (eventId) => {
