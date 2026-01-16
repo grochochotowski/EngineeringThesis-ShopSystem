@@ -3,11 +3,16 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { api } from "../../../api/apiClient";
 import Header from "../../../components/Header";
 import BaseListPage from "../../BaseListPage";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import ViewDetailsModal from "./Modals/ViewDetailsModal";
 import AddModal from "./Modals/AddModal";
 import EditModal from "./Modals/EditModal";
 import RemoveModal from "./Modals/RemoveModal";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -19,6 +24,8 @@ import RemoveModal from "./Modals/RemoveModal";
  * Features automatic sorting by location code and product counts
  */
 export default function Warehouses() {
+  const { showToast } = useToast();
+
   // === STATE ===
   // Data state
   const [locations, setLocations] = useState([]); // Array of location objects from API
@@ -29,7 +36,6 @@ export default function Warehouses() {
 
   // UI state
   const [showFilters, setShowFilters] = useState(false); // Toggle for filter panel visibility
-  const [toast, setToast] = useState(null); // Toast notification state (message, type)
   const [selectedRow, setSelectedRow] = useState(null); // Currently selected location row
 
   // Modal state
@@ -54,6 +60,10 @@ export default function Warehouses() {
 
   // User context
   const currentUser = JSON.parse(localStorage.getItem("user")); // Current logged-in user
+  const userRole = currentUser?.role;
+
+  // Permission checks
+  const canAddEditActivate = isDeputyManagerOrAbove(userRole);
 
   // === DATA FETCHING ===
   /**
@@ -133,7 +143,8 @@ export default function Warehouses() {
     if (pageNumber > 1) {
       fetchLocations(pageNumber);
     }
-  }, [pageNumber, fetchLocations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -161,13 +172,14 @@ export default function Warehouses() {
    * Defines headers, widths, and sortability for each column
    */
   const columns = [
-    { key: "id", label: "ID", width: "8%", sortable: false },
-    { key: "code", label: "Location Code", width: "20%", sortable: true },
-    { key: "zone", label: "Zone", width: "12%", sortable: true },
-    { key: "col", label: "Column", width: "12%", sortable: true },
-    { key: "shelf", label: "Shelf", width: "12%", sortable: true },
-    { key: "productCount", label: "Distinct Products", width: "18%", sortable: true },
-    { key: "totalQuantity", label: "Total Quantity", width: "18%", sortable: true },
+    { key: "id", label: "ID", width: "7%", sortable: false },
+    { key: "code", label: "Location Code", width: "18%", sortable: true },
+    { key: "zone", label: "Zone", width: "11%", sortable: true },
+    { key: "col", label: "Column", width: "11%", sortable: true },
+    { key: "shelf", label: "Shelf", width: "11%", sortable: true },
+    { key: "productCount", label: "Distinct Products", width: "16%", sortable: true },
+    { key: "totalQuantity", label: "Total Quantity", width: "16%", sortable: true },
+    { key: "isActiveLabel", label: "Active", width: "10%", sortable: false },
   ];
 
   /**
@@ -177,6 +189,7 @@ export default function Warehouses() {
    * @returns {object} Formatted row object for table display
    */
   const toRow = useCallback((location) => {
+    const active = typeof location.isActive === "boolean" ? location.isActive : Boolean(location.isActive);
     return {
       ...location,
       code: location.locationCode,
@@ -185,6 +198,8 @@ export default function Warehouses() {
       shelf: location.shelf,
       productCount: location.productCount || 0,
       totalQuantity: location.totalQuantity || 0,
+      isActiveLabel: active ? "Yes" : "No",
+      _isActive: active,
     };
   }, []);
 
@@ -201,6 +216,11 @@ export default function Warehouses() {
    * Defines how to display selected location information
    */
   const detailsConfig = {
+    status: {
+      key: "isActive",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+    },
     fields: [
       { label: "ID", key: "id" },
       { label: "Location Code", key: "code" },
@@ -284,7 +304,7 @@ export default function Warehouses() {
       setShowDetailsModal(true);
     } catch (err) {
       console.error("Failed to fetch location products:", err);
-      setToast({ message: "Failed to load products at location.", type: "error" });
+      showToast("Failed to load products at location.", "error");
     }
   };
 
@@ -292,6 +312,10 @@ export default function Warehouses() {
    * Opens the Add modal to create a new location
    */
   const handleAdd = () => {
+    if (!canAddEditActivate) {
+      showToast("You don't have permission to add locations", "error");
+      return;
+    }
     setShowAddModal(true);
   };
 
@@ -301,7 +325,7 @@ export default function Warehouses() {
    */
   const handleAddSuccess = () => {
     fetchLocations(1, true);
-    setToast({ message: "Location created successfully", type: "success" });
+    showToast("Location created successfully", "success");
   };
 
   /**
@@ -310,6 +334,10 @@ export default function Warehouses() {
    */
   const handleEdit = () => {
     if (!selectedRow) return;
+    if (!canAddEditActivate) {
+      showToast("You don't have permission to edit locations", "error");
+      return;
+    }
     setShowEditModal(true);
   };
 
@@ -319,44 +347,60 @@ export default function Warehouses() {
    */
   const handleEditSuccess = () => {
     fetchLocations(1, true);
-    setToast({ message: "Location updated successfully", type: "success" });
+    showToast("Location updated successfully", "success");
   };
 
   /**
-   * Opens the deactivation confirmation dialog
-   * Only works if a row is selected and the location is active
+   * Opens the status toggle confirmation dialog
+   * Handles both activation and deactivation
    */
-  const handleDelete = () => {
-    if (!selectedRow || !selectedRow._isActive) return;
+  const handleStatusToggle = () => {
+    if (!selectedRow) return;
+    if (!canAddEditActivate) {
+      showToast("You don't have permission to activate/deactivate locations", "error");
+      return;
+    }
     setShowRemoveModal(true);
   };
 
   /**
-   * Confirms and executes location deactivation
-   * Calls API to deactivate, refreshes list, and shows success message
+   * Confirms and executes location activation or deactivation
+   * Calls API to toggle status, refreshes list, and shows success message
    */
-  const handleConfirmDeactivate = async () => {
+  const handleConfirmStatusToggle = async () => {
     if (!selectedRow) return;
 
+    const { id, _isActive } = selectedRow;
+    const endpoint = _isActive
+      ? `/Location/${id}/deactivate`
+      : `/Location/${id}/activate`;
+
     try {
-      await api.delete(`/Location/${selectedRow.id}`);
+      await api.patch(endpoint);
       setShowRemoveModal(false);
-      setSelectedRow(null);
       fetchLocations(1, true);
-      setToast({ message: "Location deactivated successfully", type: "success" });
+      showToast(`Location ${_isActive ? "deactivated" : "activated"} successfully`, "success");
+
+      // Update selected row if it's still the same location
+      if (selectedRow && selectedRow.id === id) {
+        const newActive = !_isActive;
+        setSelectedRow(prev => prev ? {
+          ...prev,
+          _isActive: newActive,
+          isActiveLabel: newActive ? "Yes" : "No",
+          isActive: newActive
+        } : prev);
+      }
     } catch (err) {
-      setToast({
-        message: err.response?.data?.error || err.response?.data?.message || "Failed to deactivate location. Make sure it has no products.",
-        type: "error"
-      });
+      showToast(err.response?.data?.error || err.response?.data?.message || `Failed to ${_isActive ? "deactivate" : "activate"} location.`, "error");
     }
   };
 
   /**
-   * Cancels the deactivation operation
+   * Cancels the status toggle operation
    * Closes the confirmation dialog without making changes
    */
-  const handleCancelDeactivate = () => {
+  const handleCancelStatusToggle = () => {
     setShowRemoveModal(false);
   };
 
@@ -380,9 +424,25 @@ export default function Warehouses() {
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           onAdd={handleAdd}
+          disableAdd={!canAddEditActivate}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          disableEdit={!selectedRow || !canAddEditActivate}
+          onDelete={handleStatusToggle}
           onViewDetails={handleViewDetails}
+          deleteButtonLabel={!selectedRow || selectedRow._isActive ? "Deactivate" : "Activate"}
+          deleteButtonClass={!selectedRow || selectedRow._isActive ? "btn-confirm-negative" : "btn-confirm-positive"}
+          disableDelete={!selectedRow || !canAddEditActivate}
+          deleteButtonIcon={
+            !selectedRow || selectedRow._isActive ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="none" stroke="currentColor" strokeWidth="2" d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="none" stroke="currentColor" strokeWidth="2" d="M20 6L9 17l-5-5"/>
+              </svg>
+            )
+          }
         />
 
         {/* Filter Panel - Conditional rendering based on showFilters state */}
@@ -448,14 +508,9 @@ export default function Warehouses() {
       <RemoveModal
         show={showRemoveModal}
         location={selectedRow}
-        onConfirm={handleConfirmDeactivate}
-        onCancel={handleCancelDeactivate}
+        onConfirm={handleConfirmStatusToggle}
+        onCancel={handleCancelStatusToggle}
       />
-
-      {/* Toast notifications */}
-      {toast && (
-        <MessageBox message={toast.message} type={toast.type} duration={3000} onClose={() => setToast(null)} className="centered" />
-      )}
     </div>
   );
 }

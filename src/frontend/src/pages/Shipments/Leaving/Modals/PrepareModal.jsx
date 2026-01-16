@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import Modal from "../../../../components/Modal";
 import { api } from "../../../../api/apiClient";
+import { useToast } from "../../../../components/ToastContext";
 
 export default function PrepareModal({
   onClose,
   onComplete,
-  setToast,
   shipment,
 }) {
+  const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
 
   // Dimensions state
@@ -108,7 +109,7 @@ export default function PrepareModal({
       }
     } catch (err) {
       console.error("Failed to load shipment data", err);
-      setToast({ type: "error", message: "Failed to load shipment details" });
+      showToast("Failed to load shipment details", "error");
     }
   };
 
@@ -167,7 +168,7 @@ export default function PrepareModal({
   const handleSelectProduct = async (product) => {
     // Check if product already added
     if (preparedProducts.find(p => p.productId === product.productId)) {
-      setToast({ type: "warning", message: "Product already in preparation list" });
+      showToast("Product already in preparation list", "warning");
       setScanInput("");
       setShowDropdown(false);
       return;
@@ -181,10 +182,7 @@ export default function PrepareModal({
     // VALIDATION: Check if product has any stock in warehouse
     if (stockData.totalQuantity === 0 || !stockData.locations || stockData.locations.length === 0) {
       const productName = product.productName || product.name || product.Name || "Unknown";
-      setToast({
-        type: "error",
-        message: `Cannot add "${productName}": No stock available in warehouse`
-      });
+      showToast(`Cannot add "${productName}": No stock available in warehouse`, "error");
       setScanInput("");
       setShowDropdown(false);
       return;
@@ -241,10 +239,10 @@ export default function PrepareModal({
               }
             }
 
-            setToast({ type: "error", message: `No product found with EAN: ${scanInput}` });
+            showToast(`No product found with EAN: ${scanInput}`, "error");
           } catch (err) {
             console.error("Failed to search by EAN", err);
-            setToast({ type: "error", message: "Failed to search product" });
+            showToast("Failed to search product", "error");
           }
           return;
         }
@@ -257,7 +255,7 @@ export default function PrepareModal({
         if (exactMatch) {
           handleSelectProduct(exactMatch);
         } else {
-          setToast({ type: "info", message: `No exact match found for: ${scanInput}` });
+          showToast(`No exact match found for: ${scanInput}`, "info");
         }
       }
       return;
@@ -390,12 +388,12 @@ export default function PrepareModal({
   const validatePreparation = () => {
     // Check dimensions
     if (!dimensions.height || !dimensions.width || !dimensions.length || !dimensions.weight) {
-      setToast({ type: "error", message: "All package dimensions are required (Height, Width, Length, Weight)" });
+      showToast("All package dimensions are required (Height, Width, Length, Weight)", "error");
       return false;
     }
 
     if (preparedProducts.length === 0) {
-      setToast({ type: "error", message: "At least one product must be added to the preparation" });
+      showToast("At least one product must be added to the preparation", "error");
       return false;
     }
 
@@ -405,13 +403,13 @@ export default function PrepareModal({
 
       // Check if any quantity was entered
       if (totalPrepared <= 0) {
-        setToast({ type: "error", message: `Product "${product.sku}": Total quantity must be greater than 0` });
+        showToast(`Product "${product.sku}": Total quantity must be greater than 0`, "error");
         return false;
       }
 
       // Check if total doesn't exceed in-store stock
       if (totalPrepared > product.inStore) {
-        setToast({ type: "error", message: `Product "${product.sku}": Prepared quantity (${totalPrepared}) exceeds available stock (${product.inStore})` });
+        showToast(`Product "${product.sku}": Prepared quantity (${totalPrepared}) exceeds available stock (${product.inStore})`, "error");
         return false;
       }
 
@@ -426,7 +424,7 @@ export default function PrepareModal({
 
         if (qty > 0 && !row.locationId) {
           console.log("   ❌ ERROR: Quantity entered but no location selected");
-          setToast({ type: "error", message: `Product "${product.sku}": Please select a location for all quantities` });
+          showToast(`Product "${product.sku}": Please select a location for all quantities`, "error");
           return false;
         }
 
@@ -442,7 +440,7 @@ export default function PrepareModal({
             const locCode = loc ? `${loc.zone}-${loc.col}-${loc.shelf}` : row.locationId;
             console.log(`   ❌ ERROR: Quantity ${qty} exceeds available ${available} at location ${locCode}`);
             console.log(`   Location details:`, loc);
-            setToast({ type: "error", message: `Product "${product.sku}": Quantity at location ${locCode} exceeds available stock (${available} available)` });
+            showToast(`Product "${product.sku}": Quantity at location ${locCode} exceeds available stock (${available} available)`, "error");
             return false;
           } else {
             console.log(`   ✅ OK: Quantity ${qty} is within available ${available}`);
@@ -458,7 +456,7 @@ export default function PrepareModal({
   const handleSave = async () => {
     // For "Save Progress", we don't require dimensions - only validate products
     if (preparedProducts.length === 0) {
-      setToast({ type: "error", message: "At least one product must be added to the preparation" });
+      showToast("At least one product must be added to the preparation", "error");
       return false;
     }
 
@@ -467,12 +465,12 @@ export default function PrepareModal({
       const totalPrepared = calculateTotalFromRows(product);
 
       if (totalPrepared <= 0) {
-        setToast({ type: "error", message: `Product "${product.sku}": Total quantity must be greater than 0` });
+        showToast(`Product "${product.sku}": Total quantity must be greater than 0`, "error");
         return false;
       }
 
       if (totalPrepared > product.inStore) {
-        setToast({ type: "error", message: `Product "${product.sku}": Prepared quantity (${totalPrepared}) exceeds available stock (${product.inStore})` });
+        showToast(`Product "${product.sku}": Prepared quantity (${totalPrepared}) exceeds available stock (${product.inStore})`, "error");
         return false;
       }
 
@@ -481,7 +479,7 @@ export default function PrepareModal({
         const qty = parseInt(row.quantity) || 0;
 
         if (qty > 0 && !row.locationId) {
-          setToast({ type: "error", message: `Product "${product.sku}": Please select a location for all quantities` });
+          showToast(`Product "${product.sku}": Please select a location for all quantities`, "error");
           return false;
         }
 
@@ -492,7 +490,7 @@ export default function PrepareModal({
           if (qty > available) {
             const loc = product.warehouseLocations.find(l => l.locationId === parseInt(row.locationId));
             const locCode = loc ? `${loc.zone}-${loc.col}-${loc.shelf}` : row.locationId;
-            setToast({ type: "error", message: `Product "${product.sku}": Quantity at location ${locCode} exceeds available stock (${available} available)` });
+            showToast(`Product "${product.sku}": Quantity at location ${locCode} exceeds available stock (${available} available)`, "error");
             return false;
           }
         }
@@ -524,15 +522,12 @@ export default function PrepareModal({
 
       await api.post(`/Shipments/${shipment.id}/complete-preparation`, payload);
 
-      setToast({ type: "success", message: "Preparation progress saved successfully" });
+      showToast("Preparation progress saved successfully", "success");
       onComplete();
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({
-        type: "error",
-        message: err.response?.data?.message || "Failed to save preparation",
-      });
+      showToast(err.response?.data?.message || "Failed to save preparation", "error");
     } finally {
       setSaving(false);
     }
@@ -567,15 +562,12 @@ export default function PrepareModal({
       // Call complete preparation endpoint
       await api.post(`/Shipments/${shipment.id}/complete-preparation`, payload);
 
-      setToast({ type: "success", message: "Shipment preparation completed successfully! Status changed to Awaiting Pickup." });
+      showToast("Shipment preparation completed successfully! Status changed to Awaiting Pickup.", "success");
       onComplete();
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({
-        type: "error",
-        message: err.response?.data?.message || "Failed to complete preparation",
-      });
+      showToast(err.response?.data?.message || "Failed to complete preparation", "error");
     } finally {
       setSaving(false);
     }

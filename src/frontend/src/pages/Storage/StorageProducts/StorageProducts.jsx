@@ -4,13 +4,18 @@ import axios from "axios";
 import { api } from "../../../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import Header from "../../../components/Header";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../../../components/ToastContext";
 import ViewDetailsModal from "./Modals/ViewDetailsModal";
 import AddModal from "./Modals/AddModal";
 import RemoveModal from "./Modals/RemoveModal";
 import TransferModal from "./Modals/TransferModal";
 import QuickLocationModal from "./Modals/QuickLocationModal";
 import "../../../styles/PagesStyles/baseListPage.css";
+
+// === ROLE HELPER FUNCTIONS ===
+const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
+const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
+const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===
 /**
@@ -21,6 +26,7 @@ import "../../../styles/PagesStyles/baseListPage.css";
  * Features quick location creation and navigation to product details
  */
 export default function StorageProducts() {
+  const { showToast } = useToast();
   // === STATE ===
   // Router
   const navigate = useNavigate(); // For navigation to product details page
@@ -38,8 +44,7 @@ export default function StorageProducts() {
 
   // UI state
   const [showFilters, setShowFilters] = useState(false); // Toggle for filter panel visibility
-  const [isDelayedRefresh, setIsDelayedRefresh] = useState(false); // Flag for debounced vs immediate fetch
-  const [toast, setToast] = useState(null); // Toast notification state (message, type)
+  const [isDelayedRefresh, setIsDelayedRefresh] = useState(false); // Flag for debounced vs immediate fetch // Toast notification state (message, type)
 
   // Modal state
   const [showDetailsModal, setShowDetailsModal] = useState(false); // Controls Details modal visibility
@@ -105,6 +110,10 @@ export default function StorageProducts() {
 
   // User context
   const user = JSON.parse(localStorage.getItem("user")); // Current logged-in user
+  const userRole = user?.role;
+
+  // Permission checks
+  const canAddEditDelete = isDeputyManagerOrAbove(userRole);
 
   // === DATA FETCHING ===
   /**
@@ -204,7 +213,7 @@ export default function StorageProducts() {
       // Ignore cancelled requests
       if (axios.isCancel(err)) return;
       console.error(err);
-      setToast({ message: "Failed to load warehouse products.", type: "error" });
+      showToast("Failed to load warehouse products.", "error" );
     } finally {
       setLoading(false);
     }
@@ -259,7 +268,7 @@ export default function StorageProducts() {
         setInitialDataLoaded(true);
       } catch (err) {
         console.error("Failed to fetch initial data", err);
-        setToast({ message: "Failed to load initial page data.", type: "error" });
+        showToast("Failed to load initial page data.", "error" );
       }
     };
 
@@ -301,7 +310,8 @@ export default function StorageProducts() {
     if (pageNumber > 1) {
       fetchProducts(pageNumber, filters, searchQuery, sortColumn, sortDirection);
     }
-  }, [pageNumber, fetchProducts, filters, searchQuery, sortColumn, sortDirection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber]);
 
   /**
    * Close filters panel when clicking outside
@@ -445,6 +455,10 @@ export default function StorageProducts() {
    * Pre-fills product if one is selected from the list
    */
   const handleOpenAddModal = () => {
+    if (!canAddEditDelete) {
+      showToast("You don't have permission to add products to warehouse", "error");
+      return;
+    }
     // Pre-fill product if one is selected from the list
     if (selectedProduct?.rawData) {
       const product = activeProducts.find(p => p.productId === selectedProduct.productId);
@@ -549,7 +563,7 @@ export default function StorageProducts() {
   const handleSubmitAdd = async (e) => {
     if (e) e.preventDefault();
     if (!addForm.productId || !addForm.locationId || !addForm.quantity) {
-      setToast({ message: "Please fill all required fields.", type: "error" });
+      showToast("Please fill all required fields.", "error" );
       return;
     }
     try {
@@ -558,12 +572,12 @@ export default function StorageProducts() {
         locationId: parseInt(addForm.locationId),
         quantity: parseInt(addForm.quantity),
       });
-      setToast({ message: "Product added to warehouse successfully!", type: "success" });
+      showToast("Product added to warehouse successfully!", "success" );
       setShowAddModal(false);
       immediateFetchProducts();
     } catch (err) {
       console.error(err);
-      setToast({ message: err.response?.data?.message || "Failed to add product.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to add product.", "error" );
     }
   };
 
@@ -587,6 +601,10 @@ export default function StorageProducts() {
    */
   const handleOpenRemoveModal = () => {
     if (!selectedProduct) return;
+    if (!canAddEditDelete) {
+      showToast("You don't have permission to remove products from warehouse", "error");
+      return;
+    }
     setRemoveForm({ locationId: "", quantity: 1 });
     setShowRemoveModal(true);
   };
@@ -611,7 +629,7 @@ export default function StorageProducts() {
   const handleSubmitRemove = async (e) => {
     if (e) e.preventDefault();
     if (!removeForm.locationId || !removeForm.quantity) {
-      setToast({ message: "Please fill all required fields.", type: "error" });
+      showToast("Please fill all required fields.", "error" );
       return;
     }
     try {
@@ -620,7 +638,7 @@ export default function StorageProducts() {
         locationId: parseInt(removeForm.locationId),
         quantity: parseInt(removeForm.quantity),
       });
-      setToast({ message: "Product removed from warehouse successfully!", type: "success" });
+      showToast("Product removed from warehouse successfully!", "success" );
       setShowRemoveModal(false);
 
       // Fetch fresh product data immediately after removal
@@ -660,7 +678,7 @@ export default function StorageProducts() {
       immediateFetchProducts();
     } catch (err) {
       console.error(err);
-      setToast({ message: err.response?.data?.message || "Failed to remove product.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to remove product.", "error" );
     }
   };
 
@@ -708,11 +726,11 @@ export default function StorageProducts() {
   const handleSubmitTransfer = async (e) => {
     if (e) e.preventDefault();
     if (!transferForm.fromLocationId || !transferForm.toLocationId || !transferForm.quantity) {
-      setToast({ message: "Please fill all required fields.", type: "error" });
+      showToast("Please fill all required fields.", "error" );
       return;
     }
     if (transferForm.fromLocationId === transferForm.toLocationId) {
-      setToast({ message: "Source and destination locations must be different.", type: "error" });
+      showToast("Source and destination locations must be different.", "error" );
       return;
     }
     try {
@@ -722,7 +740,7 @@ export default function StorageProducts() {
         toLocationId: parseInt(transferForm.toLocationId),
         quantity: parseInt(transferForm.quantity),
       });
-      setToast({ message: "Product transferred successfully!", type: "success" });
+      showToast("Product transferred successfully!", "success" );
       setShowTransferModal(false);
 
       // Fetch fresh product data immediately after transfer
@@ -756,7 +774,7 @@ export default function StorageProducts() {
       immediateFetchProducts();
     } catch (err) {
       console.error(err);
-      setToast({ message: err.response?.data?.message || "Failed to transfer product.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to transfer product.", "error" );
     }
   };
 
@@ -812,7 +830,7 @@ export default function StorageProducts() {
       });
 
       if (exists) {
-        setToast({ message: "Location already exists!", type: "error" });
+        showToast("Location already exists!", "error" );
         return;
       }
 
@@ -826,11 +844,11 @@ export default function StorageProducts() {
       const newLocation = response;
       setAllLocations((prev) => [...prev, newLocation]);
       setAddForm((prev) => ({ ...prev, locationId: newLocation.id }));
-      setToast({ message: "Location created successfully!", type: "success" });
+      showToast("Location created successfully!", "success" );
       setShowQuickLocationModal(false);
     } catch (err) {
       console.error(err);
-      setToast({ message: err.response?.data?.message || "Failed to create location.", type: "error" });
+      showToast(err.response?.data?.message || "Failed to create location.", "error" );
     }
   };
 
@@ -936,7 +954,11 @@ export default function StorageProducts() {
                 <div className="button-group-spacer"></div>
 
                 {/* Add Product Button */}
-                <button onClick={handleOpenAddModal} className="btn-action btn-add">
+                <button
+                  onClick={handleOpenAddModal}
+                  className={`btn-action btn-add ${!canAddEditDelete ? "disabled" : ""}`}
+                  disabled={!canAddEditDelete}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                     <path fill="none" stroke="currentColor" strokeWidth="2" d="M12 5v14M5 12h14"/>
                   </svg>
@@ -946,8 +968,8 @@ export default function StorageProducts() {
                 {/* Remove Product Button */}
                 <button
                   onClick={handleOpenRemoveModal}
-                  className={`btn-action btn-confirm-negative ${!selectedProduct ? "disabled" : ""}`}
-                  disabled={!selectedProduct}
+                  className={`btn-action btn-confirm-negative ${!selectedProduct || !canAddEditDelete ? "disabled" : ""}`}
+                  disabled={!selectedProduct || !canAddEditDelete}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                     <path fill="none" stroke="currentColor" strokeWidth="2" d="M5 12h14"/>
@@ -955,7 +977,7 @@ export default function StorageProducts() {
                   Remove Product
                 </button>
 
-                {/* Transfer Product Button */}
+                {/* Transfer Product Button - Always enabled (Move between locations allowed for all) */}
                 <button
                   onClick={handleOpenTransferModal}
                   className={`btn-action btn-edit ${!selectedProduct ? "disabled" : ""}`}
@@ -1207,15 +1229,6 @@ export default function StorageProducts() {
       />
 
       {/* === TOAST NOTIFICATIONS === */}
-      {toast && (
-        <MessageBox
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={() => setToast(null)}
-          className="centered"
-        />
-      )}
     </div>
   );
 }

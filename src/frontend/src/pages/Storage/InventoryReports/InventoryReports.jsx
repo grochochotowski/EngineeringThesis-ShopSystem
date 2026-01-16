@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { api } from "../../../api/apiClient";
 import Header from "../../../components/Header";
-import MessageBox from "../../../components/MessageBox";
+import { useToast } from "../components/ToastContext";
 import { printInventoryReportPDF } from "../../../utils/printService";
 import "../../../styles/PagesStyles/baseListPage.css";
 import "../../../styles/PagesStyles/reports.css";
@@ -33,6 +33,7 @@ const CHANGE_TYPES = {
  * Supports PDF export via printService utility
  */
 export default function InventoryReports() {
+  const { showToast } = useToast();
   // === STATE ===
   // User context
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}"); // Current logged-in user
@@ -48,8 +49,7 @@ export default function InventoryReports() {
   const [reportData, setReportData] = useState(null); // Generated report data from API
   const [loading, setLoading] = useState(false); // Loading indicator for report generation
 
-  // UI state
-  const [toast, setToast] = useState(null); // Toast notification state (message, type)
+  // UI state // Toast notification state (message, type)
 
   // === DATE FORMATTING HELPERS ===
   /**
@@ -181,7 +181,7 @@ export default function InventoryReports() {
   const handleGenerateReport = async () => {
     // Validate custom date range
     if (datePreset === "custom" && (!dateFrom || !dateTo)) {
-      setToast({ type: "error", message: "Please select both From Date and To Date for custom range." });
+      showToast("Please select both From Date and To Date for custom range.", "error");
       return;
     }
 
@@ -208,10 +208,10 @@ export default function InventoryReports() {
       // Fetch report data from API
       const data = await api.get("/InventoryChange", { params });
       setReportData(data);
-      setToast({ type: "success", message: "Report generated successfully!" });
+      showToast("Report generated successfully!", "success");
     } catch (err) {
       console.error("Failed to generate report:", err);
-      setToast({ type: "error", message: err.response?.data?.error || "Failed to generate report." });
+      showToast(err.response?.data?.error || "Failed to generate report.", "error");
     } finally {
       setLoading(false);
     }
@@ -224,7 +224,7 @@ export default function InventoryReports() {
    */
   const handlePrint = async () => {
     if (!reportData) {
-      setToast({ type: "error", message: "No report data to print. Please generate a report first." });
+      showToast("No report data to print. Please generate a report first.", "error");
       return;
     }
 
@@ -246,10 +246,10 @@ export default function InventoryReports() {
           },
         }
       );
-      setToast({ type: "success", message: `Report saved as ${fileName}` });
+      showToast(`Report saved as ${fileName}`, "success");
     } catch (error) {
       console.error("Failed to print report:", error);
-      setToast({ type: "error", message: "Failed to generate PDF. Please try again." });
+      showToast("Failed to generate PDF. Please try again.", "error");
     }
   };
 
@@ -586,13 +586,6 @@ export default function InventoryReports() {
       </main>
 
       {/* === TOAST NOTIFICATIONS === */}
-      {toast && (
-        <MessageBox
-          type={toast.type}
-          message={toast.message}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   );
 }
