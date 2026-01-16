@@ -303,6 +303,7 @@ export default function TaxRates() {
           searchValue={searchQuery}
           deleteButtonLabel={selectedRow?._isActive ? "Deactivate" : "Activate"}
           deleteButtonClass={selectedRow?._isActive ? "btn-confirm-negative" : "btn-confirm-positive"}
+          observerRef={observerRef}
         />
       </main>
 

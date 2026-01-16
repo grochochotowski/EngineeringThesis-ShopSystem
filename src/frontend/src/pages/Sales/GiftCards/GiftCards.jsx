@@ -343,6 +343,7 @@ export default function GiftCards() {
           onAdd={handleAdd}
           onDelete={handleDelete}
           hideEditButton={true}
+          observerRef={observerRef}
         />
 
         {/* Filter Panel - Conditional rendering based on showFilters state */}
@@ -378,9 +379,6 @@ export default function GiftCards() {
             </button>
           </div>
         )}
-
-        {/* Intersection Observer target for infinite scroll */}
-        <div ref={observerRef} style={{ height: "1px" }} />
       </main>
 
       {/* Modals */}

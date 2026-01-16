@@ -318,6 +318,7 @@ export default function Addresses() {
           hideAddButton={true}
           hideEditButton={true}
           hideDeleteButton={true}
+          observerRef={observerRef}
         />
 
         {showFilters && (
@@ -345,7 +346,6 @@ export default function Addresses() {
           </div>
         )}
 
-        <div ref={observerRef} style={{ height: "1px" }} />
         {loading && (
           <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
         )}

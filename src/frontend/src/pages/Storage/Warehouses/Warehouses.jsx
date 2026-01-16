@@ -443,6 +443,7 @@ export default function Warehouses() {
               </svg>
             )
           }
+          observerRef={observerRef}
         />
 
         {/* Filter Panel - Conditional rendering based on showFilters state */}
@@ -476,9 +477,6 @@ export default function Warehouses() {
             </button>
           </div>
         )}
-
-        {/* Intersection Observer target for infinite scroll */}
-        <div ref={observerRef} style={{ height: "1px" }} />
       </main>
 
       {/* Modals */}

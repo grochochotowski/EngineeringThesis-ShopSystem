@@ -132,6 +132,7 @@ export default function BaseListPage({
     hideEditButton = false,
     hideDeleteButton = false,
     hideViewDetailsButton = false,
+    observerRef = null,
 }) {
     return (
         <div className="base-list-wrapper">
@@ -304,6 +305,8 @@ export default function BaseListPage({
                             )}
                         </tbody>
                     </table>
+                    {/* Infinite scroll observer element */}
+                    {observerRef && <div ref={observerRef} style={{ height: "1px" }} />}
                 </main>
             </div>
 

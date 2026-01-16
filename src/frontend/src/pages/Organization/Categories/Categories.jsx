@@ -342,6 +342,7 @@ export default function Categories() {
           sortDirection={sortDirection}
           deleteButtonLabel={selectedRow?._isActive ? "Deactivate" : "Activate"}
           deleteButtonClass={selectedRow?._isActive ? "btn-confirm-negative" : "btn-confirm-positive"}
+          observerRef={observerRef}
         />
 
         {showFilters && (
@@ -354,8 +355,6 @@ export default function Categories() {
             </select>
           </div>
         )}
-
-        <div ref={observerRef} style={{ height: "1px" }} />
       </main>
 
       <AddModal

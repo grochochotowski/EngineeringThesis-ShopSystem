@@ -547,6 +547,7 @@ export default function Clients() {
               </svg>
             )
           }
+          observerRef={observerRef}
         />
 
         {showFilters && (
@@ -567,7 +568,6 @@ export default function Clients() {
           </div>
         )}
 
-        <div ref={observerRef} style={{ height: "1px" }} />
         {loading && (
           <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
         )}

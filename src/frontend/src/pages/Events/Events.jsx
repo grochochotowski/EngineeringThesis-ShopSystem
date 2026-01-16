@@ -477,6 +477,7 @@ export default function Events() {
           }
           // Hide delete button
           hideDeleteButton={true}
+          observerRef={observerRef}
         />
 
         {showFilters && (
@@ -496,7 +497,6 @@ export default function Events() {
           </div>
         )}
 
-        <div ref={observerRef} style={{ height: "1px" }} />
         {loading && (
           <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
         )}

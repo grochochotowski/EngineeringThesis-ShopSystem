@@ -686,6 +686,7 @@ export default function Users() {
           disableAdd={disableManageActions}
           disableEdit={disableManageActions}
           disableDelete={disableManageActions}
+          observerRef={observerRef}
         />
 
         {showFilters && (
@@ -717,7 +718,6 @@ export default function Users() {
           </div>
         )}
 
-        <div ref={observerRef} style={{ height: "1px" }} />
         {loading && (
           <p style={{ textAlign: "center", marginTop: 10 }}>Loading...</p>
         )}
