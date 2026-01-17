@@ -76,11 +76,11 @@ namespace Backend.Api.Api.Services
             // Full-text search
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var searchTerm = $"%{search.ToLower()}%";
+                var term = search.ToLower();
                 query = query.Where(u =>
-                    EF.Functions.Like(u.City.ToLower(), searchTerm) ||
-                    EF.Functions.Like(u.Street.ToLower(), searchTerm) ||
-                    EF.Functions.Like(u.PostalCode.ToLower(), searchTerm));
+                    u.City.ToLower().Contains(term) ||
+                    u.Street.ToLower().Contains(term) ||
+                    u.PostalCode.ToLower().Contains(term));
             }
 
             // Sorting

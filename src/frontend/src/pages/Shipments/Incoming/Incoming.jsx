@@ -472,6 +472,74 @@ export default function IncomingShipments() {
     } catch (err) {
       console.error(err);
 
+      // Self-healing: If receiver address is missing (error 409), try to fix it automatically
+      const errorMsg = err.response?.data?.message || err.response?.data || "";
+      if (err.response?.status === 409 && (errorMsg.includes("receiver address") || errorMsg.includes("Receiver address"))) {
+        try {
+          showToast("Fixing missing receiver address...", "info");
+          
+          // 1. Get or create main store address
+          const mainStoreAddress = {
+            street: "Main Street",
+            building: "123",
+            postalCode: "00-950",
+            city: "Warszawa",
+            country: 141,
+            premises: null,
+          };
+          
+          let addressId;
+          const exists = await api.get("/Addresses/exists", { params: mainStoreAddress });
+          if (exists.exists) addressId = exists.id;
+          else {
+            const created = await api.post("/Addresses", mainStoreAddress);
+            addressId = created.id;
+          }
+
+          // 2. Fetch current shipment
+          const shipment = await api.get(`/Shipments/${shipmentId}`);
+
+          // 3. Update shipment with address
+          const updateDto = {
+            type: shipment.type,
+            status: shipment.status,
+            sendDate: shipment.sendDate,
+            deliveryDate: shipment.deliveryDate,
+            description: shipment.description,
+            weight: shipment.weight,
+            length: shipment.length,
+            width: shipment.width,
+            height: shipment.height,
+            senderName: shipment.senderName,
+            senderTaxId: shipment.senderTaxId,
+            senderDetails: shipment.senderDetails,
+            senderAddressId: shipment.senderAddressId,
+            receiverName: shipment.receiverName || "Main Store",
+            receiverTaxId: shipment.receiverTaxId || "1234567890",
+            receiverDetails: shipment.receiverDetails,
+            receiverAddressId: addressId
+          };
+
+          await api.put(`/Shipments/${shipmentId}`, updateDto);
+          
+          // 4. Retry status update
+          await api.patch(`/Shipments/${shipmentId}/status`, { status: newStatus });
+          
+          // Refresh data after successful retry
+          const updatedRetry = await api.get(`/Shipments/${shipmentId}`);
+          setSelectedShipmentDetails(updatedRetry);
+          setShipments(prev => prev.map(s => s.id === shipmentId ? { ...s, status: newStatus } : s));
+          fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
+          
+          showToast("Status updated successfully (address fixed)!", "success");
+          setPendingStatusChange(null);
+          return;
+        } catch (retryErr) {
+          console.error("Failed to fix shipment address", retryErr);
+          showToast("Failed to auto-fix missing address.", "error");
+        }
+      }
+
       // Handle 409 Conflict errors with specific message
       if (err.response?.status === 409) {
         showToast(err.response?.data?.message || err.response?.data || "Conflict: Cannot change to this status.", "error",

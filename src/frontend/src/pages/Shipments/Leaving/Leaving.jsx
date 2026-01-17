@@ -71,9 +71,9 @@ export default function LeavingShipments() {
   const [showPrepareModal, setShowPrepareModal] = useState(false);
   const [showViewProductsModal, setShowViewProductsModal] = useState(false);
 
-  // Search and filters - Default: all statuses EXCEPT Collected (id: 5)
+  // Search and filters - Default: active statuses (excluding Delivered, Cancelled, Returned)
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState([0, 1, 2, 3, 4, 6, 7]); // All but Collected
+  const [selectedStatuses, setSelectedStatuses] = useState([0, 1, 2, 3]); // Exclude 4 (Delivered), 6 (Cancelled), 7 (Returned)
   const [filters, setFilters] = useState({
     sendDateFrom: "",
     sendDateTo: "",
@@ -576,7 +576,10 @@ export default function LeavingShipments() {
   const handlePreparationCompleted = () => {
     fetchShipmentsData(1, filters, searchQuery, sortColumn, sortDirection, selectedStatuses);
     if (selectedRow) {
-      handleRowSelect(selectedRow);
+      // Update selected row status locally to "Awaiting Pickup" (2) to disable Prepare button immediately
+      const updatedRow = { ...selectedRow, statusRaw: 2, status: "Awaiting Pickup" }; // Assuming 2 is Awaiting Pickup
+      setSelectedRow(updatedRow);
+      handleRowSelect(updatedRow);
     }
   };
 

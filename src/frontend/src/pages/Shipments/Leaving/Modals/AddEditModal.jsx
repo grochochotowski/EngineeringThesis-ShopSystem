@@ -88,7 +88,7 @@ export default function AddEditModal({
           search: searchTerm, // Search by any field
         },
       });
-      setAddressSuggestions(response.data || []);
+      setAddressSuggestions(response.items || []);
       setShowAddressDropdown(true);
     } catch (err) {
       console.error("Failed to search addresses", err);
@@ -108,6 +108,32 @@ export default function AddEditModal({
   // Handle address selection from dropdown
   const handleSelectAddress = (address) => {
     setSelectedAddress(address);
+    
+    let countryId = 141; // Default Poland
+
+    if (address && address.country) {
+      // Strategy 1: Check if it's already a number or string number
+      if (!isNaN(address.country)) {
+        countryId = parseInt(address.country);
+      } else {
+        // Strategy 2: Normalize match (remove spaces, lowercase)
+        const normalize = (str) => str.replace(/\s+/g, '').toLowerCase();
+        const normalizedInput = normalize(address.country);
+        
+        const countryEntry = Object.entries(countries).find(([_, name]) => {
+          return normalize(name) === normalizedInput || name.toLowerCase() === address.country.toLowerCase();
+        });
+
+        if (countryEntry) {
+          countryId = parseInt(countryEntry[0]);
+        } else {
+          // Strategy 3: Try to handle common abbreviations if needed (e.g., USA)
+          // For now, just logging or fallback
+          console.warn("Could not map country:", address.country);
+        }
+      }
+    }
+
     setForm(prev => ({
       ...prev,
       receiverAddressId: address.id,
@@ -116,7 +142,7 @@ export default function AddEditModal({
       receiverPremises: address.premises || "",
       receiverPostalCode: address.postalCode,
       receiverCity: address.city,
-      receiverCountry: getCountryValue(address.country) || 141,
+      receiverCountry: countryId,
     }));
     setShowAddressDropdown(false);
     setAddressSearchInput("");

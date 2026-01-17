@@ -116,6 +116,13 @@ export default function AddModal({
   // Handle address selection from dropdown
   const handleSelectAddress = (address) => {
     setSelectedAddress(address);
+    // Find country ID from name (backend returns name string)
+    const normalize = (str) => str.replace(/\s+/g, '').toLowerCase();
+    const normalizedBackendCountry = normalize(address.country);
+
+    const countryEntry = Object.entries(countries).find(([_, name]) => normalize(name) === normalizedBackendCountry);
+    const countryId = countryEntry ? parseInt(countryEntry[0]) : 141; // Default to Poland if not found
+
     setAddForm(prev => ({
       ...prev,
       senderStreet: address.street,
@@ -123,7 +130,7 @@ export default function AddModal({
       senderPremises: address.premises || "",
       senderPostalCode: address.postalCode,
       senderCity: address.city,
-      senderCountry: address.country,
+      senderCountry: countryId,
     }));
     setShowAddressDropdown(false);
     setAddressSearchInput("");
@@ -397,7 +404,7 @@ export default function AddModal({
                             {addr.premises && <span>, {addr.premises}</span>}
                           </div>
                           <span className="address-suggestion-details">
-                            {addr.city}, {addr.postalCode} • {getCountryName(addr.country) || countries[addr.country] || addr.country}
+                            {addr.city}, {addr.postalCode} • {!isNaN(addr.country) ? (countries[addr.country] || "Unknown") : addr.country.replace(/([A-Z])/g, ' $1').trim()}
                           </span>
                         </div>
                       ))}
@@ -425,7 +432,7 @@ export default function AddModal({
                     <br />
                     {selectedAddress.postalCode} {selectedAddress.city}
                     <br />
-                    {getCountryName(selectedAddress.country) || countries[selectedAddress.country] || selectedAddress.country}
+                    {!isNaN(selectedAddress.country) ? (countries[selectedAddress.country] || "Unknown") : selectedAddress.country.replace(/([A-Z])/g, ' $1').trim()}
                   </div>
                   <button type="button" onClick={handleChangeAddress} className="btn-change-address">
                     Change Address
