@@ -81,18 +81,18 @@ export default function AddModal({ show, onClose, onSuccess }) {
 
         {error && <div className="error-message">{error}</div>}
 
-        <div className="modal-actions">
+        <div className="form-actions">
           <button
             type="button"
             onClick={handleClose}
-            className="btn-secondary"
+            className="btn-cancel"
             disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="btn-primary"
+            className="btn-confirm"
             disabled={loading}
           >
             {loading ? "Creating..." : "Create"}

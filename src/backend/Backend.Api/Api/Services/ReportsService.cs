@@ -5,6 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Api.Api.Services
 {
+    public interface IReportsService
+    {
+        Task<SalesReportDto> GetSalesReportAsync(
+            DateTime? dateFrom,
+            DateTime? dateTo,
+            int userId,
+            bool includeProductDetails = false,
+            CancellationToken ct = default);
+    }
+
     public class ReportsService : IReportsService
     {
         private readonly AppDbContext _db;
