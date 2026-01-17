@@ -40,7 +40,7 @@ namespace Backend.Api.Api.Services
             _inventoryChangeService = inventoryChangeService;
         }
 
-        // --- CREATE DOCUMENT ---
+        // --- CREATE DOCUMNET ---
         public async Task<int> CreateAsync(CreateSalesDocumentDto dto, int userId, CancellationToken ct = default)
         {
             // basic validations
@@ -144,7 +144,7 @@ namespace Backend.Api.Api.Services
             return doc.Id;
         }
 
-        // --- GET DOCUMENT BY ID---
+        // --- GET DOCUMENT BY ID --
         public async Task<GetSalesDocumentDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var doc = await _db.SalesDocuments
@@ -385,7 +385,7 @@ namespace Backend.Api.Api.Services
             if (itemsWithoutLocation.Any())
                 throw new ArgumentException("All physical items must have a valid location selected.", nameof(dto.Items));
 
-            // Start database transaction for atomicity
+            // Start safe database update
             using var transaction = await _db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -574,7 +574,7 @@ namespace Backend.Api.Api.Services
             if (dto.Items is null || dto.Items.Count == 0)
                 throw new ArgumentException("Return must contain at least one item.", nameof(dto.Items));
 
-            // Start database transaction for atomicity
+            // Start safe database update
             using var transaction = await _db.Database.BeginTransactionAsync(ct);
             try
             {
@@ -943,7 +943,7 @@ namespace Backend.Api.Api.Services
     {
         public static PagedResult<T> ToPagedResult<T>(this IEnumerable<T> source, int pageNumber, int pageSize)
         {
-            var sourceList = source.ToList(); // Materialize once to avoid multiple enumerations
+            var sourceList = source.ToList();
             var items = sourceList.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
             var totalCount = sourceList.Count;
 

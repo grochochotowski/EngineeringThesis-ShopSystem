@@ -31,7 +31,7 @@ namespace Backend.Api.Api.Services
             _config = config;
         }
 
-        // --- REGISTER ---
+        // --- REGISTRE ---
         public async Task<AuthUserDto> RegisterAsync(RegisterUserDto dto, CancellationToken ct = default)
         {
             // Check for duplicates

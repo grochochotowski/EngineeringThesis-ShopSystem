@@ -3,8 +3,6 @@ const API_BASE_URL = "https://localhost:7132/api";
 export async function apiRequest(path, method = "GET", body = null, params = {}) {
     const token = localStorage.getItem("token");
 
-    // Build query string manually to handle arrays correctly
-    // ASP.NET Core expects arrays as multiple parameters: ?statuses=1&statuses=2&statuses=3
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
         if (Array.isArray(value)) {

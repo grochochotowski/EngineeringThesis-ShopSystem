@@ -13,7 +13,16 @@ const roleHierarchy = {
     Root: 8,
 };
 
-const ProtectedRoute = ({ userRole, requiredRole, children }) => {
+const ProtectedRoute = ({ requiredRole, children }) => {
+    // Get user role dynamically from localStorage (not from props)
+    let userRole = null;
+    try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        userRole = user?.role || null;
+    } catch {
+        userRole = null;
+    }
+
     let userRank = 0;
     const requiredRank = roleHierarchy[requiredRole] ?? 0;
 
@@ -23,7 +32,6 @@ const ProtectedRoute = ({ userRole, requiredRole, children }) => {
     } else {
         userRank = roleHierarchy[userRole] ?? 0;
     }
-
 
     if (userRank < requiredRank) {
         return <AccessDenied />;

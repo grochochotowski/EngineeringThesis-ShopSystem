@@ -41,8 +41,7 @@ export default function GiftCards() {
   const [sortDirection, setSortDirection] = useState("desc"); // Sort direction (asc/desc)
 
   // Refs
-  const lastSelectedId = useRef(null); // Stores last selected gift card ID for persistence
-  const observerRef = useRef(null); // Ref for intersection observer (infinite scroll)
+      const lastSelectedId = useRef(null); // Stores last selected gift card ID for remembering selection  const observerRef = useRef(null); // Ref for intersection observer (infinite scroll)
   const filtersRef = useRef(null); // Ref for filters panel (click-outside detection)
 
   // User context

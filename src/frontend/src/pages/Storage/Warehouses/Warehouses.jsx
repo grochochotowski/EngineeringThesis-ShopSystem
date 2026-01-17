@@ -54,8 +54,7 @@ export default function Warehouses() {
   const [sortDirection, setSortDirection] = useState("asc"); // Sort direction (default: ascending)
 
   // Refs
-  const lastSelectedId = useRef(null); // Stores last selected location ID for persistence
-  const observerRef = useRef(null); // Ref for intersection observer (infinite scroll)
+      const lastSelectedId = useRef(null); // Stores last selected location ID for remembering selection  const observerRef = useRef(null); // Ref for intersection observer (infinite scroll)
   const filtersRef = useRef(null); // Ref for filters panel (click-outside detection)
 
   // User context

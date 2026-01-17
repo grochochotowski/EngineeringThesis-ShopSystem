@@ -51,16 +51,6 @@ const PrivateRoute = ({ children }) => {
     return state.isLoggedIn ? children : <Navigate to="/" replace/>;
 };
 
-// Helper function to get user role from localStorage user object
-const getUserRole = () => {
-    try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        return user?.role || null;
-    } catch {
-        return null;
-    }
-};
-
 // Router definition
 const router = createBrowserRouter([
     { path: '/', element: <Login />, errorElement: <NotFound /> },
@@ -71,7 +61,7 @@ const router = createBrowserRouter([
         path: '/pos',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <POS />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -82,7 +72,7 @@ const router = createBrowserRouter([
         path: '/sales/documents',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <SalesDocuments />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -93,7 +83,7 @@ const router = createBrowserRouter([
         path: '/sales/giftcards',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <GiftCards />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -104,7 +94,7 @@ const router = createBrowserRouter([
         path: '/reports',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="Manager">
+                <ProtectedRoute requiredRole="shop-assistant">
                     <Reports />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -116,7 +106,7 @@ const router = createBrowserRouter([
         path: '/organization/users',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="Manager">
+                <ProtectedRoute requiredRole="deputy-manager">
                     <Users />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -127,7 +117,7 @@ const router = createBrowserRouter([
         path: '/organization/clients',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Clients />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -138,7 +128,7 @@ const router = createBrowserRouter([
         path: '/organization/addresses',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Addresses />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -149,7 +139,7 @@ const router = createBrowserRouter([
         path: '/organization/categories',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Categories />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -160,7 +150,7 @@ const router = createBrowserRouter([
         path: '/organization/tax-rates',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="DeputyManager">
                     <TaxRates />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -171,7 +161,7 @@ const router = createBrowserRouter([
         path: '/organization/products',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <OrganizationProducts />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -182,7 +172,7 @@ const router = createBrowserRouter([
         path: '/events',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Events />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -193,7 +183,7 @@ const router = createBrowserRouter([
         path: '/storage/products',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <StorageProducts />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -204,7 +194,7 @@ const router = createBrowserRouter([
         path: '/storage/warehouse-structure',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Warehouses />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -215,7 +205,7 @@ const router = createBrowserRouter([
         path: '/storage/inventory-reports',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <InventoryReports />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -227,7 +217,7 @@ const router = createBrowserRouter([
         path: '/shipments/incoming',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <IncomingShipments />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -238,7 +228,7 @@ const router = createBrowserRouter([
         path: '/shipments/leaving',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <LeavingShipments />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -250,7 +240,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/client-types',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <ClientTypes />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -261,7 +251,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/payment-options',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <PaymentOptions />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -272,7 +262,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/sales-document-types',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <SalesDocumentTypes />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -283,7 +273,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/shipment-statuses',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <ShipmentStatuses />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -294,7 +284,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/shipment-types',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <ShipmentTypes />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -305,7 +295,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/user-roles',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <UserRoles />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -316,7 +306,7 @@ const router = createBrowserRouter([
         path: '/dictionaries/countries',
         element: (
             <PrivateRoute>
-                <ProtectedRoute userRole={getUserRole()} requiredRole="ShopAssistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Countries />
                 </ProtectedRoute>
             </PrivateRoute>

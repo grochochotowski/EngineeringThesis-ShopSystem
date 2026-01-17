@@ -31,7 +31,7 @@ namespace Backend.Api.Api.Controllers
         private readonly AppDbContext _db;
         public ProductService(AppDbContext db) => _db = db;
 
-        // --- CREATE PRODUCT ---
+        // --- CRAETE PRODUCT ---
         public async Task<GetProductDto> CreateAsync(CreateProductDto dto, CancellationToken ct = default)
         {
             if (!await _db.Categories.AnyAsync(c => c.Id == dto.CategoryId, ct))
@@ -150,7 +150,7 @@ namespace Backend.Api.Api.Controllers
                     break;
             }
 
-            // projection to lightweight list DTO
+            // convert to simple list
             var projected = queryWithCategory
                 .Select(x => new GetProductListItemDto
                 {
@@ -168,7 +168,7 @@ namespace Backend.Api.Api.Controllers
             return await projected.ToPagedResultAsync(pagination.PageNumber, pagination.PageSize, ct);
         }
 
-        // --- UPDATE PRODUCT ---
+        // --- UPDTAE PRODUCT ---
         public async Task<bool> UpdateAsync(int id, UpdateProductDto dto, CancellationToken ct = default)
         {
             var e = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
@@ -209,7 +209,7 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
-        // --- DEACTIVATE PRODUCT ---
+        // --- DEACTVATE PRODUCT ---
         public async Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
         {
             var e = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);

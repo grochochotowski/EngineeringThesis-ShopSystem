@@ -81,7 +81,7 @@ namespace Backend.Api.Api.Services
             // Get total count before pagination
             var totalCount = await qry.CountAsync(ct);
 
-            // Materialize entities first (apply pagination)
+            // Get data from database (apply pagination)
             var entities = await qry
                 .Skip((pagination.PageNumber - 1) * pagination.PageSize)
                 .Take(pagination.PageSize)

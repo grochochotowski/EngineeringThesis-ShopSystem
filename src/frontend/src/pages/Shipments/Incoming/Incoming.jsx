@@ -933,7 +933,7 @@ export default function IncomingShipments() {
     try {
       setSavingShipment(true);
 
-      // Step 1: Create sender address (backend expects Country enum as integer)
+      // Step 1: Create sender address
       const senderAddressPayload = {
         country: parseInt(addForm.senderCountry), // Already an enum value
         city: addForm.senderCity,
@@ -1171,7 +1171,7 @@ export default function IncomingShipments() {
     try {
       setSavingEdit(true);
 
-      // Step 1: Update sender address (backend expects Country enum as integer)
+      // Step 1: Update sender address
       const senderAddressPayload = {
         country: parseInt(editForm.senderCountry), // Already an enum value
         city: editForm.senderCity,

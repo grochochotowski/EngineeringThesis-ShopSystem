@@ -9,7 +9,7 @@ export default function Header({ user, onLogout }) {
     const userRef = useRef(null);
     const navigate = useNavigate();
 
-    // === MENU STRUCTURE ===
+    // === MENU STRUCTRE ===
     const menuStructure = [
         {
             title: "Sales",
@@ -66,7 +66,7 @@ export default function Header({ user, onLogout }) {
         },
     ];
 
-    // === Toggle dropdown ===
+    // === Toogle dropdown ===
     const toggleMenu = (index) => {
         setOpenMenu(openMenu === index ? null : index);
     };

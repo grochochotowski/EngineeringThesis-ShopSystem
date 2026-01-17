@@ -481,7 +481,6 @@
     width: 100%;
 }
 
-/* Image upload area in right column */
 .event-form-right .file-drop-zone {
     flex: 1;
 }

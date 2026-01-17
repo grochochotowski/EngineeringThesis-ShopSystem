@@ -321,7 +321,6 @@ export default function POS() {
   }, [round2]);
 
   // Calculate totals (European pricing: tax included in price)
-  // IMPORTANT: Must match backend rounding logic exactly to avoid payment validation errors
   const calculateTotals = useCallback((products) => {
     let totalNet = 0;
     let totalTax = 0;
@@ -352,19 +351,19 @@ export default function POS() {
   const totals = calculateTotals(scannedProducts);
 
   // Calculate total paid and remaining balance
-  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const remainingBalance = parseFloat(totals.totalGross) - totalPaid;
+  const totalPaid = Math.round(payments.reduce((sum, payment) => sum + payment.amount, 0) * 100) / 100;
+  const remainingBalance = Math.round((parseFloat(totals.totalGross) - totalPaid) * 100) / 100;
 
   // Calculate total amount tendered (actual amount customer gave)
-  const totalTendered = payments.reduce((sum, payment) => {
+  const totalTendered = Math.round(payments.reduce((sum, payment) => {
     // For Cash: use amountTendered; for Card/Gift Card: use amount charged
     return sum + (payment.method === 'Cash' && payment.amountTendered ? payment.amountTendered : payment.amount);
-  }, 0);
+  }, 0) * 100) / 100;
 
   // Two separate flags for different purposes:
   const isFullyPaid = scannedProducts.length > 0 && remainingBalance <= 0; // Is transaction fully paid?
 
-  const change = totalTendered - parseFloat(totals.totalGross);
+  const change = Math.round((totalTendered - parseFloat(totals.totalGross)) * 100) / 100;
 
   // Update payment amount when totals change
   useEffect(() => {
@@ -1156,7 +1155,10 @@ export default function POS() {
       }
 
       // Validate document type (cannot return a return document)
-      if (fullDoc.documentType === 4 || fullDoc.documentType === 5) { // ReceiptReturn or InvoiceReturn
+      // Check both number and string values since API might return either
+      const docType = fullDoc.documentType;
+      if (docType === 4 || docType === 5 || docType === '4' || docType === '5' ||
+          docType === 'ReceiptReturn' || docType === 'InvoiceReturn') {
         showToast('Cannot return a return document', 'error');
         return;
       }
@@ -1166,7 +1168,10 @@ export default function POS() {
 
       // Initialize return items with location lines (exclude gift cards - digital products are not returnable)
       const returnableItems = fullDoc.items
-        .filter(item => item.productSKU !== '_gc') // Filter out gift cards
+        .filter(item => {
+          // Filter out gift cards (SKU '_gc' is non-returnable)
+          return item.productSKU !== '_gc';
+        })
         .map(item => ({
           ...item,
           returnQuantity: 0,

@@ -71,7 +71,7 @@ namespace Backend.Api
                 });
             });
 
-            // --- DEPENDENCY INJECTION ---
+            // --- SERVICES SETUP ---
             builder.Services.AddScoped<IAddressService, AddressService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();

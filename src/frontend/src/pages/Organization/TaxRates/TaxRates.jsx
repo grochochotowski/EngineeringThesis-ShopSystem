@@ -29,6 +29,7 @@ export default function TaxRates() {
   const [selectedRow, setSelectedRow] = useState(null);
   const [actionableTaxRate, setActionableTaxRate] = useState(null);
   const lastSelectedId = useRef(null);
+  const observerRef = useRef(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);

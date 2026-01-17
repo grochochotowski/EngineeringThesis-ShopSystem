@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { api } from "../../../api/apiClient";
 import Header from "../../../components/Header";
-import { useToast } from "../components/ToastContext";
+import { useToast } from "../../../components/ToastContext";
 import { printInventoryReportPDF } from "../../../utils/printService";
 import "../../../styles/PagesStyles/baseListPage.css";
 import "../../../styles/PagesStyles/reports.css";
