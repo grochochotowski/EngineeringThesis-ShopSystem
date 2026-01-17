@@ -22,7 +22,6 @@ namespace Backend.Api.Api.Controllers
 
         // --- GET SALES REPORT ---
         [HttpGet("sales")]
-        [Authorize(Roles = "Manager,SeniorManager,Director,Administrator,Root")]
         public async Task<ActionResult<SalesReportDto>> GetSalesReport(
             [FromQuery] DateTime? dateFrom,
             [FromQuery] DateTime? dateTo,

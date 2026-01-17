@@ -46,15 +46,17 @@
 }
 
 .checkbox-input {
-  width: 18px;
-  height: 18px;
+  width: 18px !important;
+  height: 18px !important;
   cursor: pointer;
   accent-color: var(--accent-main);
   flex-shrink: 0;
+  margin: 0;
 }
 
 .checkbox-text {
   white-space: nowrap;
+  color: #334155;
 }
 
 /* Button Group */

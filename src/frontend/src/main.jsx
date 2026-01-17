@@ -94,7 +94,7 @@ const router = createBrowserRouter([
         path: '/reports',
         element: (
             <PrivateRoute>
-                <ProtectedRoute requiredRole="shop-assistant">
+                <ProtectedRoute requiredRole="ShopAssistant">
                     <Reports />
                 </ProtectedRoute>
             </PrivateRoute>
@@ -106,7 +106,7 @@ const router = createBrowserRouter([
         path: '/organization/users',
         element: (
             <PrivateRoute>
-                <ProtectedRoute requiredRole="deputy-manager">
+                <ProtectedRoute requiredRole="DeputyManager">
                     <Users />
                 </ProtectedRoute>
             </PrivateRoute>
