@@ -209,7 +209,7 @@ namespace Backend.Api.Api.Controllers
             return true;
         }
 
-        // --- DEACTVATE PRODUCT ---
+        // --- DEACTIVATE PRODUCT ---
         public async Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
         {
             var e = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);

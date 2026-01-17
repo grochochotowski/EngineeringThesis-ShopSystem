@@ -9,7 +9,7 @@ export default function Header({ user, onLogout }) {
     const userRef = useRef(null);
     const navigate = useNavigate();
 
-    // === MENU STRUCTRE ===
+    // === MENU STRUCTURE ===
     const menuStructure = [
         {
             title: "Sales",

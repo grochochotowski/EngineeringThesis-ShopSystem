@@ -10,7 +10,6 @@ import { useToast } from "../../../components/ToastContext";
 
 // === ROLE HELPER FUNCTIONS ===
 const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
-const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
 const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===

@@ -10,7 +10,6 @@ import { useToast } from "../../../components/ToastContext";
 
 // === ROLE HELPER FUNCTIONS ===
 const ROLE_HIERARCHY = ["Marketer", "ItTechnician", "ShopAssistant", "DeputyManager", "Manager", "CEO", "Admin", "Root"];
-const getRoleLevel = (role) => ROLE_HIERARCHY.indexOf(role);
 const isDeputyManagerOrAbove = (role) => ROLE_HIERARCHY.indexOf(role) >= ROLE_HIERARCHY.indexOf("DeputyManager");
 
 // === COMPONENT ===
@@ -98,7 +97,7 @@ export default function Categories() {
     }, searchQuery ? 500 : 0); // Immediate for non-search, debounced for search
 
     return () => clearTimeout(handler);
-  }, [searchQuery, filters, sortColumn, sortDirection]);
+  }, [searchQuery, filters, sortColumn, sortDirection, fetchCategories]);
 
   /**
    * Infinite scroll observer - loads next page when sentinel is visible
@@ -126,8 +125,7 @@ export default function Categories() {
     if (pageNumber > 1) {
       fetchCategories(pageNumber);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNumber]);
+  }, [pageNumber, fetchCategories]);
 
   /**
    * Close filters panel when clicking outside

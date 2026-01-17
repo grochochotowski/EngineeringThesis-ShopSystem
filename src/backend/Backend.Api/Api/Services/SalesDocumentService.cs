@@ -144,7 +144,7 @@ namespace Backend.Api.Api.Services
             return doc.Id;
         }
 
-        // --- GET DOCUMENT BY ID --
+        // --- GET DOCUMENT BY ID---
         public async Task<GetSalesDocumentDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var doc = await _db.SalesDocuments
