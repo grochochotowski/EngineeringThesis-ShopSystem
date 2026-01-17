@@ -8,7 +8,7 @@
     flex-direction: column-reverse;
     align-items: center;
     gap: 10px;
-    z-index: var(--z-toast);
+    z-index: var(--z-toast, 99999);
     pointer-events: none;
 }
 
@@ -25,16 +25,16 @@
     align-items: flex-start;
     gap: 10px;
 
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md, 8px);
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
 
     opacity: 0;
-    transition: var(--transition-fast);
+    transition: var(--transition-fast, 150ms ease-in-out);
     overflow: hidden;
     pointer-events: auto;
 
-    background: var(--bg-card);
-    color: var(--text-dark);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-dark, #0f1624);
 }
 
 /* === Animations === */
@@ -48,32 +48,37 @@
 }
 
 /* === Show/hide states === */
-.message-box.show { animation: fadeInToast var(--transition-slow) ease forwards; }
-.message-box.hide { animation: fadeOutToast var(--transition-slow) ease forwards; }
+.message-box.show {
+    animation: fadeInToast var(--transition-slow, 0.35s) ease forwards !important;
+    opacity: 1;
+}
+.message-box.hide {
+    animation: fadeOutToast var(--transition-slow, 0.35s) ease forwards !important;
+}
 
 /* === Message types === */
 .message-box.success {
-    background-color: var(--toast-success-bg);
-    border: var(--border-width) solid var(--toast-success-border);
-    color: var(--toast-success-text);
+    background-color: var(--toast-success-bg, #e6fffa);
+    border: var(--border-width, 1px) solid var(--toast-success-border, #22543d);
+    color: var(--toast-success-text, #22543d);
 }
 
 .message-box.error {
-    background-color: var(--toast-error-bg);
-    border: var(--border-width) solid var(--toast-error-border);
-    color: var(--toast-error-text);
+    background-color: var(--toast-error-bg, #fff5f5);
+    border: var(--border-width, 1px) solid var(--toast-error-border, #742a2a);
+    color: var(--toast-error-text, #742a2a);
 }
 
 .message-box.info {
-    background-color: var(--toast-info-bg);
-    border: var(--border-width) solid var(--toast-info-border);
-    color: var(--toast-info-text);
+    background-color: var(--toast-info-bg, #ebf8ff);
+    border: var(--border-width, 1px) solid var(--toast-info-border, #1e3a8a);
+    color: var(--toast-info-text, #1e3a8a);
 }
 
 .message-box.warning {
-    background-color: var(--toast-warning-bg);
-    border: var(--border-width) solid var(--toast-warning-border);
-    color: var(--toast-warning-text);
+    background-color: var(--toast-warning-bg, #fffbea);
+    border: var(--border-width, 1px) solid var(--toast-warning-border, #744210);
+    color: var(--toast-warning-text, #744210);
 }
 
 /* === Inside elements === */
