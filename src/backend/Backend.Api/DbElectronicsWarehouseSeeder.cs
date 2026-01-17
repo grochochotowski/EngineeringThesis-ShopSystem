@@ -78,7 +78,8 @@ namespace Backend.Api.Infrastructure
                 "Cellphones",
                 "SmartHome",
                 "LED Strips",
-                "Accessories"
+                "Accessories",
+                "Gift Cards"
             };
             var map = new Dictionary<string, int>();
             foreach (var name in names)
@@ -544,6 +545,12 @@ namespace Backend.Api.Infrastructure
                 ("Tripod Desk", "Clamp-on, ball head", 49),
             }, cap: null);
 
+            // Gift Card virtual product (used by POS "Buy Gift Card" button, SKU "_gc" marks it as non-returnable)
+            AddDefs("Gift Cards", new (string name, string desc, decimal price)[]
+            {
+                ("Gift Card", "Digital gift card - price set at checkout", 0),
+            });
+
             // Ensure volume ~200 items by duplicating varied accessories if needed
             while (definitions.Count < 200)
             {
@@ -554,7 +561,18 @@ namespace Backend.Api.Infrastructure
             int skuCounter = 1;
             foreach (var def in definitions.Take(220)) // safety cap
             {
-                var sku = $"ELC-{skuCounter:0000}";
+                // Use special SKU "_gc" for gift card product to mark it as non-returnable
+                string sku;
+                if (def.Category == "Gift Cards")
+                {
+                    sku = "_gc";
+                }
+                else
+                {
+                    sku = $"ELC-{skuCounter:0000}";
+                    skuCounter++;
+                }
+
                 var ean = $"5909999{skuCounter:000000}";
 
                 products.Add(new Product
@@ -568,7 +586,6 @@ namespace Backend.Api.Infrastructure
                     TaxRateId = vat23Id,
                     IsActive = true
                 });
-                skuCounter++;
                 if (products.Count >= 200) break;
             }
 
@@ -598,7 +615,8 @@ namespace Backend.Api.Infrastructure
                 { "Cellphones", "WZ09" },
                 { "SmartHome", "WZ10" },
                 { "LED Strips", "WZ11" },
-                { "Accessories", "WZ12" }
+                { "Accessories", "WZ12" },
+                { "Gift Cards", "WZ13" }
             };
 
             var entries = new List<ProductsInWarehouse>();

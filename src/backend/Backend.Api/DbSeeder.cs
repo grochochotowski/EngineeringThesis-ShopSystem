@@ -21,7 +21,6 @@ namespace Backend.Api.Infrastructure
             if (!_db.Database.CanConnect()) return;
 
             // --- ADD MAIN COMPANY ADDRESS FIRST (for incoming shipments receiver) ---
-            // IMPORTANT: This must be the first address created to ensure it gets ID 1
             Address mainCompanyAddress;
             var existingMainCompanyAddress = _db.Addresses.FirstOrDefault(a =>
                 a.Street == "Main Street" &&
