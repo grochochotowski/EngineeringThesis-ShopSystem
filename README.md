@@ -75,6 +75,8 @@ The thesis also evaluated API responses and complete user scenarios through the 
 
 The application currently runs only in a local development environment. There is no hosted demo or production release at this time.
 
+The repository contains a development-only JWT signing key so the academic prototype can run locally after cloning. Any deployed version must replace it with a private value supplied through environment configuration or a secret manager.
+
 ## Design scope
 
 The thesis focused on integrating sales and warehouse processes that are often handled by separate systems. The implementation includes synchronized inventory updates, controlled workflow transitions, multi-user access, and a social-events module for promoting a physical store.
